@@ -214,9 +214,10 @@ each additional Phase that processes it.
 		      and easy to fine tune the Mesh.   One concept that is important to remember and that 
 		      will make using the Phase 4 command easy to use is this:  You are editing the Mesh Points.
 		      If you have too little clearance and not much plastic was extruded in an area, you want to
-		      LOWER the Mesh Point at the location.  If you did not get good adheasion, you want to
-		      RAISE the Mesh Point at that location.
-
+		      RAISE the Mesh Point at the location.  If you did not get good adheasion, you want to
+		      LOWER the Mesh Point at that location.  The mesh point value is added to the Z height when 
+		      the nozzle travels over the mesh point.  As a result of this, a positive number will raise 
+		      the nozzle and a negative number will pull the nozzle down towards the bed.
 
       P5    Phase 5   Find Mean Mesh Height and Standard Deviation.   Typically, it is easier to use and
       		      work with the Mesh if it is Mean Adjusted.  You can specify a C parameter to 
