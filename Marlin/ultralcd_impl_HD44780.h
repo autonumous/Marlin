@@ -378,7 +378,7 @@ static void lcd_implementation_init(
   lcd.clear();
 }
 
-static void lcd_implementation_clear() { lcd.clear(); }
+void lcd_implementation_clear() { lcd.clear(); }
 
 /* Arduino < 1.0.0 is missing a function to print PROGMEM strings, so we need to implement our own */
 void lcd_printPGM(const char *str) {
@@ -807,7 +807,7 @@ static void lcd_implementation_status_screen() {
     static void lcd_implementation_hotend_status(const uint8_t row) {
       if (row < LCD_HEIGHT) {
         lcd.setCursor(LCD_WIDTH - 9, row);
-        lcd.print(LCD_STR_THERMOMETER[active_extruder]);
+        lcd.print(LCD_STR_THERMOMETER[0]);
         lcd.print(itostr3(thermalManager.degHotend(active_extruder)));
         lcd.print('/');
         lcd.print(itostr3(thermalManager.degTargetHotend(active_extruder)));
