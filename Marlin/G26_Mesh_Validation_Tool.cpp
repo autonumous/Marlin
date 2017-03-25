@@ -24,25 +24,27 @@
  * Marlin Firmware -- G26 - Mesh Validation Tool
  */
 
-#define EXTRUSION_MULTIPLIER 1.0    // This is too much clutter for the main Configuration.h file  But
-#define RETRACTION_MULTIPLIER 1.0   // some user have expressed an interest in being able to customize
-#define NOZZLE 0.3                  // these numbers for thier printer so they don't need to type all
-#define FILAMENT 1.75               // the options every time they do a Mesh Validation Print.
-#define LAYER_HEIGHT 0.2
-#define PRIME_LENGTH 10.0           // So, we put these number in an easy to find and change place.
-#define BED_TEMP 60.0
-#define HOTEND_TEMP 205.0
-#define OOZE_AMOUNT 0.3
+#include "MarlinConfig.h"
 
-#include "Marlin.h"
-#include "Configuration.h"
-#include "planner.h"
-#include "stepper.h"
-#include "temperature.h"
-#include "UBL.h"
-#include "ultralcd.h"
+#if ENABLED(AUTO_BED_LEVELING_UBL) && ENABLED(UBL_MESH_EDIT_ENABLED)
 
-#if ENABLED(AUTO_BED_LEVELING_UBL)
+  #include "Marlin.h"
+  #include "Configuration.h"
+  #include "planner.h"
+  #include "stepper.h"
+  #include "temperature.h"
+  #include "UBL.h"
+  #include "ultralcd.h"
+
+  #define EXTRUSION_MULTIPLIER 1.0    // This is too much clutter for the main Configuration.h file  But
+  #define RETRACTION_MULTIPLIER 1.0   // some user have expressed an interest in being able to customize
+  #define NOZZLE 0.3                  // these numbers for thier printer so they don't need to type all
+  #define FILAMENT 1.75               // the options every time they do a Mesh Validation Print.
+  #define LAYER_HEIGHT 0.2
+  #define PRIME_LENGTH 10.0           // So, we put these number in an easy to find and change place.
+  #define BED_TEMP 60.0
+  #define HOTEND_TEMP 205.0
+  #define OOZE_AMOUNT 0.3
 
   #define SIZE_OF_INTERSECTION_CIRCLES 5
   #define SIZE_OF_CROSS_HAIRS 3 // cross hairs inside the circle.  This number should be
@@ -50,64 +52,64 @@
 
   /**
    *   Roxy's G26 Mesh Validation Tool
-   *  
+   *
    *   G26 Is a Mesh Validation Tool intended to provide support for the Marlin Unified Bed Leveling System.
    *   In order to fully utilize and benefit from the Marlin Unified Bed Leveling System an accurate Mesh must
    *   be defined.  G29 is designed to allow the user to quickly validate the correctness of her Mesh.  It will
    *   first heat the bed and nozzle. It will then print lines and circles along the Mesh Cell boundaries and
    *   the intersections of those lines (respectively).
-   *  
+   *
    *   This action allows the user to immediately see where the Mesh is properly defined and where it needs to
    *   be edited.  The command will generate the Mesh lines closest to the nozzle's starting position.  Alternatively
    *   the user can specify the X and Y position of interest with command parameters.  This allows the user to
    *   focus on a particular area of the Mesh where attention is needed.
-   *  
+   *
    *   B #  Bed   Set the Bed Temperature.  If not specified, a default of 60 C. will be assumed.
-   *  
+   *
    *   C    Current   When searching for Mesh Intersection points to draw, use the current nozzle location
    *        as the base for any distance comparison.
-   *  
+   *
    *   D    Disable   Disable the Unified Bed Leveling System.  In the normal case the user is invoking this
    *        command to see how well a Mesh as been adjusted to match a print surface.  In order to do
    *        this the Unified Bed Leveling System is turned on by the G26 command.  The D parameter
    *        alters the command's normal behaviour and disables the Unified Bed Leveling System even if
    *        it is on.
-   *  
+   *
    *   H #  Hotend    Set the Nozzle Temperature.  If not specified, a default of 205 C. will be assumed.
-   *  
+   *
    *   F #  Filament  Used to specify the diameter of the filament being used.  If not specified
    *        1.75mm filament is assumed.  If you are not getting acceptable results by using the
    *        'correct' numbers, you can scale this number up or down a little bit to change the amount
    *        of filament that is being extruded during the printing of the various lines on the bed.
-   *  
+   *
    *   K    Keep-On   Keep the heaters turned on at the end of the command.
-   *  
+   *
    *   L #  Layer   Layer height.  (Height of nozzle above bed)  If not specified .20mm will be used.
-   *  
+   *
    *   Q #  Multiplier  Retraction Multiplier.  Normally not needed.  Retraction defaults to 1.0mm and
    *        un-retraction is at 1.2mm   These numbers will be scaled by the specified amount
-   *  
+   *
    *   N #  Nozzle    Used to control the size of nozzle diameter.  If not specified, a .4mm nozzle is assumed.
-   *  
+   *
    *   O #  Ooooze    How much your nozzle will Ooooze filament while getting in position to print.  This
    *        is over kill, but using this parameter will let you get the very first 'cicle' perfect
    *        so you have a trophy to peel off of the bed and hang up to show how perfectly you have your
    *        Mesh calibrated.  If not specified, a filament length of .3mm is assumed.
-   *  
+   *
    *   P #  Prime   Prime the nozzle with specified length of filament.  If this parameter is not
    *        given, no prime action will take place.  If the parameter specifies an amount, that much
    *        will be purged before continuing.  If no amount is specified the command will start
    *        purging filament until the user provides an LCD Click and then it will continue with
    *        printing the Mesh.  You can carefully remove the spent filament with a needle nose
    *        pliers while holding the LCD Click wheel in a depressed state.
-   *  
+   *
    *   R #  Random    Randomize the order that the circles are drawn on the bed.  The search for the closest
    *        undrawn cicle is still done.  But the distance to the location for each circle has a
    *        random number of the size specified added to it.  Specifying R50 will give an interesting
    *        deviation from the normal behaviour on a 10 x 10 Mesh.
-   *  
+   *
    *   X #  X coordinate  Specify the starting location of the drawing activity.
-   *  
+   *
    *   Y #  Y coordinate  Specify the starting location of the drawing activity.
    */
 
@@ -156,7 +158,6 @@
 
   float valid_trig_angle(float);
   mesh_index_pair find_closest_circle_to_print(float, float);
-  void debug_current_and_destination(char *title);
   void ubl_line_to_destination(const float&, const float&, const float&, const float&, const float&, uint8_t);
   //uint16_t x_splits = 0xFFFF, uint16_t y_splits = 0xFFFF);  /* needed for the old mesh_buffer_line() routine */
 
@@ -172,19 +173,8 @@
 
   int8_t prime_flag = 0;
 
-  bool keep_heaters_on = false;
-
-  bool g26_debug_flag = false;
-
-  /**
-   * These support functions allow the use of large bit arrays of flags that take very
-   * little RAM. Currently they are limited to being 16x16 in size. Changing the declaration
-   * to unsigned long will allow us to go to 32x32 if higher resolution Mesh's are needed
-   * in the future.
-   */
-  void bit_clear(uint16_t bits[16], uint8_t x, uint8_t y) { CBI(bits[y], x); }
-  void bit_set(uint16_t bits[16], uint8_t x, uint8_t y) { SBI(bits[y], x); }
-  bool is_bit_set(uint16_t bits[16], uint8_t x, uint8_t y) { return TEST(bits[y], x); }
+  bool keep_heaters_on = false,
+       g26_debug_flag = false;
 
   /**
    * G26: Mesh Validation Pattern generation.
@@ -209,6 +199,7 @@
       set_current_to_destination();
     }
 
+    ubl_has_control_of_lcd_panel = true; // Take control of the LCD Panel!
     if (turn_on_heaters())     // Turn on the heaters, leave the command if anything
       goto LEAVE;              // has gone wrong.
 
@@ -243,19 +234,30 @@
     move_to(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS], 0.0);
     move_to(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS], ooze_amount);
 
-    ubl_has_control_of_lcd_panel++; // Take control of the LCD Panel!
+    ubl_has_control_of_lcd_panel = true; // Take control of the LCD Panel!
     debug_current_and_destination((char*)"Starting G26 Mesh Validation Pattern.");
 
-    wait_for_user = true;
+    /**
+     * Declare and generate a sin() & cos() table to be used during the circle drawing.  This will lighten
+     * the CPU load and make the arc drawing faster and more smooth
+     */
+    float sin_table[360 / 30 + 1], cos_table[360 / 30 + 1];
+    for (i = 0; i <= 360 / 30; i++) {
+      cos_table[i] = SIZE_OF_INTERSECTION_CIRCLES * cos(RADIANS(valid_trig_angle(i * 30.0)));
+      sin_table[i] = SIZE_OF_INTERSECTION_CIRCLES * sin(RADIANS(valid_trig_angle(i * 30.0)));
+    }
 
     do {
 
-      if (!wait_for_user) {                                     // Check if the user wants to stop the Mesh Validation
+      if (ubl_lcd_clicked()) {                                  // Check if the user wants to stop the Mesh Validation
         strcpy(lcd_status_message, "Mesh Validation Stopped."); // We can't do lcd_setstatus() without having it continue;
         #if ENABLED(ULTRA_LCD)
           lcd_setstatus("Mesh Validation Stopped.", true);
           lcd_quick_feedback();
         #endif
+        while (ubl_lcd_clicked()) {         // Wait until the user is done pressing the
+          idle();                           // Encoder Wheel if that is why we are leaving
+        }
         goto LEAVE;
       }
 
@@ -319,16 +321,6 @@
           end_angle   = 360.0;
         }
 
-        /**
-         * Declare and generate a sin() & cos() table to be used during the circle drawing.  This will lighten
-         * the CPU load and make the arc drawing faster and more smooth
-         */
-        float sin_table[360 / 30 + 1], cos_table[360 / 30 + 1];
-        for (i = 0; i <= 360 / 30; i++) {
-          cos_table[i] = SIZE_OF_INTERSECTION_CIRCLES * cos(RADIANS(valid_trig_angle(i * 30.0)));
-          sin_table[i] = SIZE_OF_INTERSECTION_CIRCLES * sin(RADIANS(valid_trig_angle(i * 30.0)));
-        }
-
         for (tmp = start_angle; tmp < end_angle - 0.1; tmp += 30.0) {
           int tmp_div_30 = tmp / 30.0;
           if (tmp_div_30 < 0) tmp_div_30 += 360 / 30;
@@ -361,13 +353,16 @@
           }
 
           print_line_from_here_to_there(x, y, layer_height, xe, ye, layer_height);
-        }
-        lcd_init_counter++;
-        if (lcd_init_counter > 10) {
-          lcd_init_counter = 0;
-          lcd_init(); // Some people's LCD Displays are locking up.  This might help them
-        }
 
+        }
+//      lcd_init_counter++;
+//      if (lcd_init_counter > 10) {
+//        lcd_init_counter = 0;
+//        lcd_init(); // Some people's LCD Displays are locking up.  This might help them
+//        ubl_has_control_of_lcd_panel = true;     // Make sure UBL still is controlling the LCD Panel
+//      }
+
+    // If the end point of the line is closer to the nozzle, we are going to
         debug_current_and_destination((char*)"Looking for lines to connect.");
         look_for_lines_to_connect();
         debug_current_and_destination((char*)"Done with line connect.");
@@ -375,21 +370,24 @@
 
       debug_current_and_destination((char*)"Done with current circle.");
 
+    // If the end point of the line is closer to the nozzle, we are going to
+
     }
     while (location.x_index >= 0 && location.y_index >= 0);
 
     LEAVE:
 
-    wait_for_user = false;
-
+    while (ubl_lcd_clicked()) {         // Wait until the user is done pressing the
+      idle();                           // Encoder Wheel if that is why we are leaving
+    }
     retract_filament();
     destination[Z_AXIS] = Z_CLEARANCE_BETWEEN_PROBES;                             // Raise the nozzle
 
     debug_current_and_destination((char*)"ready to do Z-Raise.");
-    move_to( destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS], 0); // Raise the nozzle
+    move_to( destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS], 0);   // Raise the nozzle
     debug_current_and_destination((char*)"done doing Z-Raise.");
 
-    destination[X_AXIS] = x_pos;                                                // Move back to the starting position
+    destination[X_AXIS] = x_pos;                                                  // Move back to the starting position
     destination[Y_AXIS] = y_pos;
     destination[Z_AXIS] = Z_CLEARANCE_BETWEEN_PROBES;                             // Keep the nozzle where it is
 
@@ -544,81 +542,11 @@
     }
   }
 
-  void debug_current_and_destination(char *title) {
-    float dx, dy, de, xy_dist, fpmm;
-
-    // if the title message starts with a '!' it is so important, we are going to
-    // ignore the status of the g26_debug_flag
-    if (*title != '!' && !g26_debug_flag) return;
-
-    dx = current_position[X_AXIS] - destination[X_AXIS];
-    dy = current_position[Y_AXIS] - destination[Y_AXIS];
-    de = destination[E_AXIS] - current_position[E_AXIS];
-    if (de == 0.0) return;
-
-    xy_dist = HYPOT(dx, dy);
-    if (xy_dist == 0.0) {
-      return;
-      //SERIAL_ECHOPGM("   FPMM=");
-      //fpmm = de;
-      //SERIAL_PROTOCOL_F(fpmm, 6);
-    }
-    else {
-      SERIAL_ECHOPGM("   fpmm=");
-      fpmm = de / xy_dist;
-      SERIAL_ECHO_F(fpmm, 6);
-    }
-
-    SERIAL_ECHOPGM("    current=( ");
-    SERIAL_ECHO_F(current_position[X_AXIS], 6);
-    SERIAL_ECHOPGM(", ");
-    SERIAL_ECHO_F(current_position[Y_AXIS], 6);
-    SERIAL_ECHOPGM(", ");
-    SERIAL_ECHO_F(current_position[Z_AXIS], 6);
-    SERIAL_ECHOPGM(", ");
-    SERIAL_ECHO_F(current_position[E_AXIS], 6);
-    SERIAL_ECHOPGM(" )   destination=( ");
-    if (current_position[X_AXIS] == destination[X_AXIS])
-      SERIAL_ECHOPGM("-------------");
-    else
-      SERIAL_ECHO_F(destination[X_AXIS], 6);
-
-    SERIAL_ECHOPGM(", ");
-
-    if (current_position[Y_AXIS] == destination[Y_AXIS])
-      SERIAL_ECHOPGM("-------------");
-    else
-      SERIAL_ECHO_F(destination[Y_AXIS], 6);
-
-    SERIAL_ECHOPGM(", ");
-
-    if (current_position[Z_AXIS] == destination[Z_AXIS])
-      SERIAL_ECHOPGM("-------------");
-    else
-      SERIAL_ECHO_F(destination[Z_AXIS], 6);
-
-    SERIAL_ECHOPGM(", ");
-
-    if (current_position[E_AXIS] == destination[E_AXIS])
-      SERIAL_ECHOPGM("-------------");
-    else
-      SERIAL_ECHO_F(destination[E_AXIS], 6);
-
-    SERIAL_ECHOPGM(" )   ");
-    SERIAL_ECHO(title);
-    SERIAL_EOL;
-
-    SET_INPUT_PULLUP(66); // Roxy's Left Switch is on pin 66.  Right Switch is on pin 65
-
-    //if (been_to_2_6) {
-    //while ((digitalRead(66) & 0x01) != 0)
-    //  idle();
-    //}
-  }
-
   void move_to(const float &x, const float &y, const float &z, const float &e_delta) {
     float feed_value;
     static float last_z = -999.99;
+
+
 
     bool has_xy_component = (x != current_position[X_AXIS] || y != current_position[Y_AXIS]); // Check if X or Y is involved in the movement.
 
@@ -673,6 +601,7 @@
 
     stepper.synchronize();
     set_destination_to_current();
+
   }
 
   void retract_filament() {
@@ -740,16 +669,23 @@
       if (g26_debug_flag)
         SERIAL_ECHOLNPGM("  filament retracted.");
     }
+    // If the end point of the line is closer to the nozzle, we are going to
     move_to(sx, sy, sz, 0.0); // Get to the starting point with no extrusion
+
+    // If the end point of the line is closer to the nozzle, we are going to
 
     float e_pos_delta = Line_Length * g26_e_axis_feedrate * extrusion_multiplier;
 
     un_retract_filament();
+
+    // If the end point of the line is closer to the nozzle, we are going to
     if (g26_debug_flag) {
       SERIAL_ECHOLNPGM("  doing printing move.");
       debug_current_and_destination((char*)"doing final move_to() inside print_line_from_here_to_there()");
     }
     move_to(ex, ey, ez, e_pos_delta);  // Get to the ending point with an appropriate amount of extrusion
+
+    // If the end point of the line is closer to the nozzle, we are going to
   }
 
   /**
@@ -897,18 +833,18 @@
           lcd_setstatus("G26 Heating Bed.", true);
           lcd_quick_feedback();
       #endif
-          ubl_has_control_of_lcd_panel++;
+          ubl_has_control_of_lcd_panel = true;
           thermalManager.setTargetBed(bed_temp);
-          wait_for_user = true;
           while (abs(thermalManager.degBed() - bed_temp) > 3) {
-            if (!wait_for_user) {
+            if (ubl_lcd_clicked()) {
               strcpy(lcd_status_message, "Leaving G26"); // We can't do lcd_setstatus() without having it continue;
               lcd_setstatus("Leaving G26", true);        // Now we do it right.
+              while (ubl_lcd_clicked())                  // Debounce Encoder Wheel 
+                idle();
               return UBL_ERR;
             }
             idle();
           }
-          wait_for_user = false;
       #if ENABLED(ULTRA_LCD)
         }
         lcd_setstatus("G26 Heating Nozzle.", true);
@@ -918,16 +854,16 @@
 
     // Start heating the nozzle and wait for it to reach temperature.
     thermalManager.setTargetHotend(hotend_temp, 0);
-    wait_for_user = true;
     while (abs(thermalManager.degHotend(0) - hotend_temp) > 3) {
-      if (!wait_for_user) {
+      if (ubl_lcd_clicked()) {
         strcpy(lcd_status_message, "Leaving G26"); // We can't do lcd_setstatus() without having it continue;
         lcd_setstatus("Leaving G26", true);        // Now we do it right.
+        while (ubl_lcd_clicked())                  // Debounce Encoder Wheel 
+          idle();
         return UBL_ERR;
       }
       idle();
     }
-    wait_for_user = false;
 
     #if ENABLED(ULTRA_LCD)
       lcd_setstatus("", true);
@@ -951,9 +887,7 @@
       un_retract_filament();    // Lets make sure the G26 command doesn't think the filament is
                                 // retracted().  We are here because we want to prime the nozzle.
                                 // So let's just unretract just to be sure.
-
-      wait_for_user = true;
-      while (wait_for_user) {
+      while (!ubl_lcd_clicked()) {
         chirp_at_user();
         destination[E_AXIS] += 0.25;
         #ifdef PREVENT_LENGTHY_EXTRUDE
@@ -976,9 +910,10 @@
 
       strcpy(lcd_status_message, "Done Priming"); // We can't do lcd_setstatus() without having it continue;
                                                   // So...  We cheat to get a message up.
+      while (ubl_lcd_clicked())                   // Debounce Encoder Wheel 
+        idle();
 
       #if ENABLED(ULTRA_LCD)
-        ubl_has_control_of_lcd_panel = false;
         lcd_setstatus("Done Priming", true);      // Now we do it right.
         lcd_quick_feedback();
       #endif
@@ -999,7 +934,8 @@
       set_destination_to_current();
       retract_filament();
     }
+
     return UBL_OK;
   }
 
-#endif // AUTO_BED_LEVELING_UBL
+#endif // AUTO_BED_LEVELING_UBL && UBL_MESH_EDIT_ENABLED
