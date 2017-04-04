@@ -108,7 +108,7 @@
 
 // Serial Console Messages (do not translate those!)
 
-#define MSG_Enqueueing                      "enqueueing \""
+#define MSG_ENQUEUEING                      "enqueueing \""
 #define MSG_POWERUP                         "PowerUp"
 #define MSG_EXTERNAL_RESET                  " External Reset"
 #define MSG_BROWNOUT_RESET                  " Brown out Reset"
@@ -133,8 +133,8 @@
 #define MSG_INVALID_SOLENOID                "Invalid solenoid"
 #define MSG_ERR_NO_THERMISTORS              "No thermistors - no temperature"
 #define MSG_M115_REPORT                     "FIRMWARE_NAME:Marlin " DETAILED_BUILD_VERSION " SOURCE_CODE_URL:" SOURCE_CODE_URL " PROTOCOL_VERSION:" PROTOCOL_VERSION " MACHINE_TYPE:" MACHINE_NAME " EXTRUDER_COUNT:" STRINGIFY(EXTRUDERS) " UUID:" MACHINE_UUID
-#define MSG_COUNT_X                         " Count X: "
-#define MSG_COUNT_A                         " Count A: "
+#define MSG_COUNT_X                         " Count X:"
+#define MSG_COUNT_A                         " Count A:"
 #define MSG_ERR_KILLED                      "Printer halted. kill() called!"
 #define MSG_ERR_STOPPED                     "Printer stopped due to errors. Fix the error and use M999 to restart. (Temperature is reset. Set it after restarting)"
 #define MSG_BUSY_PROCESSING                 "busy: processing"
@@ -152,6 +152,7 @@
 #define MSG_Z2_MIN                          "z2_min: "
 #define MSG_Z2_MAX                          "z2_max: "
 #define MSG_Z_PROBE                         "z_probe: "
+#define MSG_FILAMENT_RUNOUT_SENSOR          "filament: "
 #define MSG_ERR_MATERIAL_INDEX              "M145 S<index> out of range (0-1)"
 #define MSG_ERR_M355_NONE                   "No case light"
 #define MSG_ERR_M421_PARAMETERS             "M421 required parameters missing"
@@ -198,6 +199,11 @@
 #define MSG_SERIAL_ERROR_MENU_STRUCTURE     "Error in menu structure"
 
 #define MSG_ERR_EEPROM_WRITE                "Error writing to EEPROM!"
+
+#define MSG_STOP_BLTOUCH                    "STOP called because of BLTouch error - restart with M999"
+#define MSG_STOP_UNHOMED                    "STOP called because of unhomed error - restart with M999"
+#define MSG_KILL_INACTIVE_TIME              "KILL caused by too much inactive time - current command: "
+#define MSG_KILL_BUTTON                     "KILL caused by KILL button/pin"
 
 // temperature.cpp strings
 #define MSG_PID_AUTOTUNE                    "PID Autotune"

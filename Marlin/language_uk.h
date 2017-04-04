@@ -119,8 +119,8 @@
 #define MSG_VOLUMETRIC_ENABLED              _UxGT("E в мм3")
 #define MSG_FILAMENT_DIAM                   _UxGT("Діам. волок.")
 #define MSG_CONTRAST                        _UxGT("контраст LCD")
-#define MSG_STORE_EPROM                     _UxGT("Зберегти в ПЗП")
-#define MSG_LOAD_EPROM                      _UxGT("Зчитати з ПЗП")
+#define MSG_STORE_EEPROM                    _UxGT("Зберегти в ПЗП")
+#define MSG_LOAD_EEPROM                     _UxGT("Зчитати з ПЗП")
 #define MSG_RESTORE_FAILSAFE                _UxGT("Відновити базові")
 #define MSG_REFRESH                         _UxGT("Поновити")
 #define MSG_WATCH                           _UxGT("Інформація")
@@ -231,7 +231,7 @@
   #define MSG_FILAMENT_CHANGE_UNLOAD_1        _UxGT("Вивід...")
   #define MSG_FILAMENT_CHANGE_INSERT_1        _UxGT("Вставте і нат.")
   #define MSG_FILAMENT_CHANGE_LOAD_1          _UxGT("Ввід...")
-  #define MSG_FILAMENT_CHANGE_EXTRUDE_1       _UxGT("Екстузія...")
+  #define MSG_FILAMENT_CHANGE_EXTRUDE_1       _UxGT("Екструзія...")
   #define MSG_FILAMENT_CHANGE_RESUME_1        _UxGT("Відновлення...")
 #endif // LCD_HEIGHT < 4
 
