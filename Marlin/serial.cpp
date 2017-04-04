@@ -20,26 +20,15 @@
  *
  */
 
-#ifndef HEX_PRINT_ROUTINES_H
-#define HEX_PRINT_ROUTINES_H
+#include "serial.h"
 
-#include "MarlinConfig.h"
+const char errormagic[] PROGMEM = "Error:";
+const char echomagic[] PROGMEM = "echo:";
 
-#if ENABLED(AUTO_BED_LEVELING_UBL) || ENABLED(M100_FREE_MEMORY_WATCHER)
-
-//
-// Utility functions to create and print hex strings as nybble, byte, and word.
-//
-
-inline char hex_nybble(const uint8_t n) {
-  return (n & 0xF) + ((n & 0xF) < 10 ? '0' : 'A' - 10);
-}
-char* hex_byte(const uint8_t b);
-char* hex_word(const uint16_t w);
-
-void print_hex_nybble(const uint8_t n);
-void print_hex_byte(const uint8_t b);
-void print_hex_word(const uint16_t w);
-
-#endif // AUTO_BED_LEVELING_UBL || M100_FREE_MEMORY_WATCHER
-#endif // HEX_PRINT_ROUTINES_H
+void serial_echopair_P(const char* s_P, const char *v)   { serialprintPGM(s_P); SERIAL_ECHO(v); }
+void serial_echopair_P(const char* s_P, char v)          { serialprintPGM(s_P); SERIAL_CHAR(v); }
+void serial_echopair_P(const char* s_P, int v)           { serialprintPGM(s_P); SERIAL_ECHO(v); }
+void serial_echopair_P(const char* s_P, long v)          { serialprintPGM(s_P); SERIAL_ECHO(v); }
+void serial_echopair_P(const char* s_P, float v)         { serialprintPGM(s_P); SERIAL_ECHO(v); }
+void serial_echopair_P(const char* s_P, double v)        { serialprintPGM(s_P); SERIAL_ECHO(v); }
+void serial_echopair_P(const char* s_P, unsigned long v) { serialprintPGM(s_P); SERIAL_ECHO(v); }

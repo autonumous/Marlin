@@ -942,7 +942,7 @@ void Planner::_buffer_line(const float &a, const float &b, const float &c, const
    * Having the real displacement of the head, we can calculate the total movement length and apply the desired speed.
    */
   #if IS_CORE
-    float delta_mm[7];
+    float delta_mm[Z_HEAD + 1];
     #if CORE_IS_XY
       delta_mm[X_HEAD] = da * steps_to_mm[A_AXIS];
       delta_mm[Y_HEAD] = db * steps_to_mm[B_AXIS];
@@ -963,7 +963,7 @@ void Planner::_buffer_line(const float &a, const float &b, const float &c, const
       delta_mm[C_AXIS] = CORESIGN(db - dc) * steps_to_mm[C_AXIS];
     #endif
   #else
-    float delta_mm[4];
+    float delta_mm[XYZE];
     delta_mm[X_AXIS] = da * steps_to_mm[X_AXIS];
     delta_mm[Y_AXIS] = db * steps_to_mm[Y_AXIS];
     delta_mm[Z_AXIS] = dc * steps_to_mm[Z_AXIS];
@@ -995,11 +995,11 @@ void Planner::_buffer_line(const float &a, const float &b, const float &c, const
 
   // Slow down when the buffer starts to empty, rather than wait at the corner for a buffer refill
   #if ENABLED(SLOWDOWN) || ENABLED(ULTRA_LCD) || defined(XY_FREQUENCY_LIMIT)
+    // Segment time im micro seconds
     unsigned long segment_time = lround(1000000.0 / inverse_mm_s);
   #endif
   #if ENABLED(SLOWDOWN)
-    // Segment time im micro seconds
-    if (moves_queued > 1 && moves_queued < (BLOCK_BUFFER_SIZE) / 2) {
+    if (WITHIN(moves_queued, 2, (BLOCK_BUFFER_SIZE) / 2 - 1)) {
       if (segment_time < min_segment_time) {
         // buffer is draining, add extra time.  The amount of time added increases if the buffer is still emptied more.
         inverse_mm_s = 1000000.0 / (segment_time + lround(2 * (min_segment_time - segment_time) / moves_queued));
@@ -1141,16 +1141,16 @@ void Planner::_buffer_line(const float &a, const float &b, const float &c, const
 
     // Limit acceleration per axis
     if (block->step_event_count <= cutoff_long) {
-      LIMIT_ACCEL_LONG(X_AXIS,0);
-      LIMIT_ACCEL_LONG(Y_AXIS,0);
-      LIMIT_ACCEL_LONG(Z_AXIS,0);
-      LIMIT_ACCEL_LONG(E_AXIS,ACCEL_IDX);
+      LIMIT_ACCEL_LONG(X_AXIS, 0);
+      LIMIT_ACCEL_LONG(Y_AXIS, 0);
+      LIMIT_ACCEL_LONG(Z_AXIS, 0);
+      LIMIT_ACCEL_LONG(E_AXIS, ACCEL_IDX);
     }
     else {
-      LIMIT_ACCEL_FLOAT(X_AXIS,0);
-      LIMIT_ACCEL_FLOAT(Y_AXIS,0);
-      LIMIT_ACCEL_FLOAT(Z_AXIS,0);
-      LIMIT_ACCEL_FLOAT(E_AXIS,ACCEL_IDX);
+      LIMIT_ACCEL_FLOAT(X_AXIS, 0);
+      LIMIT_ACCEL_FLOAT(Y_AXIS, 0);
+      LIMIT_ACCEL_FLOAT(Z_AXIS, 0);
+      LIMIT_ACCEL_FLOAT(E_AXIS, ACCEL_IDX);
     }
   }
   block->acceleration_steps_per_s2 = accel;
@@ -1256,6 +1256,7 @@ void Planner::_buffer_line(const float &a, const float &b, const float &c, const
         v_exit *= v_factor;
         v_entry *= v_factor;
       }
+
       // Calculate jerk depending on whether the axis is coasting in the same direction or reversing.
       const float jerk = (v_exit > v_entry)
           ? //                                  coasting             axis reversal

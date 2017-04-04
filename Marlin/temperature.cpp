@@ -104,12 +104,12 @@ uint8_t Temperature::soft_pwm_bed;
   volatile int Temperature::babystepsTodo[XYZ] = { 0 };
 #endif
 
-#if ENABLED(THERMAL_PROTECTION_HOTENDS) && WATCH_TEMP_PERIOD > 0
+#if WATCH_HOTENDS
   int Temperature::watch_target_temp[HOTENDS] = { 0 };
   millis_t Temperature::watch_heater_next_ms[HOTENDS] = { 0 };
 #endif
 
-#if ENABLED(THERMAL_PROTECTION_BED) && WATCH_BED_TEMP_PERIOD > 0
+#if WATCH_THE_BED
   int Temperature::watch_target_bed_temp = 0;
   millis_t Temperature::watch_bed_next_ms = 0;
 #endif
@@ -690,7 +690,7 @@ void Temperature::manage_heater() {
     if (current_temperature[0] < max(HEATER_0_MINTEMP, MAX6675_TMIN + 0.01)) min_temp_error(0);
   #endif
 
-  #if (ENABLED(THERMAL_PROTECTION_HOTENDS) && WATCH_TEMP_PERIOD > 0) || (ENABLED(THERMAL_PROTECTION_BED) && WATCH_BED_TEMP_PERIOD > 0) || DISABLED(PIDTEMPBED) || HAS_AUTO_FAN
+  #if WATCH_HOTENDS || WATCH_THE_BED || DISABLED(PIDTEMPBED) || HAS_AUTO_FAN
     millis_t ms = millis();
   #endif
 
@@ -707,7 +707,7 @@ void Temperature::manage_heater() {
     soft_pwm[e] = (current_temperature[e] > minttemp[e] || is_preheating(e)) && current_temperature[e] < maxttemp[e] ? (int)pid_output >> 1 : 0;
 
     // Check if the temperature is failing to increase
-    #if ENABLED(THERMAL_PROTECTION_HOTENDS) && WATCH_TEMP_PERIOD > 0
+    #if WATCH_HOTENDS
 
       // Is it time to check this extruder's heater?
       if (watch_heater_next_ms[e] && ELAPSED(ms, watch_heater_next_ms[e])) {
@@ -725,7 +725,7 @@ void Temperature::manage_heater() {
     #endif // THERMAL_PROTECTION_HOTENDS
 
     // Check if the temperature is failing to increase
-    #if ENABLED(THERMAL_PROTECTION_BED) && WATCH_BED_TEMP_PERIOD > 0
+    #if WATCH_THE_BED
 
       // Is it time to check the bed?
       if (watch_bed_next_ms && ELAPSED(ms, watch_bed_next_ms)) {
@@ -786,11 +786,11 @@ void Temperature::manage_heater() {
     #if ENABLED(PIDTEMPBED)
       float pid_output = get_pid_output_bed();
 
-      soft_pwm_bed = current_temperature_bed > BED_MINTEMP && current_temperature_bed < BED_MAXTEMP ? (int)pid_output >> 1 : 0;
+      soft_pwm_bed = WITHIN(current_temperature_bed, BED_MINTEMP, BED_MAXTEMP) ? (int)pid_output >> 1 : 0;
 
     #elif ENABLED(BED_LIMIT_SWITCHING)
       // Check if temperature is within the correct band
-      if (current_temperature_bed > BED_MINTEMP && current_temperature_bed < BED_MAXTEMP) {
+      if (WITHIN(current_temperature_bed, BED_MINTEMP, BED_MAXTEMP)) {
         if (current_temperature_bed >= target_temperature_bed + BED_HYSTERESIS)
           soft_pwm_bed = 0;
         else if (current_temperature_bed <= target_temperature_bed - (BED_HYSTERESIS))
@@ -802,7 +802,7 @@ void Temperature::manage_heater() {
       }
     #else // !PIDTEMPBED && !BED_LIMIT_SWITCHING
       // Check if temperature is within the correct range
-      if (current_temperature_bed > BED_MINTEMP && current_temperature_bed < BED_MAXTEMP) {
+      if (WITHIN(current_temperature_bed, BED_MINTEMP, BED_MAXTEMP)) {
         soft_pwm_bed = current_temperature_bed < target_temperature_bed ? MAX_BED_POWER >> 1 : 0;
       }
       else {
@@ -982,9 +982,6 @@ void Temperature::init() {
     #if ENABLED(FAST_PWM_FAN)
       setPwmFrequency(FAN_PIN, 1); // No prescaling. Pwm frequency = F_CPU/256/8
     #endif
-    #if ENABLED(FAN_SOFT_PWM)
-      soft_pwm_fan[0] = fanSpeedSoftPwm[0] >> 1;
-    #endif
   #endif
 
   #if HAS_FAN1
@@ -992,18 +989,12 @@ void Temperature::init() {
     #if ENABLED(FAST_PWM_FAN)
       setPwmFrequency(FAN1_PIN, 1); // No prescaling. Pwm frequency = F_CPU/256/8
     #endif
-    #if ENABLED(FAN_SOFT_PWM)
-      soft_pwm_fan[1] = fanSpeedSoftPwm[1] >> 1;
-    #endif
   #endif
 
   #if HAS_FAN2
     SET_OUTPUT(FAN2_PIN);
     #if ENABLED(FAST_PWM_FAN)
       setPwmFrequency(FAN2_PIN, 1); // No prescaling. Pwm frequency = F_CPU/256/8
-    #endif
-    #if ENABLED(FAN_SOFT_PWM)
-      soft_pwm_fan[2] = fanSpeedSoftPwm[2] >> 1;
     #endif
   #endif
 
@@ -1166,7 +1157,7 @@ void Temperature::init() {
   #endif //BED_MAXTEMP
 }
 
-#if ENABLED(THERMAL_PROTECTION_HOTENDS) && WATCH_TEMP_PERIOD > 0
+#if WATCH_HOTENDS
   /**
    * Start Heating Sanity Check for hotends that are below
    * their target temperature by a configurable margin.
@@ -1185,7 +1176,7 @@ void Temperature::init() {
   }
 #endif
 
-#if ENABLED(THERMAL_PROTECTION_BED) && WATCH_BED_TEMP_PERIOD > 0
+#if WATCH_THE_BED
   /**
    * Start Heating Sanity Check for hotends that are below
    * their target temperature by a configurable margin.

@@ -545,6 +545,11 @@
 // Use M851 to set the Z probe vertical offset from the nozzle. Store with M500.
 //
 
+// The "Manual Probe" provides a means to do "Auto" Bed Leveling without a probe.
+// Use G29 repeatedly, adjusting the Z height at each point with movement commands
+// or (with LCD_BED_LEVELING) the LCD controller.
+//#define PROBE_MANUALLY
+
 // A Fix-Mounted Probe either doesn't deploy or needs manual deployment.
 // For example an inductive probe, or a setup that uses the nozzle to probe.
 // An inductive probe must be deactivated to go below
@@ -554,6 +559,7 @@
 // The BLTouch probe emulates a servo probe.
 // The default connector is SERVO 0. Set Z_ENDSTOP_SERVO_NR below to override.
 //#define BLTOUCH
+//#define BLTOUCH_DELAY 375 // (ms) Enable and increase if needed
 
 // Z Servo Probe, such as an endstop switch on a rotating arm.
 //#define Z_ENDSTOP_SERVO_NR 0
@@ -862,7 +868,7 @@
   #define UBL_PROBE_PT_2_Y 20
   #define UBL_PROBE_PT_3_X 180
   #define UBL_PROBE_PT_3_Y 20
-  #define UBL_MESH_EDIT_ENABLED     // Enable G26 mesh editing
+  //#define UBL_G26_MESH_EDITING    // Enable G26 mesh editing
 
 #elif ENABLED(MESH_BED_LEVELING)
 
@@ -876,14 +882,18 @@
 
   //#define MESH_G28_REST_ORIGIN // After homing all axes ('G28' or 'G28 XYZ') rest Z at Z_MIN_POS
 
-  //#define MANUAL_BED_LEVELING  // Add display menu option for bed leveling.
-  #define MANUAL_PROBE_Z_RANGE 4 // Z Range centered on Z_MIN_POS for LCD Z adjustment
-
-  #if ENABLED(MANUAL_BED_LEVELING)
-    #define MBL_Z_STEP 0.025     // Step size while manually probing Z axis.
-  #endif
-
 #endif // BED_LEVELING
+
+/**
+ * Use the LCD controller for bed leveling
+ * Requires MESH_BED_LEVELING or PROBE_MANUALLY
+ */
+//#define LCD_BED_LEVELING
+
+#if ENABLED(LCD_BED_LEVELING)
+  #define MBL_Z_STEP 0.025    // Step size while manually probing Z axis.
+  #define LCD_PROBE_Z_RANGE 4 // Z Range centered on Z_MIN_POS for LCD Z adjustment
+#endif
 
 /**
  * Commands to execute at the end of G29 probing.
@@ -1405,6 +1415,11 @@
 //
 //#define SAV_3DLCD
 
+//
+// TinyBoy2 128x64 OLED / Encoder Panel
+//
+//#define OLED_PANEL_TINYBOY2
+
 //=============================================================================
 //=============================== Extra Features ==============================
 //=============================================================================
@@ -1427,13 +1442,13 @@
 
 // If SOFT_PWM_SCALE is set to a value higher than 0, dithering can
 // be used to mitigate the associated resolution loss. If enabled,
-// some of the PWM cycles are stretched so on average the wanted
+// some of the PWM cycles are stretched so on average the desired
 // duty cycle is attained.
 //#define SOFT_PWM_DITHER
 
 // Temperature status LEDs that display the hotend and bed temperature.
-// If all hotends and bed temperature and temperature setpoint are < 54C then the BLUE led is on.
-// Otherwise the RED led is on. There is 1C hysteresis.
+// If all hotends, bed temperature, and target temperature are under 54C
+// then the BLUE led is on. Otherwise the RED led is on. (1C hysteresis)
 //#define TEMP_STAT_LEDS
 
 // M240  Triggers a camera by emulating a Canon RC-1 Remote
