@@ -4125,9 +4125,9 @@ inline void gcode_G28() {
       #elif ENABLED(AUTO_BED_LEVELING_BILINEAR)
 
         zoffset = code_seen('Z') ? code_value_axis_units(Z_AXIS) : 0;
-        #if HAS_BED_PROBE
-          zoffset += zprobe_zoffset;
-        #endif
+        //#if HAS_BED_PROBE
+        //  zoffset += zprobe_zoffset;
+        //#endif
 
       #endif
 
