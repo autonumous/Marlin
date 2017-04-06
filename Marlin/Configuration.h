@@ -861,7 +861,7 @@
   #define ABL_PROBE_PT_1_Y (200-ABL_PROBE_PT_1_X) //180
   #define ABL_PROBE_PT_2_X  ABL_PROBE_PT_1_X //15
   #define ABL_PROBE_PT_2_Y ABL_PROBE_PT_2_X //20
-  #define ABL_PROBE_PT_3_X X_MAX_POS-ABL_PROBE_PT_1_X //170
+  #define ABL_PROBE_PT_3_X (X_MAX_POS-ABL_PROBE_PT_1_X) //170
   #define ABL_PROBE_PT_3_Y ABL_PROBE_PT_2_Y //20
 
 #elif ENABLED(AUTO_BED_LEVELING_UBL)
@@ -870,16 +870,16 @@
   //========================= Unified Bed Leveling ============================
   //===========================================================================
 
-  #define UBL_MESH_INSET 1          // Mesh inset margin on print area
+  #define UBL_MESH_INSET 5          // Mesh inset margin on print area
   #define UBL_MESH_NUM_X_POINTS 10  // Don't use more than 15 points per axis, implementation limited.
   #define UBL_MESH_NUM_Y_POINTS 10
-  #define UBL_PROBE_PT_1_X 39       // These set the probe locations for when UBL does a 3-Point leveling
-  #define UBL_PROBE_PT_1_Y 180      // of the mesh.
-  #define UBL_PROBE_PT_2_X 39
-  #define UBL_PROBE_PT_2_Y 20
-  #define UBL_PROBE_PT_3_X 180
-  #define UBL_PROBE_PT_3_Y 20
-  //#define UBL_G26_MESH_EDITING    // Enable G26 mesh editing
+  #define UBL_PROBE_PT_1_X 15 //39       // These set the probe locations for when UBL does a 3-Point leveling
+  #define UBL_PROBE_PT_1_Y (200-UBL_PROBE_PT_1_X) //180      // of the mesh.
+  #define UBL_PROBE_PT_2_X UBL_PROBE_PT_1_X //39
+  #define UBL_PROBE_PT_2_Y UBL_PROBE_PT_1_X //20
+  #define UBL_PROBE_PT_3_X (X_MAX_POS-UBL_PROBE_PT_1_X) //180
+  #define UBL_PROBE_PT_3_Y UBL_PROBE_PT_2_Y
+  #define UBL_G26_MESH_EDITING    // Enable G26 mesh editing
 
 #elif ENABLED(MESH_BED_LEVELING)
 
@@ -887,11 +887,11 @@
   //=================================== Mesh ==================================
   //===========================================================================
 
-  #define MESH_INSET 10          // Mesh inset margin on print area
+  #define MESH_INSET 5          // Mesh inset margin on print area
   #define MESH_NUM_X_POINTS 3    // Don't use more than 7 points per axis, implementation limited.
   #define MESH_NUM_Y_POINTS 3
 
-  //#define MESH_G28_REST_ORIGIN // After homing all axes ('G28' or 'G28 XYZ') rest Z at Z_MIN_POS
+  #define MESH_G28_REST_ORIGIN // After homing all axes ('G28' or 'G28 XYZ') rest Z at Z_MIN_POS
 
 #endif // BED_LEVELING
 
@@ -899,11 +899,11 @@
  * Use the LCD controller for bed leveling
  * Requires MESH_BED_LEVELING or PROBE_MANUALLY
  */
-#define LCD_BED_LEVELING
+//#define LCD_BED_LEVELING
 
 #if ENABLED(LCD_BED_LEVELING)
   #define MBL_Z_STEP 0.025    // Step size while manually probing Z axis.
-  #define LCD_PROBE_Z_RANGE 4 // Z Range centered on Z_MIN_POS for LCD Z adjustment
+  #define LCD_PROBE_Z_RANGE 10 // Z Range centered on Z_MIN_POS for LCD Z adjustment
 #endif
 
 /**
@@ -981,12 +981,12 @@
 //
 // G20/G21 Inch mode support
 //
-#define INCH_MODE_SUPPORT
+//#define INCH_MODE_SUPPORT
 
 //
 // M149 Set temperature units support
 //
-#define TEMPERATURE_UNITS_SUPPORT
+//#define TEMPERATURE_UNITS_SUPPORT
 
 // @section temperature
 
@@ -1101,7 +1101,7 @@
 // - M75  - Start the print job timer
 // - M76  - Pause the print job timer
 // - M77  - Stop the print job timer
-#define PRINTJOB_TIMER_AUTOSTART
+//#define PRINTJOB_TIMER_AUTOSTART
 
 //
 // Print Counter
