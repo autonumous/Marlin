@@ -804,8 +804,8 @@
 //#define AUTO_BED_LEVELING_3POINT
 //#define AUTO_BED_LEVELING_LINEAR
 //#define AUTO_BED_LEVELING_BILINEAR
-//#define AUTO_BED_LEVELING_UBL
-#define MESH_BED_LEVELING
+#define AUTO_BED_LEVELING_UBL
+//#define MESH_BED_LEVELING
 
 /**
  * Enable detailed logging of G28, G29, M48, etc.
@@ -870,15 +870,15 @@
   //========================= Unified Bed Leveling ============================
   //===========================================================================
 
-  #define UBL_MESH_INSET 5          // Mesh inset margin on print area
+  #define UBL_MESH_INSET 1          // Mesh inset margin on print area
   #define UBL_MESH_NUM_X_POINTS 10  // Don't use more than 15 points per axis, implementation limited.
   #define UBL_MESH_NUM_Y_POINTS 10
   #define UBL_PROBE_PT_1_X 15 //39       // These set the probe locations for when UBL does a 3-Point leveling
   #define UBL_PROBE_PT_1_Y (200-UBL_PROBE_PT_1_X) //180      // of the mesh.
   #define UBL_PROBE_PT_2_X UBL_PROBE_PT_1_X //39
   #define UBL_PROBE_PT_2_Y UBL_PROBE_PT_1_X //20
-  #define UBL_PROBE_PT_3_X (X_MAX_POS-UBL_PROBE_PT_1_X) //180
-  #define UBL_PROBE_PT_3_Y UBL_PROBE_PT_2_Y
+  #define UBL_PROBE_PT_3_X (X_MAX_POS-UBL_PROBE_PT_1_X+X_PROBE_OFFSET_FROM_EXTRUDER) //180
+  #define UBL_PROBE_PT_3_Y UBL_PROBE_PT_2_Y //20
   #define UBL_G26_MESH_EDITING    // Enable G26 mesh editing
 
 #elif ENABLED(MESH_BED_LEVELING)
@@ -891,7 +891,7 @@
   #define MESH_NUM_X_POINTS 3    // Don't use more than 7 points per axis, implementation limited.
   #define MESH_NUM_Y_POINTS 3
 
-  #define MESH_G28_REST_ORIGIN // After homing all axes ('G28' or 'G28 XYZ') rest Z at Z_MIN_POS
+  //#define MESH_G28_REST_ORIGIN // After homing all axes ('G28' or 'G28 XYZ') rest Z at Z_MIN_POS
 
 #endif // BED_LEVELING
 
