@@ -254,6 +254,7 @@
 #define TEMP_SENSOR_1 0
 #define TEMP_SENSOR_2 0
 #define TEMP_SENSOR_3 0
+#define TEMP_SENSOR_4 0
 #define TEMP_SENSOR_BED 1
 
 // Dummy thermistor constant temperature readings, for use with 998 and 999
@@ -282,6 +283,7 @@
 #define HEATER_1_MINTEMP 5
 #define HEATER_2_MINTEMP 5
 #define HEATER_3_MINTEMP 5
+#define HEATER_4_MINTEMP 5
 #define BED_MINTEMP 5
 
 // When temperature exceeds max temp, your heater will be switched off.
@@ -291,6 +293,7 @@
 #define HEATER_1_MAXTEMP 275
 #define HEATER_2_MAXTEMP 275
 #define HEATER_3_MAXTEMP 275
+#define HEATER_4_MAXTEMP 275
 #define BED_MAXTEMP 150
 
 //===========================================================================
@@ -588,81 +591,112 @@
 #define DEFAULT_EJERK                  5.0
 
 
-//===========================================================================
-//============================= Z Probe Options =============================
-//===========================================================================
-// @section probes
+/**
+ * ===========================================================================
+ * ============================= Z Probe Options =============================
+ * ===========================================================================
+ *    @section probes
+ *
+ *
+ *   Probe Type
+ *   Probes are sensors/switches that are activated / deactivated before/after use.
+ *
+ *   Allen Key Probes, Servo Probes, Z-Sled Probes, FIX_MOUNTED_PROBE, etc.
+ *   You must activate one of these to use Auto Bed Leveling below.
+ *
+ *   Use M851 to set the Z probe vertical offset from the nozzle. Store with M500.
+ */
 
-//
-// Probe Type
-// Probes are sensors/switches that are activated / deactivated before/after use.
-//
-// Allen Key Probes, Servo Probes, Z-Sled Probes, FIX_MOUNTED_PROBE, etc.
-// You must activate one of these to use Auto Bed Leveling below.
-//
-// Use M851 to set the Z probe vertical offset from the nozzle. Store with M500.
-//
-
-// The "Manual Probe" provides a means to do "Auto" Bed Leveling without a probe.
-// Use G29 repeatedly, adjusting the Z height at each point with movement commands
-// or (with LCD_BED_LEVELING) the LCD controller.
+/**
+ *   The "Manual Probe" provides a means to do "Auto" Bed Leveling without a probe.
+ *   Use G29 repeatedly, adjusting the Z height at each point with movement commands
+ *   or (with LCD_BED_LEVELING) the LCD controller.
+ */
 //#define PROBE_MANUALLY
 
-// A Fix-Mounted Probe either doesn't deploy or needs manual deployment.
-// For example an inductive probe, or a setup that uses the nozzle to probe.
-// An inductive probe must be deactivated to go below
-// its trigger-point if hardware endstops are active.
+/**
+ *   A Fix-Mounted Probe either doesn't deploy or needs manual deployment.
+ *   For example an inductive probe, or a setup that uses the nozzle to probe.
+ *   An inductive probe must be deactivated to go below
+ *   its trigger-point if hardware endstops are active.
+ */
 #define FIX_MOUNTED_PROBE
 
-// The BLTouch probe emulates a servo probe.
-// The default connector is SERVO 0. Set Z_ENDSTOP_SERVO_NR below to override.
+/**
+ *   Z Servo Probe, such as an endstop switch on a rotating arm.
+ *   NUM_SERVOS also needs to be set.  This is found later in this file.  Set it to
+ *   1 + the number of other servos in your system.
+ */
+//#define Z_ENDSTOP_SERVO_NR 0   // Defaults to SERVO 0 connector.
+//#define Z_SERVO_ANGLES {70,0}  // Z Servo Deploy and Stow angles
+
+ /**
+ *   The BLTouch probe emulates a servo probe.
+ *   If using a BLTouch then NUM_SERVOS, Z_ENDSTOP_SERVO_NR and Z_SERVO_ANGLES
+ *   are setup for you in the background and you shouldn't need to set/modify/enable them
+ *   with the possible exception of Z_ENDSTOP_SERVO_NR.
+ */
 //#define BLTOUCH
 //#define BLTOUCH_DELAY 375 // (ms) Enable and increase if needed
 
-// Z Servo Probe, such as an endstop switch on a rotating arm.
-//#define Z_ENDSTOP_SERVO_NR 0
-//#define Z_SERVO_ANGLES {70,0} // Z Servo Deploy and Stow angles
+/**
+ *   BLTouch WARNING  -  ONLY APPLIES TO VERSIONS OF MARLIN BEFORE 15 FEB 2017
+ *   Unless using interrupt endstops, there is a MINIMUM feedrate for Marlin to reliably
+ *   sense the BLTouch.  If the feedrate is too slow then G28 & G29 can sometimes result
+ *   in the print head being driven into the bed until manual intervention.
+ *   The minimum feedrate calculation is:
+ *
+ *     feedrate minimum =  24000 / DEFAULT_AXIS_STEPS_PER_UNIT
+ *        where feedrate is in "mm/minute" or "inches/minute" depending on the units used
+ *        in DEFAULT_AXIS_STEPS_PER_UNIT
+ *
+ *   This applies to the HOMING_FEEDRATE_Z and Z_PROBE_SPEED_FAST.  If PROBE_DOUBLE_TOUCH
+ *   is enabled then it also applies to Z_PROBE_SPEED_SLOW.
+ */
 
-// Enable if you have a Z probe mounted on a sled like those designed by Charles Bell.
+/*   Enable if you have a Z probe mounted on a sled like those designed by Charles Bell.  */
 //#define Z_PROBE_SLED
-//#define SLED_DOCKING_OFFSET 5 // The extra distance the X axis must travel to pickup the sled. 0 should be fine but you can push it further if you'd like.
+//#define SLED_DOCKING_OFFSET 5  // The extra distance the X axis must travel to pickup the sled. 0 should be fine but you can push it further if you'd like.
 
-//
-// Allen Key Probe is defined in the Delta example configurations.
-//
-
-// Z Probe to nozzle (X,Y) offset, relative to (0, 0).
-// X and Y offsets must be integers.
-//
-// In the following example the X and Y offsets are both positive:
-// #define X_PROBE_OFFSET_FROM_EXTRUDER 10
-// #define Y_PROBE_OFFSET_FROM_EXTRUDER 10
-//
-//    +-- BACK ---+
-//    |           |
-//  L |    (+) P  | R <-- probe (20,20)
-//  E |           | I
-//  F | (-) N (+) | G <-- nozzle (10,10)
-//  T |           | H
-//    |    (-)    | T
-//    |           |
-//    O-- FRONT --+
-//  (0,0)
+/**
+ *   Z Probe to nozzle (X,Y) offset, relative to (0, 0).
+ *   X and Y offsets must be integers.
+ *
+ *   In the following example the X and Y offsets are both positive:
+ *   #define X_PROBE_OFFSET_FROM_EXTRUDER 10
+ *   #define Y_PROBE_OFFSET_FROM_EXTRUDER 10
+ *
+ *      +-- BACK ---+
+ *      |           |
+ *    L |    (+) P  | R <-- probe (20,20)
+ *    E |           | I
+ *    F | (-) N (+) | G <-- nozzle (10,10)
+ *    T |           | H
+ *      |    (-)    | T
+ *      |           |
+ *      O-- FRONT --+
+ *    (0,0)
+ */
 #define X_PROBE_OFFSET_FROM_EXTRUDER 0     // X offset: -left  +right  [of the nozzle]
 #define Y_PROBE_OFFSET_FROM_EXTRUDER 0   // Y offset: -front +behind [the nozzle]
 #define Z_PROBE_OFFSET_FROM_EXTRUDER 0.25  // Z offset: -below +above  [the nozzle]
 
-// X and Y axis travel speed (mm/m) between probes
+/*   X and Y axis travel speed (mm/m) between probes */
 #define XY_PROBE_SPEED 2000
-// Speed for the first approach when double-probing (with PROBE_DOUBLE_TOUCH)
+
+/*   Speed for the first approach when double-probing (with PROBE_DOUBLE_TOUCH) */
 #define Z_PROBE_SPEED_FAST HOMING_FEEDRATE_Z
-// Speed for the "accurate" probe of each point
+
+/*   Speed for the "accurate" probe of each point  */
 #define Z_PROBE_SPEED_SLOW (Z_PROBE_SPEED_FAST / 2)
-// Use double touch for probing
+
+/*   Use double touch for probing  */
 #define PROBE_DOUBLE_TOUCH
 
-// Allen key retractable z-probe as seen on many Kossel delta printers - http://reprap.org/wiki/Kossel#Automatic_bed_leveling_probe
-// Deploys by touching z-axis belt. Retracts by pushing the probe down. Uses Z_MIN_PIN.
+/**
+ * Allen key retractable z-probe as seen on many Kossel delta printers - http://reprap.org/wiki/Kossel#Automatic_bed_leveling_probe
+ * Deploys by touching z-axis belt. Retracts by pushing the probe down. Uses Z_MIN_PIN.
+ */
 //#define Z_PROBE_ALLEN_KEY
 
 #if ENABLED(Z_PROBE_ALLEN_KEY)
@@ -709,49 +743,67 @@
 
 #endif // Z_PROBE_ALLEN_KEY
 
-// *** PLEASE READ ALL INSTRUCTIONS BELOW FOR SAFETY! ***
-//
-// To continue using the Z-min-endstop for homing, be sure to disable Z_SAFE_HOMING.
-// Example: To park the head outside the bed area when homing with G28.
-//
-// To use a separate Z probe, your board must define a Z_MIN_PROBE_PIN.
-//
-// For a servo-based Z probe, just set Z_ENDSTOP_SERVO_NR and Z_SERVO_ANGLES above.
-//
-// - RAMPS 1.3/1.4 boards may be able to use the 5V, GND, and Aux4->D32 pin.
-// - Use 5V for powered (usu. inductive) sensors.
-// - Otherwise connect:
-//   - normally-closed switches to GND and D32.
-//   - normally-open switches to 5V and D32.
-//
-// Normally-closed switches are advised and are the default.
-//
 
-//
-// The Z_MIN_PROBE_PIN sets the Arduino pin to use. (See your board's pins file.)
-// Since the RAMPS Aux4->D32 pin maps directly to the Arduino D32 pin, D32 is the
-// default pin for all RAMPS-based boards. Most boards use the X_MAX_PIN by default.
-// To use a different pin you can override it here.
-//
-// WARNING:
-// Setting the wrong pin may have unexpected and potentially disastrous consequences.
-// Use with caution and do your homework.
-//
-#define Z_MIN_PROBE_PIN Z_MIN_PIN
+/**
+ *
+ *   *** PLEASE READ ALL INSTRUCTIONS BELOW FOR SAFETY! ***
+ *
+ *   - RAMPS 1.3/1.4 boards may be able to use the 5V, GND, and Aux4->D32 pin.
+ *   - Use 5V for powered (usu. inductive) sensors.
+ *   - Otherwise connect:
+ *     - normally-closed switches to GND and D32.
+ *     - normally-open switches to 5V and D32.
+ *
+ *   Normally-closed switches are advised and are the default.
+ *
+ *
+ *   PIN OPTIONS\SETUP FOR Z PROBES
+ *
+ *
+ *   WARNING:
+ *   Setting the wrong pin may have unexpected and potentially disastrous consequences.
+ *   Use with caution and do your homework.
+ *
+ *
+ *   All Z PROBE pin options are configured by defining (or not defining)
+ *   the following five items:
+ *       Z_MIN_PROBE_ENDSTOP – defined below
+ *       Z_MIN_PROBE_USES_Z_MIN_ENDSTOP_PIN – defined below
+ *       Z_MIN_PIN - defined in the pins_YOUR_BOARD.h file
+ *       Z_MIN_PROBE_PIN - defined in the pins_YOUR_BOARD.h file
+ *
+ *   If you're using a probe then you need to tell Marlin which pin to use as
+ *   the Z MIN ENDSTOP.  Z_MIN_PROBE_USES_Z_MIN_ENDSTOP_PIN determines if the
+ *   Z_MIN_PIN or if the Z_MIN_PROBE_PIN is used.
+ *
+ *   The pin selected for the probe is ONLY checked during probing operations.
+ *   If you want to use the Z_MIN_PIN as an endstop AND you want to have a Z PROBE
+ *   then you’ll need to use the Z_MIN_PROBE_PIN option.
+ *
+ *   Z_MIN_PROBE_ENDSTOP also needs to be enabled if you want to use Z_MIN_PROBE_PIN.
+ *
+ *   The settings needed to use the Z_MIN_PROBE_PIN are:
+ *       1. select the type of probe you're using
+ *       2. define Z_MIN_PROBE_PIN in your pins_YOUR_BOARD.h file
+ *       3. disable Z_MIN_PROBE_USES_Z_MIN_ENDSTOP_PIN
+ *       4. enable Z_MIN_PROBE_ENDSTOP
+ *   NOTE – if Z_MIN_PIN is defined then it’ll be checked during all moves in the
+ *          negative Z direction.
+ *
+ *   The settings needed to use the Z_MIN_PIN are:
+ *       1. select the type of probe you're using
+ *       2. enable Z_MIN _PIN in your pins_YOUR_BOARD.h file
+ *       3. enable Z_MIN_PROBE_USES_Z_MIN_ENDSTOP_PIN
+ *       4. disable Z_MIN_PROBE_ENDSTOP
+ *   NOTES – if Z_MIN_PROBE_PIN is defined in the pins_YOUR_BOARD.h file then it’ll be
+ *          ignored by Marlin
+ */
 
-//
-// Enable Z_MIN_PROBE_ENDSTOP to use _both_ a Z Probe and a Z-min-endstop on the same machine.
-// With this option the Z_MIN_PROBE_PIN will only be used for probing, never for homing.
-//
 //#define Z_MIN_PROBE_ENDSTOP // A3K leave disable!
-
-// Enable Z_MIN_PROBE_USES_Z_MIN_ENDSTOP_PIN to use the Z_MIN_PIN for your Z_MIN_PROBE.
-// The Z_MIN_PIN will then be used for both Z-homing and probing.
 #define Z_MIN_PROBE_USES_Z_MIN_ENDSTOP_PIN
 
-// To use a probe you must enable one of the two options above!
 
-// Enable Z Probe Repeatability test to see how accurate your probe is
+/* Enable Z Probe Repeatability test to see how accurate your probe is  */
 #define Z_MIN_PROBE_REPEATABILITY_TEST
 
 /**
@@ -771,11 +823,10 @@
 #define Z_CLEARANCE_DEPLOY_PROBE   50 // Z Clearance for Deploy/Stow
 #define Z_CLEARANCE_BETWEEN_PROBES  5 // Z Clearance between probe points
 
-//
-// For M851 give a range for adjusting the Z probe offset
-//
+/* For M851 give a range for adjusting the Z probe offset */
 #define Z_PROBE_OFFSET_RANGE_MIN -20
 #define Z_PROBE_OFFSET_RANGE_MAX 20
+
 
 // For Inverting Stepper Enable Pins (Active Low) use 0, Non Inverting (Active High) use 1
 // :{ 0:'Low', 1:'High' }
@@ -811,6 +862,7 @@
 #define INVERT_E1_DIR false
 #define INVERT_E2_DIR false
 #define INVERT_E3_DIR false
+#define INVERT_E4_DIR false
 
 // @section homing
 
@@ -919,8 +971,8 @@
 #if ENABLED(AUTO_BED_LEVELING_LINEAR) || ENABLED(AUTO_BED_LEVELING_BILINEAR)
 
   // Set the number of grid points per dimension.
-  #define ABL_GRID_MAX_POINTS_X 9
-  #define ABL_GRID_MAX_POINTS_Y ABL_GRID_MAX_POINTS_X
+  #define GRID_MAX_POINTS_X 9
+  #define GRID_MAX_POINTS_Y GRID_MAX_POINTS_X
 
   // Set the boundaries for probing (where the probe can reach).
   #define DELTA_PROBEABLE_RADIUS (DELTA_PRINTABLE_RADIUS - 15)
@@ -966,8 +1018,8 @@
   //===========================================================================
 
   #define UBL_MESH_INSET 1          // Mesh inset margin on print area
-  #define UBL_MESH_NUM_X_POINTS 10  // Don't use more than 15 points per axis, implementation limited.
-  #define UBL_MESH_NUM_Y_POINTS 10
+  #define GRID_MAX_POINTS_X 10      // Don't use more than 15 points per axis, implementation limited.
+  #define GRID_MAX_POINTS_Y GRID_MAX_POINTS_X
   #define UBL_PROBE_PT_1_X 39       // These set the probe locations for when UBL does a 3-Point leveling
   #define UBL_PROBE_PT_1_Y 180      // of the mesh.
   #define UBL_PROBE_PT_2_X 39
@@ -983,8 +1035,8 @@
   //===========================================================================
 
   #define MESH_INSET 10          // Mesh inset margin on print area
-  #define MESH_NUM_X_POINTS 3    // Don't use more than 7 points per axis, implementation limited.
-  #define MESH_NUM_Y_POINTS 3
+  #define GRID_MAX_POINTS_X 3    // Don't use more than 7 points per axis, implementation limited.
+  #define GRID_MAX_POINTS_Y GRID_MAX_POINTS_X
 
   //#define MESH_G28_REST_ORIGIN // After homing all axes ('G28' or 'G28 XYZ') rest Z at Z_MIN_POS
 
