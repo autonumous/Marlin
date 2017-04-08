@@ -113,6 +113,8 @@ void manage_inactivity(bool ignore_stepper_queue = false);
   #define disable_e2() NOOP
   #define  enable_e3() NOOP
   #define disable_e3() NOOP
+  #define  enable_e4() NOOP
+  #define disable_e4() NOOP
 
 #else // !MIXING_EXTRUDER
 
@@ -146,6 +148,14 @@ void manage_inactivity(bool ignore_stepper_queue = false);
   #else
     #define  enable_e3() NOOP
     #define disable_e3() NOOP
+  #endif
+
+  #if E_STEPPERS > 4 && HAS_E4_ENABLE
+    #define  enable_e4() E4_ENABLE_WRITE( E_ENABLE_ON)
+    #define disable_e4() E4_ENABLE_WRITE(!E_ENABLE_ON)
+  #else
+    #define  enable_e4() NOOP
+    #define disable_e4() NOOP
   #endif
 
 #endif // !MIXING_EXTRUDER
@@ -283,9 +293,16 @@ float code_value_temp_diff();
 
 #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
   extern int bilinear_grid_spacing[2], bilinear_start[2];
-  extern float bed_level_grid[ABL_GRID_MAX_POINTS_X][ABL_GRID_MAX_POINTS_Y];
+  extern float bed_level_grid[GRID_MAX_POINTS_X][GRID_MAX_POINTS_Y];
   float bilinear_z_offset(float logical[XYZ]);
   void set_bed_leveling_enabled(bool enable=true);
+#endif
+
+#if ENABLED(AUTO_BED_LEVELING_UBL)
+struct linear_fit {
+	double A, B, D;
+};
+struct linear_fit *lsf_linear_fit( double *, double *, double *, int );
 #endif
 
 #if PLANNER_LEVELING
@@ -298,6 +315,8 @@ float code_value_temp_diff();
 
 #if HAS_BED_PROBE
   extern float zprobe_zoffset;
+  #define DEPLOY_PROBE() set_probe_deployed(true)
+  #define STOW_PROBE() set_probe_deployed(false)
 #endif
 
 #if ENABLED(HOST_KEEPALIVE_FEATURE)

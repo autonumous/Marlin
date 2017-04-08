@@ -25,7 +25,7 @@
 
 #if ENABLED(AUTO_BED_LEVELING_UBL)
 
-  #include "UBL.h"
+  #include "ubl.h"
   #include "hex_print_routines.h"
 
   /**
@@ -47,8 +47,8 @@
     safe_delay(10);
   }
 
-  static void serial_echo_10x_spaces() {
-    for (uint8_t i = UBL_MESH_NUM_X_POINTS - 1; --i;) {
+  static void serial_echo_11x_spaces() {
+    for (uint8_t i = GRID_MAX_POINTS_X - 1; --i;) {
       SERIAL_ECHOPGM("          ");
       #if TX_BUFFER_SIZE > 0
         MYSERIAL.flushTX();
@@ -59,10 +59,10 @@
 
   ubl_state unified_bed_leveling::state, unified_bed_leveling::pre_initialized;
 
-  float unified_bed_leveling::z_values[UBL_MESH_NUM_X_POINTS][UBL_MESH_NUM_Y_POINTS],
+  float unified_bed_leveling::z_values[GRID_MAX_POINTS_X][GRID_MAX_POINTS_Y],
         unified_bed_leveling::last_specified_z,
-        unified_bed_leveling::mesh_index_to_xpos[UBL_MESH_NUM_X_POINTS + 1], // +1 safety margin for now, until determinism prevails
-        unified_bed_leveling::mesh_index_to_ypos[UBL_MESH_NUM_Y_POINTS + 1];
+        unified_bed_leveling::mesh_index_to_xpos[GRID_MAX_POINTS_X + 1], // +1 safety margin for now, until determinism prevails
+        unified_bed_leveling::mesh_index_to_ypos[GRID_MAX_POINTS_Y + 1];
 
   bool unified_bed_leveling::g26_debug_flag = false,
        unified_bed_leveling::has_control_of_lcd_panel = false;
@@ -92,15 +92,6 @@
       SERIAL_PROTOCOLLNPGM("?In load_state() sanity_check() failed.\n");
 
     #if ENABLED(ENABLE_LEVELING_FADE_HEIGHT)
-      /**
-       * These lines can go away in a few weeks.  They are just
-       * to make sure people updating their firmware won't be using
-       * an incomplete Bed_Leveling.state structure. For speed
-       * we now multiply by the inverse of the Fade Height instead of
-       * dividing by it. Soon... all of the old structures will be
-       * updated, but until then, we try to ease the transition
-       * for our Beta testers.
-       */
       const float recip = ubl.state.g29_correction_fade_height ? 1.0 / ubl.state.g29_correction_fade_height : 1.0;
       if (ubl.state.g29_fade_height_multiplier != recip) {
         ubl.state.g29_fade_height_multiplier = recip;
@@ -165,8 +156,8 @@
   void unified_bed_leveling::invalidate() {
     state.active = false;
     state.z_offset = 0;
-    for (int x = 0; x < UBL_MESH_NUM_X_POINTS; x++)
-      for (int y = 0; y < UBL_MESH_NUM_Y_POINTS; y++)
+    for (int x = 0; x < GRID_MAX_POINTS_X; x++)
+      for (int y = 0; y < GRID_MAX_POINTS_Y; y++)
         z_values[x][y] = NAN;
   }
 
@@ -176,16 +167,16 @@
 
     if (map0) {
       SERIAL_PROTOCOLLNPGM("\nBed Topography Report:\n");
-      serial_echo_xy(0, UBL_MESH_NUM_Y_POINTS - 1);
+      serial_echo_xy(0, GRID_MAX_POINTS_Y - 1);
       SERIAL_ECHOPGM("    ");
     }
 
     if (map0) {
-      serial_echo_10x_spaces();
-      serial_echo_xy(UBL_MESH_NUM_X_POINTS - 1, UBL_MESH_NUM_Y_POINTS - 1);
+      serial_echo_11x_spaces();
+      serial_echo_xy(GRID_MAX_POINTS_X - 1, GRID_MAX_POINTS_Y - 1);
       SERIAL_EOL;
       serial_echo_xy(UBL_MESH_MIN_X, UBL_MESH_MIN_Y);
-      serial_echo_10x_spaces();
+      serial_echo_11x_spaces();
       serial_echo_xy(UBL_MESH_MAX_X, UBL_MESH_MAX_Y);
       SERIAL_EOL;
     }
@@ -193,8 +184,8 @@
     const float current_xi = ubl.get_cell_index_x(current_position[X_AXIS] + (MESH_X_DIST) / 2.0),
                 current_yi = ubl.get_cell_index_y(current_position[Y_AXIS] + (MESH_Y_DIST) / 2.0);
 
-    for (int8_t j = UBL_MESH_NUM_Y_POINTS - 1; j >= 0; j--) {
-      for (uint8_t i = 0; i < UBL_MESH_NUM_X_POINTS; i++) {
+    for (int8_t j = GRID_MAX_POINTS_Y - 1; j >= 0; j--) {
+      for (uint8_t i = 0; i < GRID_MAX_POINTS_X; i++) {
         const bool is_current = i == current_xi && j == current_yi;
 
         // is the nozzle here? then mark the number
@@ -210,7 +201,7 @@
           SERIAL_PROTOCOL_F(f, 3);
           idle();
         }
-        if (!map0 && i < UBL_MESH_NUM_X_POINTS - 1) SERIAL_CHAR(',');
+        if (!map0 && i < GRID_MAX_POINTS_X - 1) SERIAL_CHAR(',');
 
         #if TX_BUFFER_SIZE > 0
           MYSERIAL.flushTX();
@@ -231,13 +222,13 @@
     if (map0) {
       serial_echo_xy(UBL_MESH_MIN_X, UBL_MESH_MIN_Y);
       SERIAL_ECHOPGM("    ");
-      serial_echo_10x_spaces();
+      serial_echo_11x_spaces();
       serial_echo_xy(UBL_MESH_MAX_X, UBL_MESH_MIN_Y);
       SERIAL_EOL;
       serial_echo_xy(0, 0);
       SERIAL_ECHOPGM("       ");
-      serial_echo_10x_spaces();
-      serial_echo_xy(UBL_MESH_NUM_X_POINTS - 1, 0);
+      serial_echo_11x_spaces();
+      serial_echo_xy(GRID_MAX_POINTS_X - 1, 0);
       SERIAL_EOL;
     }
   }
@@ -245,12 +236,12 @@
   bool unified_bed_leveling::sanity_check() {
     uint8_t error_flag = 0;
 
-    if (state.n_x != UBL_MESH_NUM_X_POINTS) {
-      SERIAL_PROTOCOLLNPGM("?UBL_MESH_NUM_X_POINTS set wrong\n");
+    if (state.n_x != GRID_MAX_POINTS_X) {
+      SERIAL_PROTOCOLLNPGM("?GRID_MAX_POINTS_X set wrong\n");
       error_flag++;
     }
-    if (state.n_y != UBL_MESH_NUM_Y_POINTS) {
-      SERIAL_PROTOCOLLNPGM("?UBL_MESH_NUM_Y_POINTS set wrong\n");
+    if (state.n_y != GRID_MAX_POINTS_Y) {
+      SERIAL_PROTOCOLLNPGM("?GRID_MAX_POINTS_Y set wrong\n");
       error_flag++;
     }
     if (state.mesh_x_min != UBL_MESH_MIN_X) {
