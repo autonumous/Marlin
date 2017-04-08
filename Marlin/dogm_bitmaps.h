@@ -32,6 +32,7 @@
  * Please note that using the high-res version takes 402Bytes of PROGMEM.
  */
 
+// BigBox Enable Splash Screen
 #define START_BMPHIGH
 
 #if ENABLED(SHOW_BOOTSCREEN)
