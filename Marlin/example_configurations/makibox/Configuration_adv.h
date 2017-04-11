@@ -256,7 +256,6 @@
   #define INVERT_X2_VS_X_DIR true
 #endif
 
-
 // Dual Y Steppers
 // Uncomment this option to drive two Y axis motors.
 // The next unused E driver will be assigned to the second Y stepper.
@@ -407,8 +406,8 @@
  *                         known compatible chips: AD5206
  *    DAC_MOTOR_CURRENT_DEFAULT - used by PRINTRBOARD_REVF & RIGIDBOARD_V2
  *                         known compatible chips: MCP4728
- *    DIGIPOT_I2C_MOTOR_CURRENTS - used by 5DPRINT & AZTEEG_X3_PRO
- *                         known compatible chips: MCP4451
+ *    DIGIPOT_I2C_MOTOR_CURRENTS - used by 5DPRINT, AZTEEG_X3_PRO, MIGHTYBOARD_REVE
+ *                         known compatible chips: MCP4451, MCP4018
  *
  *  Motor currents can also be set by M907 - M910 and by the LCD.
  *    M907 - applies to all.
@@ -419,10 +418,11 @@
 //#define DIGIPOT_MOTOR_CURRENT {135,135,135,135,135} // Values 0-255 (RAMBO 135 = ~0.75A, 185 = ~1A)
 //#define DAC_MOTOR_CURRENT_DEFAULT { 70, 80, 90, 80 } // Default drive percent - X, Y, Z, E axis
 
-/*  5DPRINT & AZTEEG_X3_PRO */
-//#define DIGIPOT_I2C  // uncomment to enable
+// Uncomment to enable an I2C based DIGIPOT like on the Azteeg X3 Pro
+//#define DIGIPOT_I2C
+//#define DIGIPOT_MCP4018
 #define DIGIPOT_I2C_NUM_CHANNELS 4 // 5DPRINT: 4     AZTEEG_X3_PRO: 8
-// actual motor currents in Amps, need as many here as DIGIPOT_I2C_NUM_CHANNELS
+// Actual motor currents in Amps, need as many here as DIGIPOT_I2C_NUM_CHANNELS
 #define DIGIPOT_I2C_MOTOR_CURRENTS { 1.7, 1.7, 1.7, 1.7 }  // 5DPRINT
 
 //===========================================================================
@@ -645,6 +645,11 @@
   #define MESH_MAX_X (X_MAX_POS - (MESH_INSET))
   #define MESH_MIN_Y (Y_MIN_POS + MESH_INSET)
   #define MESH_MAX_Y (Y_MAX_POS - (MESH_INSET))
+#elif ENABLED(AUTO_BED_LEVELING_UBL)
+  #define UBL_MESH_MIN_X (X_MIN_POS + UBL_MESH_INSET)
+  #define UBL_MESH_MAX_X (X_MAX_POS - (UBL_MESH_INSET))
+  #define UBL_MESH_MIN_Y (Y_MIN_POS + UBL_MESH_INSET)
+  #define UBL_MESH_MAX_Y (Y_MAX_POS - (UBL_MESH_INSET))
 #endif
 
 // @section extras
@@ -800,6 +805,7 @@
   //#define E1_IS_TMC
   //#define E2_IS_TMC
   //#define E3_IS_TMC
+  //#define E4_IS_TMC
 
   #define X_MAX_CURRENT     1000 // in mA
   #define X_SENSE_RESISTOR    91 // in mOhms
@@ -840,6 +846,10 @@
   #define E3_MAX_CURRENT    1000
   #define E3_SENSE_RESISTOR   91
   #define E3_MICROSTEPS       16
+
+  #define E4_MAX_CURRENT    1000
+  #define E4_SENSE_RESISTOR   91
+  #define E4_MICROSTEPS       16
 
 #endif
 
@@ -882,6 +892,7 @@
   //#define E1_IS_TMC2130
   //#define E2_IS_TMC2130
   //#define E3_IS_TMC2130
+  //#define E4_IS_TMC2130
 
   /**
    * Stepper driver settings
@@ -967,6 +978,7 @@
   //#define E1_IS_L6470
   //#define E2_IS_L6470
   //#define E3_IS_L6470
+  //#define E4_IS_L6470
 
   #define X_MICROSTEPS      16 // number of microsteps
   #define X_K_VAL           50 // 0 - 255, Higher values, are higher power. Be careful not to go too high
@@ -1017,6 +1029,11 @@
   #define E3_K_VAL          50
   #define E3_OVERCURRENT  2000
   #define E3_STALLCURRENT 1500
+
+  #define E4_MICROSTEPS     16
+  #define E4_K_VAL          50
+  #define E4_OVERCURRENT  2000
+  #define E4_STALLCURRENT 1500
 
 #endif
 
