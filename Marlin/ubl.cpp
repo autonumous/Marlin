@@ -90,14 +90,6 @@
 
     if (sanity_check())
       SERIAL_PROTOCOLLNPGM("?In load_state() sanity_check() failed.\n");
-
-    #if ENABLED(ENABLE_LEVELING_FADE_HEIGHT)
-      const float recip = ubl.state.g29_correction_fade_height ? 1.0 / ubl.state.g29_correction_fade_height : 1.0;
-      if (ubl.state.g29_fade_height_multiplier != recip) {
-        ubl.state.g29_fade_height_multiplier = recip;
-        store_state();
-      }
-    #endif
   }
 
   void unified_bed_leveling::load_mesh(const int16_t m) {
@@ -118,7 +110,7 @@
     eeprom_read_block((void *)&z_values, (void *)j, sizeof(z_values));
 
     SERIAL_PROTOCOLPAIR("Mesh loaded from slot ", m);
-    SERIAL_PROTOCOLLNPAIR(" at offset 0x", hex_word(j));
+    SERIAL_PROTOCOLLNPAIR(" at offset ", hex_address((void*)j));
   }
 
   void unified_bed_leveling::store_mesh(const int16_t m) {
@@ -140,7 +132,7 @@
     eeprom_write_block((const void *)&z_values, (void *)j, sizeof(z_values));
 
     SERIAL_PROTOCOLPAIR("Mesh saved in slot ", m);
-    SERIAL_PROTOCOLLNPAIR(" at offset 0x", hex_word(j));
+    SERIAL_PROTOCOLLNPAIR(" at offset ", hex_address((void*)j));
   }
 
   void unified_bed_leveling::reset() {
