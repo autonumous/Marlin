@@ -74,6 +74,9 @@
   #if ENABLED(DISPLAY_CHARSET_ISO10646_1)
     #include "dogm_font_data_ISO10646_1.h"
     #define FONT_MENU_NAME ISO10646_1_5x7
+  #elif ENABLED(DISPLAY_CHARSET_ISO10646_PL)
+    #include "dogm_font_data_ISO10646_1_PL.h"
+    #define FONT_MENU_NAME ISO10646_1_PL_5x7
   #elif ENABLED(DISPLAY_CHARSET_ISO10646_5)
     #include "dogm_font_data_ISO10646_5_Cyrillic.h"
     #define FONT_MENU_NAME ISO10646_5_Cyrillic_5x7
@@ -419,17 +422,17 @@ static void lcd_implementation_status_screen() {
       _draw_heater_status(81, -1);
     #endif
 
-    if (PAGE_CONTAINS(20, 27)) {
-      // Fan
-      u8g.setPrintPos(104, 27);
-      #if HAS_FAN0
-        int per = ((fanSpeeds[0] + 1) * 100) / 256;
+    #if HAS_FAN0
+      if (PAGE_CONTAINS(20, 27)) {
+        // Fan
+        const int per = ((fanSpeeds[0] + 1) * 100) / 256;
         if (per) {
+          u8g.setPrintPos(104, 27);
           lcd_print(itostr3(per));
           u8g.print('%');
         }
-      #endif
-    }
+      }
+    #endif
   }
 
   #if ENABLED(SDSUPPORT)
