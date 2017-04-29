@@ -1097,29 +1097,14 @@ void Stepper::init() {
   OCR1A = 0x4000;
   TCNT1 = 0;
   ENABLE_STEPPER_DRIVER_INTERRUPT();
-/*
+
   #if ENABLED(ADVANCE) || ENABLED(LIN_ADVANCE)
     ZERO(e_steps);
     #if ENABLED(LIN_ADVANCE)
       ZERO(current_adv_steps);
     #endif
   #endif // ADVANCE || LIN_ADVANCE
-*/
-    
-    
-// testing a compile issue
-#if ENABLED(ADVANCE) || ENABLED(LIN_ADVANCE)
-    
-    for (int i = 0; i < E_STEPPERS; i++) {
-        e_steps[i] = 0;
-#if ENABLED(LIN_ADVANCE)
-        current_adv_steps[i] = 0;
-#endif
-    }
-    
-#endif // ADVANCE or LIN_ADVANCE
-    
-    
+
   endstops.enable(true); // Start with endstops active. After homing they can be disabled
   sei();
 
