@@ -24,13 +24,16 @@
  * temperature.cpp - temperature control
  */
 
-
-
 #include "Marlin.h"
 #include "ultralcd.h"
 #include "temperature.h"
 #include "thermistortables.h"
 #include "language.h"
+
+#if ENABLED(HEATER_0_USES_MAX6675)
+  #include "spi.h"
+#endif
+
 #if ENABLED(BABYSTEPPING)
   #include "stepper.h"
 #endif
@@ -763,15 +766,14 @@ void Temperature::manage_heater() {
     if (filament_sensor) {
       meas_shift_index = filwidth_delay_index[0] - meas_delay_cm;
       if (meas_shift_index < 0) meas_shift_index += MAX_MEASUREMENT_DELAY + 1;  //loop around buffer if needed
+      meas_shift_index = constrain(meas_shift_index, 0, MAX_MEASUREMENT_DELAY);
 
       // Get the delayed info and add 100 to reconstitute to a percent of
       // the nominal filament diameter then square it to get an area
-      meas_shift_index = constrain(meas_shift_index, 0, MAX_MEASUREMENT_DELAY);
-      float vm = pow((measurement_delay[meas_shift_index] + 100.0) * 0.01, 2);
-      NOLESS(vm, 0.01);
-      volumetric_multiplier[FILAMENT_SENSOR_EXTRUDER_NUM] = vm;
+      const float vmroot = measurement_delay[meas_shift_index] * 0.01 + 1.0;
+      volumetric_multiplier[FILAMENT_SENSOR_EXTRUDER_NUM] = vmroot <= 0.1 ? 0.01 : sq(vmroot);
     }
-  #endif //FILAMENT_WIDTH_SENSOR
+  #endif // FILAMENT_WIDTH_SENSOR
 
   #if DISABLED(PIDTEMPBED)
     if (PENDING(ms, next_bed_check_ms)) return;
@@ -942,6 +944,15 @@ void Temperature::updateTemperaturesFromRawValues() {
 
 #endif
 
+#if ENABLED(HEATER_0_USES_MAX6675)
+  #ifndef MAX6675_SCK_PIN
+    #define MAX6675_SCK_PIN SCK_PIN
+  #endif
+  #ifndef MAX6675_DO_PIN
+    #define MAX6675_DO_PIN MISO_PIN
+  #endif
+  Spi<MAX6675_DO_PIN, MOSI_PIN, MAX6675_SCK_PIN> max6675_spi;
+#endif
 
 /**
  * Initialize the temperature manager
@@ -949,8 +960,8 @@ void Temperature::updateTemperaturesFromRawValues() {
  */
 void Temperature::init() {
 
-  #if MB(RUMBA) && ((TEMP_SENSOR_0==-1)||(TEMP_SENSOR_1==-1)||(TEMP_SENSOR_2==-1)||(TEMP_SENSOR_BED==-1))
-    //disable RUMBA JTAG in case the thermocouple extension is plugged on top of JTAG connector
+  #if MB(RUMBA) && (TEMP_SENSOR_0 == -1 || TEMP_SENSOR_1 == -1 || TEMP_SENSOR_2 == -1 || TEMP_SENSOR_BED == -1)
+    // Disable RUMBA JTAG in case the thermocouple extension is plugged on top of JTAG connector
     MCUCR = _BV(JTD);
     MCUCR = _BV(JTD);
   #endif
@@ -1007,11 +1018,13 @@ void Temperature::init() {
     OUT_WRITE(SCK_PIN, LOW);
     OUT_WRITE(MOSI_PIN, HIGH);
     SET_INPUT_PULLUP(MISO_PIN);
-    OUT_WRITE(SS_PIN, HIGH);
 
+    max6675_spi.init();
+
+    OUT_WRITE(SS_PIN, HIGH);
     OUT_WRITE(MAX6675_SS, HIGH);
 
-  #endif //HEATER_0_USES_MAX6675
+  #endif // HEATER_0_USES_MAX6675
 
   #ifdef DIDR2
     #define ANALOG_SELECT(pin) do{ if (pin < 8) SBI(DIDR0, pin); else SBI(DIDR2, pin - 8); }while(0)
@@ -1356,9 +1369,7 @@ void Temperature::disable_all_heaters() {
     // Read a big-endian temperature value
     max6675_temp = 0;
     for (uint8_t i = sizeof(max6675_temp); i--;) {
-      SPDR = 0;
-      for (;!TEST(SPSR, SPIF););
-      max6675_temp |= SPDR;
+      max6675_temp |= max6675_spi.receive();
       if (i > 0) max6675_temp <<= 8; // shift left if not the last byte
     }
 
@@ -1384,7 +1395,7 @@ void Temperature::disable_all_heaters() {
       max6675_temp >>= MAX6675_DISCARD_BITS;
       #if ENABLED(MAX6675_IS_MAX31855)
         // Support negative temperature
-        if (max6675_temp & 0x00002000) max6675_temp |= 0xffffc000;
+        if (max6675_temp & 0x00002000) max6675_temp |= 0xFFFFC000;
       #endif
 
     return (int)max6675_temp;
@@ -1528,8 +1539,8 @@ void Temperature::isr() {
   CBI(TIMSK0, OCIE0B); //Disable Temperature ISR
   sei();
 
-  static uint8_t temp_count = 0;
-  static TempState temp_state = StartupDelay;
+  static int8_t temp_count = -1;
+  static ADCSensorState adc_sensor_state = StartupDelay;
   static uint8_t pwm_count = _BV(SOFT_PWM_SCALE);
   // avoid multiple loads of pwm_count
   uint8_t pwm_count_tmp = pwm_count;
@@ -1802,6 +1813,22 @@ void Temperature::isr() {
 
   #endif // SLOW_PWM_HEATERS
 
+  //
+  // Update lcd buttons 488 times per second
+  //
+  static bool do_buttons;
+  if ((do_buttons ^= true)) lcd_buttons_update();
+
+  /**
+   * One sensor is sampled on every other call of the ISR.
+   * Each sensor is read 16 (OVERSAMPLENR) times, taking the average.
+   *
+   * On each Prepare pass, ADC is started for a sensor pin.
+   * On the next pass, the ADC value is read and accumulated.
+   *
+   * This gives each ADC 0.9765ms to charge up.
+   */
+
   #define SET_ADMUX_ADCSRA(pin) ADMUX = _BV(REFS0) | (pin & 0x07); SBI(ADCSRA, ADSC)
   #ifdef MUX5
     #define START_ADC(pin) if (pin > 7) ADCSRB = _BV(MUX5); else ADCSRB = 0; SET_ADMUX_ADCSRA(pin)
@@ -1809,122 +1836,94 @@ void Temperature::isr() {
     #define START_ADC(pin) ADCSRB = 0; SET_ADMUX_ADCSRA(pin)
   #endif
 
-  // Prepare or measure a sensor, each one every 14th frame
-  switch (temp_state) {
-    case PrepareTemp_0:
-      #if HAS_TEMP_0
+  switch (adc_sensor_state) {
+
+    case SensorsReady: {
+      // All sensors have been read. Stay in this state for a few
+      // ISRs to save on calls to temp update/checking code below.
+      constexpr int extra_loops = MIN_ADC_ISR_LOOPS - (int)SensorsReady;
+      static uint8_t delay_count = 0;
+      if (extra_loops > 0) {
+        if (delay_count == 0) delay_count = extra_loops;   // Init this delay
+        if (--delay_count)                                 // While delaying...
+          adc_sensor_state = (ADCSensorState)(int(SensorsReady) - 1); // retain this state (else, next state will be 0)
+        break;
+      }
+      else
+        adc_sensor_state = (ADCSensorState)0; // Fall-through to start first sensor now
+    }
+
+    #if HAS_TEMP_0
+      case PrepareTemp_0:
         START_ADC(TEMP_0_PIN);
-      #endif
-      lcd_buttons_update();
-      temp_state = MeasureTemp_0;
-      break;
-    case MeasureTemp_0:
-      #if HAS_TEMP_0
+        break;
+      case MeasureTemp_0:
         raw_temp_value[0] += ADC;
-      #endif
-      temp_state = PrepareTemp_BED;
-      break;
+        break;
+    #endif
 
-    case PrepareTemp_BED:
-      #if HAS_TEMP_BED
+    #if HAS_TEMP_BED
+      case PrepareTemp_BED:
         START_ADC(TEMP_BED_PIN);
-      #endif
-      lcd_buttons_update();
-      temp_state = MeasureTemp_BED;
-      break;
-    case MeasureTemp_BED:
-      #if HAS_TEMP_BED
+        break;
+      case MeasureTemp_BED:
         raw_temp_bed_value += ADC;
-      #endif
-      temp_state = PrepareTemp_1;
-      break;
+        break;
+    #endif
 
-    case PrepareTemp_1:
-      #if HAS_TEMP_1
+    #if HAS_TEMP_1
+      case PrepareTemp_1:
         START_ADC(TEMP_1_PIN);
-      #endif
-      lcd_buttons_update();
-      temp_state = MeasureTemp_1;
-      break;
-    case MeasureTemp_1:
-      #if HAS_TEMP_1
+        break;
+      case MeasureTemp_1:
         raw_temp_value[1] += ADC;
-      #endif
-      temp_state = PrepareTemp_2;
-      break;
+        break;
+    #endif
 
-    case PrepareTemp_2:
-      #if HAS_TEMP_2
+    #if HAS_TEMP_2
+      case PrepareTemp_2:
         START_ADC(TEMP_2_PIN);
-      #endif
-      lcd_buttons_update();
-      temp_state = MeasureTemp_2;
-      break;
-    case MeasureTemp_2:
-      #if HAS_TEMP_2
+        break;
+      case MeasureTemp_2:
         raw_temp_value[2] += ADC;
-      #endif
-      temp_state = PrepareTemp_3;
-      break;
+        break;
+    #endif
 
-    case PrepareTemp_3:
-      #if HAS_TEMP_3
+    #if HAS_TEMP_3
+      case PrepareTemp_3:
         START_ADC(TEMP_3_PIN);
-      #endif
-      lcd_buttons_update();
-      temp_state = MeasureTemp_3;
-      break;
-    case MeasureTemp_3:
-      #if HAS_TEMP_3
+        break;
+      case MeasureTemp_3:
         raw_temp_value[3] += ADC;
-      #endif
-      temp_state = PrepareTemp_4;
-      break;
+        break;
+    #endif
 
-    case PrepareTemp_4:
-      #if HAS_TEMP_4
+    #if HAS_TEMP_4
+      case PrepareTemp_4:
         START_ADC(TEMP_4_PIN);
-      #endif
-      lcd_buttons_update();
-      temp_state = MeasureTemp_4;
-      break;
-    case MeasureTemp_4:
-      #if HAS_TEMP_4
+        break;
+      case MeasureTemp_4:
         raw_temp_value[4] += ADC;
-      #endif
-      temp_state = Prepare_FILWIDTH;
-      break;
+        break;
+    #endif
 
-    case Prepare_FILWIDTH:
-      #if ENABLED(FILAMENT_WIDTH_SENSOR)
+    #if ENABLED(FILAMENT_WIDTH_SENSOR)
+      case Prepare_FILWIDTH:
         START_ADC(FILWIDTH_PIN);
-      #endif
-      lcd_buttons_update();
-      temp_state = Measure_FILWIDTH;
       break;
-    case Measure_FILWIDTH:
-      #if ENABLED(FILAMENT_WIDTH_SENSOR)
-        // raw_filwidth_value += ADC;  //remove to use an IIR filter approach
-        if (ADC > 102) { //check that ADC is reading a voltage > 0.5 volts, otherwise don't take in the data.
-          raw_filwidth_value -= (raw_filwidth_value >> 7); //multiply raw_filwidth_value by 127/128
-          raw_filwidth_value += ((unsigned long)ADC << 7); //add new ADC reading
+      case Measure_FILWIDTH:
+        if (ADC > 102) { // Make sure ADC is reading > 0.5 volts, otherwise don't read.
+          raw_filwidth_value -= (raw_filwidth_value >> 7); // Subtract 1/128th of the raw_filwidth_value
+          raw_filwidth_value += ((unsigned long)ADC << 7); // Add new ADC reading, scaled by 128
         }
-      #endif
-      temp_state = PrepareTemp_0;
-      temp_count++;
-      break;
+        break;
+    #endif
 
-    case StartupDelay:
-      temp_state = PrepareTemp_0;
-      break;
+    case StartupDelay: break;
 
-    // default:
-    //   SERIAL_ERROR_START;
-    //   SERIAL_ERRORLNPGM("Temp measurement error!");
-    //   break;
-  } // switch(temp_state)
+  } // switch(adc_sensor_state)
 
-  if (temp_count >= OVERSAMPLENR) { // 10 * 16 * 1/(16000000/64/256)  = 164ms.
+  if (!adc_sensor_state && ++temp_count >= OVERSAMPLENR) { // 10 * 16 * 1/(16000000/64/256)  = 164ms.
 
     temp_count = 0;
 
@@ -1987,6 +1986,9 @@ void Temperature::isr() {
     #endif
 
   } // temp_count >= OVERSAMPLENR
+
+  // Go to the next state, up to SensorsReady
+  adc_sensor_state = (ADCSensorState)((int(adc_sensor_state) + 1) % int(StartupDelay));
 
   #if ENABLED(BABYSTEPPING)
     LOOP_XYZ(axis) {

@@ -37,6 +37,8 @@
   #include "pins_CNCONTROLS_12.h"
 #elif MB(CHEAPTRONIC)
   #include "pins_CHEAPTRONIC.h"
+#elif MB(CHEAPTRONIC_V2)
+  #include "pins_CHEAPTRONICv2.h"
 #elif MB(SETHI)
   #include "pins_SETHI.h"
 #elif MB(MIGHTYBOARD_REVE)
@@ -302,6 +304,9 @@
 #endif
 #if !defined(E3_AUTO_FAN_PIN) && defined(ORIG_E3_AUTO_FAN_PIN)
   #define E3_AUTO_FAN_PIN ORIG_E3_AUTO_FAN_PIN
+#endif
+#if !defined(E4_AUTO_FAN_PIN) && defined(ORIG_E4_AUTO_FAN_PIN)
+  #define E4_AUTO_FAN_PIN ORIG_E4_AUTO_FAN_PIN
 #endif
 
 // List of pins which to ignore when asked to change by gcode, 0 and 1 are RX and TX, do not mess with those!

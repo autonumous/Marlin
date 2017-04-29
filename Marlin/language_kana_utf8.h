@@ -122,9 +122,10 @@
 #define MSG_E2STEPS                         _UxGT("E2steps/mm")
 #define MSG_E3STEPS                         _UxGT("E3steps/mm")
 #define MSG_E4STEPS                         _UxGT("E4steps/mm")
+#define MSG_E5STEPS                         _UxGT("E5steps/mm")
 #define MSG_TEMPERATURE                     _UxGT("オンド")                      // "Temperature"
 #define MSG_MOTION                          _UxGT("ウゴキセッテイ")                // "Motion"
-#define MSG_VOLUMETRIC                      _UxGT("フィラメント")                   // "Filament"
+#define MSG_FILAMENT                        _UxGT("フィラメント")                   // "Filament"
 #define MSG_VOLUMETRIC_ENABLED              _UxGT("E in mm3")
 #define MSG_FILAMENT_DIAM                   _UxGT("フィラメントチョッケイ")            // "Fil. Dia."
 #define MSG_CONTRAST                        _UxGT("LCDコントラスト")               // "LCD contrast"
