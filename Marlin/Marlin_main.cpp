@@ -9588,12 +9588,9 @@ void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool m
       feedrate_mm_s = fr_mm_s > 0.0 ? fr_mm_s : XY_PROBE_FEEDRATE_MM_S;
 
       if (tmp_extruder != active_extruder) {
-<<<<<<< HEAD
         //if (!no_move && axis_unhomed_error(true, true, true)) {
-        if (move && axis_unhomed_error(true, true, true)) {
-=======
-        if (!no_move && axis_unhomed_error()) {
->>>>>>> bugfix-1.1.x
+        //if (move && axis_unhomed_error(true, true, true)) {
+        if (move && axis_unhomed_error()) {
           SERIAL_ECHOLNPGM("No move on toolchange");
           //no_move = true;
           move=false;
