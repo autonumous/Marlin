@@ -101,9 +101,12 @@
   #if ENABLED(ULTIMAKERCONTROLLER)              \
    || ENABLED(REPRAP_DISCOUNT_SMART_CONTROLLER) \
    || ENABLED(G3D_PANEL)                        \
-   || ENABLED(RIGIDBOT_PANEL)                   \
-   || ENABLED(REPRAPWORLD_KEYPAD)
+   || ENABLED(RIGIDBOT_PANEL)
     #define ULTIPANEL
+    #define NEWPANEL
+  #endif
+
+  #if ENABLED(REPRAPWORLD_KEYPAD)
     #define NEWPANEL
   #endif
 
@@ -372,6 +375,13 @@
    * Set a flag for a servo probe
    */
   #define HAS_Z_SERVO_ENDSTOP (defined(Z_ENDSTOP_SERVO_NR) && Z_ENDSTOP_SERVO_NR >= 0)
+
+  /**
+   * UBL has its own manual probing, so this just causes trouble.
+   */
+  #if ENABLED(AUTO_BED_LEVELING_UBL)
+    #undef PROBE_MANUALLY
+  #endif
 
   /**
    * Set a flag for any enabled probe
