@@ -108,6 +108,9 @@
 
   #if ENABLED(REPRAPWORLD_KEYPAD)
     #define NEWPANEL
+    #if ENABLED(ULTIPANEL) && !defined(REPRAPWORLD_KEYPAD_MOVE_STEP)
+      #define REPRAPWORLD_KEYPAD_MOVE_STEP 1.0
+    #endif
   #endif
 
   #if ENABLED(RA_CONTROL_PANEL)
@@ -129,8 +132,8 @@
    */
 
   #if ENABLED(LCD_I2C_SAINSMART_YWROBOT)
-    // This uses the LiquidCrystal_I2C library ( https://bitbucket.org/fmalpartida/new-liquidcrystal/wiki/Home )
-    // Make sure it is placed in the Arduino libraries directory.
+    // Note: This controller requires F.Malpartida's LiquidCrystal_I2C library
+    // https://bitbucket.org/fmalpartida/new-liquidcrystal/wiki/Home
     #define LCD_I2C_TYPE_PCF8575
     #define LCD_I2C_ADDRESS 0x27   // I2C Address of the port expander
     #define ULTIPANEL
@@ -241,14 +244,14 @@
     #define LCD_STR_FILAM_MUL   "\xa4"
   #else
     /* Custom characters defined in the first 8 characters of the LCD */
-    #define LCD_STR_BEDTEMP     "\x00"  // Print only as a char. This will have 'unexpected' results when used in a string!
-    #define LCD_STR_DEGREE      "\x01"
-    #define LCD_STR_THERMOMETER "\x02"
-    #define LCD_STR_UPLEVEL     "\x03"
+    #define LCD_BEDTEMP_CHAR     0x00  // Print only as a char. This will have 'unexpected' results when used in a string!
+    #define LCD_DEGREE_CHAR      0x01
+    #define LCD_STR_THERMOMETER "\x02" // Still used with string concatenation
+    #define LCD_UPLEVEL_CHAR     0x03
     #define LCD_STR_REFRESH     "\x04"
     #define LCD_STR_FOLDER      "\x05"
-    #define LCD_STR_FEEDRATE    "\x06"
-    #define LCD_STR_CLOCK       "\x07"
+    #define LCD_FEEDRATE_CHAR    0x06
+    #define LCD_CLOCK_CHAR       0x07
     #define LCD_STR_ARROW_RIGHT ">"  /* from the default character set */
   #endif
 
@@ -398,6 +401,6 @@
 
   #define HAS_SOFTWARE_ENDSTOPS (ENABLED(MIN_SOFTWARE_ENDSTOPS) || ENABLED(MAX_SOFTWARE_ENDSTOPS))
   #define HAS_RESUME_CONTINUE (ENABLED(NEWPANEL) || ENABLED(EMERGENCY_PARSER))
-  #define HAS_COLOR_LEDS (ENABLED(BLINKM) || ENABLED(RGB_LED) || ENABLED(RGBW_LED))
+  #define HAS_COLOR_LEDS (ENABLED(BLINKM) || ENABLED(RGB_LED) || ENABLED(RGBW_LED) || ENABLED(PCA9632))
 
 #endif // CONDITIONALS_LCD_H

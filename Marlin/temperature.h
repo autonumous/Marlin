@@ -112,10 +112,6 @@ class Temperature {
 
     static volatile bool in_temp_isr;
 
-    #if ENABLED(TEMP_SENSOR_1_AS_REDUNDANT)
-      static float redundant_temperature;
-    #endif
-
     static uint8_t soft_pwm_amount[HOTENDS],
                    soft_pwm_amount_bed;
 
@@ -176,7 +172,7 @@ class Temperature {
 
     #if ENABLED(PREVENT_COLD_EXTRUSION)
       static bool allow_cold_extrude;
-      static uint16_t extrude_min_temp;
+      static int16_t extrude_min_temp;
       static bool tooColdToExtrude(uint8_t e) {
         #if HOTENDS == 1
           UNUSED(e);
@@ -251,7 +247,7 @@ class Temperature {
     #endif
 
     #if ENABLED(FILAMENT_WIDTH_SENSOR)
-      static int16_t meas_shift_index;  // Index of a delayed sample in buffer
+      static int8_t meas_shift_index;  // Index of a delayed sample in buffer
     #endif
 
     #if HAS_AUTO_FAN
@@ -259,14 +255,14 @@ class Temperature {
     #endif
 
     #if ENABLED(FILAMENT_WIDTH_SENSOR)
-      static int current_raw_filwidth;  //Holds measured filament diameter - one extruder only
+      static uint16_t current_raw_filwidth; // Measured filament diameter - one extruder only
     #endif
 
     #if ENABLED(PROBING_HEATERS_OFF)
       static bool paused;
     #endif
 
-    #if ENABLED(ADVANCED_PAUSE_FEATURE)
+    #if HEATER_IDLE_HANDLER
       static millis_t heater_idle_timeout_ms[HOTENDS];
       static bool heater_idle_timeout_exceeded[HOTENDS];
       #if HAS_TEMP_BED
@@ -480,7 +476,7 @@ class Temperature {
       static bool is_paused() { return paused; }
     #endif
 
-    #if ENABLED(ADVANCED_PAUSE_FEATURE)
+    #if HEATER_IDLE_HANDLER
       static void start_heater_idle_timer(uint8_t e, millis_t timeout_ms) {
         #if HOTENDS == 1
           UNUSED(e);
@@ -539,15 +535,15 @@ class Temperature {
 
     static void checkExtruderAutoFans();
 
-    static float get_pid_output(int e);
+    static float get_pid_output(const int8_t e);
 
     #if ENABLED(PIDTEMPBED)
       static float get_pid_output_bed();
     #endif
 
-    static void _temp_error(int e, const char* serial_msg, const char* lcd_msg);
-    static void min_temp_error(int8_t e);
-    static void max_temp_error(int8_t e);
+    static void _temp_error(const int8_t e, const char * const serial_msg, const char * const lcd_msg);
+    static void min_temp_error(const int8_t e);
+    static void max_temp_error(const int8_t e);
 
     #if ENABLED(THERMAL_PROTECTION_HOTENDS) || HAS_THERMALLY_PROTECTED_BED
 
