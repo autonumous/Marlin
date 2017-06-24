@@ -204,8 +204,7 @@
  * Extruder cooling fans
  *
  * Extruder auto fans automatically turn on when their extruders'
- * temperatures go above EXTRUDER_AUTO_FAN_TEMPERATURE.
- *
+ * temperatures go above EXTRUDER_AUTO_FAN_TEMPERATURE. *
  * Your board's pins file specifies the recommended pins. Override those here
  * or set to -1 to disable completely.
  *
