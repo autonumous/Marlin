@@ -58,15 +58,15 @@
 //===========================================================================
 //============================= DELTA Printer ===============================
 //===========================================================================
-// For Delta printers start with one of the configuration files in the
+// For a Delta printer start with one of the configuration files in the
 // example_configurations/delta directory and customize for your machine.
 //
 
 //===========================================================================
 //============================= SCARA Printer ===============================
 //===========================================================================
-// For a Scara printer replace the configuration files with the files in the
-// example_configurations/SCARA directory.
+// For a SCARA printer start with the configuration files in
+// example_configurations/SCARA and customize for your machine.
 //
 
 // @section info
@@ -311,12 +311,12 @@
                                   // is more than PID_FUNCTIONAL_RANGE then the PID will be shut off and the heater will be set to min/max.
   #define K1 0.95 //smoothing factor within the PID
 
+  // If you are using a pre-configured hotend then you can use one of the value sets by uncommenting it
+
   //WT150, based on: M303 E0 S220 C8
   #define  DEFAULT_Kp 22.10
   #define  DEFAULT_Ki 1.10
   #define  DEFAULT_Kd 110.78
-
-  // If you are using a pre-configured hotend then you can use one of the value sets by uncommenting it
 
   // Ultimaker
   //#define  DEFAULT_Kp 22.2
@@ -533,6 +533,7 @@
 #define DEFAULT_YJERK                  8.0
 #define DEFAULT_ZJERK                  0.4
 #define DEFAULT_EJERK                  5.0
+
 
 //===========================================================================
 //============================= Z Probe Options =============================
@@ -1287,12 +1288,6 @@
 //#define ULTIPANEL
 
 //
-// Cartesio UI
-// http://mauk.cc/webshop/cartesio-shop/electronics/user-interface
-//
-//#define CARTESIO_UI
-
-//
 // PanelOne from T3P3 (via RAMPS 1.4 AUX2/AUX3)
 // http://reprap.org/wiki/PanelOne
 //
@@ -1375,6 +1370,22 @@
 //#define BQ_LCD_SMART_CONTROLLER
 
 //
+// Cartesio UI
+// http://mauk.cc/webshop/cartesio-shop/electronics/user-interface
+//
+//#define CARTESIO_UI
+
+//
+// ANET_10 Controller supported displays.
+//
+//#define ANET_KEYPAD_LCD         // Requires ADC_KEYPAD_PIN to be assigned to an analog pin.
+                                  // This LCD is known to be susceptible to electrical interference
+                                  // which scrambles the display.  Pressing any button clears it up.
+//#define ANET_FULL_GRAPHICS_LCD  // Anet 128x64 full graphics lcd with rotary encoder as used on Anet A6
+                                  // A clone of the RepRapDiscount full graphics display but with
+                                  // different pins/wiring (see pins_ANET_10.h).
+
+//
 // CONTROLLER TYPE: I2C
 //
 // Note: These controllers require the installation of Arduino's LiquidCrystal_I2C
@@ -1424,6 +1435,11 @@
 //#define U8GLIB_SSD1306
 
 //
+// TinyBoy2 128x64 OLED / Encoder Panel
+//
+//#define OLED_PANEL_TINYBOY2
+
+//
 // SAV OLEd LCD module support using either SSD1306 or SH1106 based LCD modules
 //
 //#define SAV_3DGLCD
@@ -1439,11 +1455,6 @@
 // LCD configuration: http://reprap.org/wiki/SAV_3D_LCD
 //
 //#define SAV_3DLCD
-
-//
-// TinyBoy2 128x64 OLED / Encoder Panel
-//
-//#define OLED_PANEL_TINYBOY2
 
 //=============================================================================
 //=============================== Extra Features ==============================
@@ -1492,7 +1503,23 @@
 //define PCA9632 PWM LED driver Support
 //#define PCA9632
 
-// Support for an RGB LED using 3 separate pins with optional PWM
+/**
+ * RGB LED / LED Strip Control
+ *
+ * Enable support for an RGB LED connected to 5V digital pins, or
+ * an RGB Strip connected to MOSFETs controlled by digital pins.
+ *
+ * Adds the M150 command to set the LED (or LED strip) color.
+ * If pins are PWM capable (e.g., 4, 5, 6, 11) then a range of
+ * luminance values can be set from 0 to 255.
+ *
+ * *** CAUTION ***
+ *  LED Strips require a MOFSET Chip between PWM lines and LEDs,
+ *  as the Arduino cannot handle the current the LEDs will require.
+ *  Failure to follow this precaution can destroy your Arduino!
+ * *** CAUTION ***
+ *
+ */
 //#define RGB_LED
 //#define RGBW_LED
 #if ENABLED(RGB_LED) || ENABLED(RGBW_LED)

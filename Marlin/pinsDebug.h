@@ -129,6 +129,11 @@ const PinInfo pin_array[] PROGMEM = {
   bool get_pinMode(int8_t pin) {return *portModeRegister(digitalPinToPort_DEBUG(pin)) & digitalPinToBitMask_DEBUG(pin); }
 #endif
 
+#if defined(__AVR_ATmega1284P__)  // 1284 IDE extensions set this to the number of
+  #undef NUM_DIGITAL_PINS         // digital only pins while all other CPUs have it
+  #define NUM_DIGITAL_PINS 32     // set to digital only + digital/analog
+#endif
+
 #define PWM_PRINT(V) do{ sprintf_P(buffer, PSTR("PWM:  %4d"), V); SERIAL_ECHO(buffer); }while(0)
 #define PWM_CASE(N,Z)                                           \
   case TIMER##N##Z:                                             \
@@ -479,7 +484,7 @@ inline void report_pin_state_extended(int8_t pin, bool ignore, bool extended = f
         if (pin_is_protected(pin) && !ignore)
           SERIAL_ECHOPGM("protected ");
         else {
-          #ifdef AVR_AT90USB1286_FAMILY //Teensy IDEs don't know about these pins so must use FASTIO
+          #if AVR_AT90USB1286_FAMILY //Teensy IDEs don't know about these pins so must use FASTIO
             if (pin == 46 || pin == 47) {
               if (pin == 46) {
                 print_input_or_output(GET_OUTPUT(46));
@@ -534,7 +539,7 @@ inline void report_pin_state_extended(int8_t pin, bool ignore, bool extended = f
       SERIAL_ECHO_SP(8);   // add padding if not an analog pin
     SERIAL_ECHOPGM("<unused/unknown>");
     if (extended) {
-      #ifdef AVR_AT90USB1286_FAMILY  //Teensy IDEs don't know about these pins so must use FASTIO
+      #if AVR_AT90USB1286_FAMILY  //Teensy IDEs don't know about these pins so must use FASTIO
         if (pin == 46 || pin == 47) {
           SERIAL_PROTOCOL_SP(12);
           if (pin == 46) {

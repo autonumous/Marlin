@@ -1773,8 +1773,9 @@ static void clean_up_after_endstop_or_probe_move() {
 
     float z_dest = LOGICAL_Z_POSITION(z_raise);
     if (zprobe_zoffset < 0) z_dest -= zprobe_zoffset;
+
     #if ENABLED(DELTA)
-      z_dest -= home_offset[Z_AXIS];
+      z_dest -= home_offset[Z_AXIS]; // Account for delta height adjustment
     #endif
 
     if (z_dest > current_position[Z_AXIS])
@@ -2264,9 +2265,11 @@ static void clean_up_after_endstop_or_probe_move() {
       // move down quickly before doing the slow probe
       float z = LOGICAL_Z_POSITION(Z_CLEARANCE_BETWEEN_PROBES);
       if (zprobe_zoffset < 0) z -= zprobe_zoffset;
+
       #if ENABLED(DELTA)
-        z -= home_offset[Z_AXIS];
+        z -= home_offset[Z_AXIS]; // Account for delta height adjustment
       #endif
+
       if (z < current_position[Z_AXIS])
         do_blocking_move_to_z(z, MMM_TO_MMS(Z_PROBE_SPEED_FAST));
 
@@ -2286,7 +2289,11 @@ static void clean_up_after_endstop_or_probe_move() {
         SERIAL_ECHOLNPAIR(" Discrepancy:", first_probe_z - current_position[Z_AXIS]);
       }
     #endif
-    return RAW_CURRENT_POSITION(Z) + zprobe_zoffset;
+    return RAW_CURRENT_POSITION(Z) + zprobe_zoffset
+      #if ENABLED(DELTA)
+        + home_offset[Z_AXIS] // Account for delta height adjustment
+      #endif
+    ;
   }
 
   /**
@@ -5135,6 +5142,8 @@ void home_all_axes() { gcode_G28(true); }
      *   T   Don't calibrate tower angle corrections
      *
      *   Cn.nn Calibration precision; when omitted calibrates to maximum precision
+     *   
+     *   Fn  Force to run at least n iterations and takes the best result
      *
      *   Vn  Verbose level:
      *
@@ -5173,7 +5182,13 @@ void home_all_axes() { gcode_G28(true); }
         return;
       }
 
-      const bool towers_set = !parser.seen('T'),
+      const int8_t force_iterations = parser.seen('F') ? parser.value_int() : 1;
+      if (!WITHIN(force_iterations, 1, 30)) {
+        SERIAL_PROTOCOLLNPGM("?(F)orce iteration is implausible (1-30).");
+        return;
+      }
+
+      const bool towers_set           = !parser.seen('T'),
                  stow_after_each      = parser.seen('E') && parser.value_bool(),
                  _1p_calibration      = probe_points == 1,
                  _4p_calibration      = probe_points == 2,
@@ -5207,6 +5222,7 @@ void home_all_axes() { gcode_G28(true); }
       float test_precision,
             zero_std_dev = (verbose_level ? 999.0 : 0.0), // 0.0 in dry-run mode : forced end
             zero_std_dev_old = zero_std_dev,
+            zero_std_dev_min = zero_std_dev,
             e_old[XYZ] = {
               endstop_adj[A_AXIS],
               endstop_adj[B_AXIS],
@@ -5285,9 +5301,10 @@ void home_all_axes() { gcode_G28(true); }
           const uint8_t start = _4p_opposite_points ? 3 : 1,
                          step = _4p_calibration ? 4 : _7p_half_circle ? 2 : 1;
           for (uint8_t axis = start; axis < 13; axis += step) {
-            const float offset_circles = _7p_quadruple_circle ? (zig_zag ? 1.5 : 1.0) :
-                                         _7p_triple_circle    ? (zig_zag ? 1.0 : 0.5) :
-                                         _7p_double_circle    ? (zig_zag ? 0.5 : 0.0) : 0;
+            const float zigadd = (zig_zag ? 0.5 : 0.0),
+                        offset_circles = _7p_quadruple_circle ? zigadd + 1.0 :
+                                         _7p_triple_circle    ? zigadd + 0.5 :
+                                         _7p_double_circle    ? zigadd : 0;
             for (float circles = -offset_circles ; circles <= offset_circles; circles++) {
               const float a = RADIANS(180 + 30 * axis),
                           r = delta_calibration_radius * (1 + circles * (zig_zag ? 0.1 : -0.1));
@@ -5311,18 +5328,19 @@ void home_all_axes() { gcode_G28(true); }
             N++;
           }
         zero_std_dev_old = zero_std_dev;
-        zero_std_dev = round(SQRT(S2 / N) * 1000.0) / 1000.0 + 0.00001;
-
-        if (iterations == 1) home_offset[Z_AXIS] = zh_old; // reset height after 1st probe change
+        NOMORE(zero_std_dev_min, zero_std_dev);
+        zero_std_dev = round(sqrt(S2 / N) * 1000.0) / 1000.0 + 0.00001;
 
         // Solve matrices
 
-        if (zero_std_dev < test_precision && zero_std_dev > calibration_precision) {
-          COPY(e_old, endstop_adj);
-          dr_old = delta_radius;
-          zh_old = home_offset[Z_AXIS];
-          alpha_old = delta_tower_angle_trim[A_AXIS];
-          beta_old = delta_tower_angle_trim[B_AXIS];
+        if ((zero_std_dev < test_precision && zero_std_dev > calibration_precision) || iterations <= force_iterations) {
+          if (zero_std_dev < zero_std_dev_min) {
+            COPY(e_old, endstop_adj);
+            dr_old = delta_radius;
+            zh_old = home_offset[Z_AXIS];
+            alpha_old = delta_tower_angle_trim[A_AXIS];
+            beta_old = delta_tower_angle_trim[B_AXIS];
+          }
 
           float e_delta[XYZ] = { 0.0 }, r_delta = 0.0, t_alpha = 0.0, t_beta = 0.0;
           const float r_diff = delta_radius - delta_calibration_radius,
@@ -5421,7 +5439,7 @@ void home_all_axes() { gcode_G28(true); }
           }
         }
         if (test_precision != 0.0) {                                 // !forced end
-          if (zero_std_dev >= test_precision || zero_std_dev <= calibration_precision) {  // end iterations
+          if ((zero_std_dev >= test_precision || zero_std_dev <= calibration_precision) && iterations > force_iterations) {  // end iterations
             SERIAL_PROTOCOLPGM("Calibration OK");
             SERIAL_PROTOCOL_SP(36);
             if (zero_std_dev >= test_precision)
@@ -5459,7 +5477,7 @@ void home_all_axes() { gcode_G28(true); }
             SERIAL_PROTOCOLPGM("  Tz:+0.00");
             SERIAL_EOL();
           }
-          if (zero_std_dev >= test_precision || zero_std_dev <= calibration_precision)
+          if ((zero_std_dev >= test_precision || zero_std_dev <= calibration_precision) && iterations > force_iterations)
             serialprintPGM(save_message);
             SERIAL_EOL();
         }
@@ -5486,7 +5504,7 @@ void home_all_axes() { gcode_G28(true); }
         endstops.not_homing();
 
       }
-      while (zero_std_dev < test_precision && zero_std_dev > calibration_precision && iterations < 31);
+      while ((zero_std_dev < test_precision && zero_std_dev > calibration_precision && iterations < 31) || iterations <= force_iterations);
 
       #if ENABLED(DELTA_HOME_TO_SAFE_ZONE)
         do_blocking_move_to_z(delta_clip_start_height);
@@ -6439,7 +6457,7 @@ inline void gcode_M42() {
       }
       else {
         report_pin_state_extended(pin, I_flag, true, "Pulsing   ");
-        #ifdef AVR_AT90USB1286_FAMILY // Teensy IDEs don't know about these pins so must use FASTIO
+        #if AVR_AT90USB1286_FAMILY // Teensy IDEs don't know about these pins so must use FASTIO
           if (pin == 46) {
             SET_OUTPUT(46);
             for (int16_t j = 0; j < repeat; j++) {
@@ -8249,7 +8267,6 @@ inline void gcode_M205() {
   inline void gcode_M665() {
     if (parser.seen('H')) {
       home_offset[Z_AXIS] = parser.value_linear_units() - DELTA_HEIGHT;
-      current_position[Z_AXIS] += parser.value_linear_units() - DELTA_HEIGHT - home_offset[Z_AXIS];
       update_software_endstops(Z_AXIS);
     }
     if (parser.seen('L')) delta_diagonal_rod = parser.value_linear_units();
@@ -9678,10 +9695,13 @@ inline void gcode_M503() {
  */
 inline void gcode_M907() {
   #if HAS_DIGIPOTSS
+
     LOOP_XYZE(i) if (parser.seen(axis_codes[i])) stepper.digipot_current(i, parser.value_int());
     if (parser.seen('B')) stepper.digipot_current(4, parser.value_int());
     if (parser.seen('S')) for (uint8_t i = 0; i <= 4; i++) stepper.digipot_current(i, parser.value_int());
+
   #elif HAS_MOTOR_CURRENT_PWM
+
     #if PIN_EXISTS(MOTOR_CURRENT_PWM_XY)
       if (parser.seen('X')) stepper.digipot_current(0, parser.value_int());
     #endif
@@ -9691,13 +9711,16 @@ inline void gcode_M907() {
     #if PIN_EXISTS(MOTOR_CURRENT_PWM_E)
       if (parser.seen('E')) stepper.digipot_current(2, parser.value_int());
     #endif
+
   #endif
+
   #if ENABLED(DIGIPOT_I2C)
     // this one uses actual amps in floating point
     LOOP_XYZE(i) if (parser.seen(axis_codes[i])) digipot_i2c_set_current(i, parser.value_float());
     // for each additional extruder (named B,C,D,E..., channels 4,5,6,7...)
     for (uint8_t i = NUM_AXIS; i < DIGIPOT_I2C_NUM_CHANNELS; i++) if (parser.seen('B' + i - (NUM_AXIS))) digipot_i2c_set_current(i, parser.value_float());
   #endif
+
   #if ENABLED(DAC_STEPPER_CURRENT)
     if (parser.seen('S')) {
       const float dac_percent = parser.value_float();

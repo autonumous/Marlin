@@ -56,19 +56,16 @@
  */
 
 //===========================================================================
-//============================= DELTA Printer ===============================
-//===========================================================================
-// For Delta printers start with one of the configuration files in the
-// example_configurations/delta directory and customize for your machine.
-//
-
-//===========================================================================
 //============================= SCARA Printer ===============================
 //===========================================================================
-// MORGAN_SCARA for Marlin was developed by QHARLEY in ZA in 2012/2013. Implemented
-// and slightly reworked by JCERNY in 06/2014 with the goal to bring it into Master-Branch
-// QHARLEYS Autobedlevelling has not been ported, because Marlin has now Bed-levelling
-// You might need Z-Min endstop on SCARA-Printer to use this feature. Actually untested!
+
+/**
+ * MORGAN_SCARA was developed by QHARLEY in South Africa in 2012-2013.
+ * Implemented and slightly reworked by JCERNY in June, 2014.
+ *
+ * MAKERARM_SCARA is in development, included as an alternate example.
+ * Other SCARA models may be added, or SCARA may be unified in the future.
+ */
 
 // Specify the specific SCARA model
 #define MORGAN_SCARA
@@ -1297,12 +1294,6 @@
 //#define ULTIPANEL
 
 //
-// Cartesio UI
-// http://mauk.cc/webshop/cartesio-shop/electronics/user-interface
-//
-//#define CARTESIO_UI
-
-//
 // PanelOne from T3P3 (via RAMPS 1.4 AUX2/AUX3)
 // http://reprap.org/wiki/PanelOne
 //
@@ -1385,6 +1376,22 @@
 //#define BQ_LCD_SMART_CONTROLLER
 
 //
+// Cartesio UI
+// http://mauk.cc/webshop/cartesio-shop/electronics/user-interface
+//
+//#define CARTESIO_UI
+
+//
+// ANET_10 Controller supported displays.
+//
+//#define ANET_KEYPAD_LCD         // Requires ADC_KEYPAD_PIN to be assigned to an analog pin.
+                                  // This LCD is known to be susceptible to electrical interference
+                                  // which scrambles the display.  Pressing any button clears it up.
+//#define ANET_FULL_GRAPHICS_LCD  // Anet 128x64 full graphics lcd with rotary encoder as used on Anet A6
+                                  // A clone of the RepRapDiscount full graphics display but with
+                                  // different pins/wiring (see pins_ANET_10.h).
+
+//
 // CONTROLLER TYPE: I2C
 //
 // Note: These controllers require the installation of Arduino's LiquidCrystal_I2C
@@ -1434,6 +1441,11 @@
 //#define U8GLIB_SSD1306
 
 //
+// TinyBoy2 128x64 OLED / Encoder Panel
+//
+//#define OLED_PANEL_TINYBOY2
+
+//
 // SAV OLEd LCD module support using either SSD1306 or SH1106 based LCD modules
 //
 //#define SAV_3DGLCD
@@ -1449,11 +1461,6 @@
 // LCD configuration: http://reprap.org/wiki/SAV_3D_LCD
 //
 //#define SAV_3DLCD
-
-//
-// TinyBoy2 128x64 OLED / Encoder Panel
-//
-//#define OLED_PANEL_TINYBOY2
 
 //=============================================================================
 //=============================== Extra Features ==============================
