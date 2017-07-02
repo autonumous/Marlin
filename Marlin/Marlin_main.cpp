@@ -241,6 +241,8 @@
  *
  */
 
+#define CUSTOM_BOOTSCREEN_TIMEOUT   2500  //added 02/07/17 to resolve custom bootscreen issue
+
 #include "Marlin.h"
 
 #include "ultralcd.h"
