@@ -241,7 +241,7 @@
  *
  */
 
-#define CUSTOM_BOOTSCREEN_TIMEOUT   2500  //added 02/07/17 to resolve custom bootscreen issue
+//#define CUSTOM_BOOTSCREEN_TIMEOUT   2500  //added 02/07/17 to resolve custom bootscreen issue // removed 19/07/2017, assuming fixed
 
 #include "Marlin.h"
 
