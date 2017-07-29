@@ -839,47 +839,52 @@
 
 // @section machine
 
-// Travel limits after homing (units are in mm)
+// The size of the print bed
+//#define X_BED_SIZE 200
+//#define Y_BED_SIZE 200
+
+// Travel limits (mm) after homing, corresponding to endstop positions.
 //#define X_MIN_POS 0
 //#define Y_MIN_POS 0
+//#define X_MAX_POS X_BED_SIZE
+//#define Y_MAX_POS Y_BED_SIZE
 //#define Z_MIN_POS 0
-//#define X_MAX_POS 200
-//#define Y_MAX_POS 200
 //#define Z_MAX_POS 200
 
 // ANET A6 Firmware V2.0 defaults:
-//#define X_MIN_POS     0
-//#define Y_MIN_POS     0
-//#define Z_MIN_POS     0
-//#define X_MAX_POS     220
-//#define Y_MAX_POS     220
-//#define Z_MAX_POS     250
+//#define X_BED_SIZE 220
+//#define Y_BED_SIZE 220
+//#define X_MIN_POS 0
+//#define Y_MIN_POS 0
+//#define Z_MIN_POS 0
+//#define Z_MAX_POS 250
 
 // ANET A6, X0/Y0 0 front left bed edge :
-#define X_MIN_POS     -3
-#define Y_MIN_POS     -5
-#define Z_MIN_POS     0
-#define X_MAX_POS     222
-#define Y_MAX_POS     222
-#define Z_MAX_POS     230
+#define X_BED_SIZE 222
+#define Y_BED_SIZE 222
+#define X_MIN_POS -3
+#define Y_MIN_POS -5
+#define Z_MIN_POS 0
+#define Z_MAX_POS 230
 
 // ANET A6 with new X-Axis / modded Y-Axis:
-//#define X_MIN_POS     0
-//#define Y_MIN_POS     0
-//#define Z_MIN_POS     0
-//#define X_MAX_POS     235
-//#define Y_MAX_POS     230
-//#define Z_MAX_POS     230
+//#define X_BED_SIZE 235
+//#define Y_BED_SIZE 230
+//#define X_MIN_POS 0
+//#define Y_MIN_POS 0
+//#define Z_MIN_POS 0
+//#define Z_MAX_POS 230
 
 // ANET A6 with new X-Axis / modded Y-Axis, X0/Y0 0 front left bed edge :
-//#define X_MIN_POS     -8
-//#define Y_MIN_POS     -6
-//#define Z_MIN_POS     0
-//#define X_MAX_POS     227
-//#define Y_MAX_POS     224
-//#define Z_MAX_POS     230
+//#define X_BED_SIZE 227
+//#define Y_BED_SIZE 224
+//#define X_MIN_POS -8
+//#define Y_MIN_POS -6
+//#define Z_MIN_POS 0
+//#define Z_MAX_POS 230
 
-
+#define X_MAX_POS X_BED_SIZE
+#define Y_MAX_POS Y_BED_SIZE
 
 // If enabled, axes won't move below MIN_POS in response to movement commands.
 #define MIN_SOFTWARE_ENDSTOPS
@@ -1115,8 +1120,8 @@
 #define Z_SAFE_HOMING
 
 #if ENABLED(Z_SAFE_HOMING)
-  #define Z_SAFE_HOMING_X_POINT ((X_MIN_POS + X_MAX_POS) / 2)    // X point for Z homing when homing all axis (G28).
-  #define Z_SAFE_HOMING_Y_POINT ((Y_MIN_POS + Y_MAX_POS) / 2)    // Y point for Z homing when homing all axis (G28).
+  #define Z_SAFE_HOMING_X_POINT ((X_BED_SIZE) / 2)    // X point for Z homing when homing all axis (G28).
+  #define Z_SAFE_HOMING_Y_POINT ((Y_BED_SIZE) / 2)    // Y point for Z homing when homing all axis (G28).
 
   //Anet A6 with new X-Axis
   //#define Z_SAFE_HOMING_X_POINT 113    // X point for Z homing when homing all axis (G28).
@@ -1709,6 +1714,14 @@
   #define RGB_LED_W_PIN -1
 #endif
 
+// Support for Adafruit Neopixel LED driver
+//#define NEOPIXEL_RGBW_LED
+#if ENABLED(NEOPIXEL_RGBW_LED)
+  #define NEOPIXEL_PIN    4       // D4 (EXP2-5 on Printrboard)
+  #define NEOPIXEL_PIXELS 3
+  //#define NEOPIXEL_STARTUP_TEST // Cycle through colors at startup
+#endif
+
 /**
  * Printer Event LEDs
  *
@@ -1720,7 +1733,7 @@
  *  - Change to green once print has finished
  *  - Turn off after the print has finished and the user has pushed a button
  */
-#if ENABLED(BLINKM) || ENABLED(RGB_LED) || ENABLED(RGBW_LED) || ENABLED(PCA9632)
+#if ENABLED(BLINKM) || ENABLED(RGB_LED) || ENABLED(RGBW_LED) || ENABLED(PCA9632) || ENABLED(NEOPIXEL_RGBW_LED)
   #define PRINTER_EVENT_LEDS
 #endif
 

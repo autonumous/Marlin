@@ -51,23 +51,23 @@
  * G3   - CCW ARC
  * G4   - Dwell S<seconds> or P<milliseconds>
  * G5   - Cubic B-spline with XYZE destination and IJPQ offsets
- * G10  - Retract filament according to settings of M207
- * G11  - Retract recover filament according to settings of M208
- * G12  - Clean tool
+ * G10  - Retract filament according to settings of M207 (Requires FWRETRACT)
+ * G11  - Retract recover filament according to settings of M208 (Requires FWRETRACT)
+ * G12  - Clean tool (Requires NOZZLE_CLEAN_FEATURE)
  * G17  - Select Plane XY (Requires CNC_WORKSPACE_PLANES)
  * G18  - Select Plane ZX (Requires CNC_WORKSPACE_PLANES)
  * G19  - Select Plane YZ (Requires CNC_WORKSPACE_PLANES)
- * G20  - Set input units to inches
- * G21  - Set input units to millimeters
+ * G20  - Set input units to inches (Requires INCH_MODE_SUPPORT)
+ * G21  - Set input units to millimeters (Requires INCH_MODE_SUPPORT)
  * G26  - Mesh Validation Pattern (Requires UBL_G26_MESH_VALIDATION)
  * G27  - Park Nozzle (Requires NOZZLE_PARK_FEATURE)
  * G28  - Home one or more axes
- * G29  - Detailed Z probe, probes the bed at 3 or more points.  Will fail if you haven't homed yet.
+ * G29  - Start or continue the bed leveling probe procedure (Requires bed leveling)
  * G30  - Single Z probe, probes bed at X Y location (defaults to current XY location)
  * G31  - Dock sled (Z_PROBE_SLED only)
  * G32  - Undock sled (Z_PROBE_SLED only)
  * G33  - Delta Auto-Calibration (Requires DELTA_AUTO_CALIBRATION)
- * G38  - Probe target - similar to G28 except it uses the Z_MIN_PROBE for all three axes
+ * G38  - Probe in any direction using the Z_MIN_PROBE (Requires G38_PROBE_TARGET)
  * G42  - Coordinated move to a mesh point (Requires AUTO_BED_LEVELING_UBL)
  * G90  - Use Absolute Coordinates
  * G91  - Use Relative Coordinates
@@ -281,6 +281,10 @@
   #include "watchdog.h"
 #endif
 
+#if ENABLED(NEOPIXEL_RGBW_LED)
+  #include <Adafruit_NeoPixel.h>
+#endif
+
 #if ENABLED(BLINKM)
   #include "blinkm.h"
   #include "Wire.h"
@@ -429,16 +433,10 @@ static float saved_feedrate_mm_s;
 int16_t feedrate_percentage = 100, saved_feedrate_percentage,
     flow_percentage[EXTRUDERS] = ARRAY_BY_EXTRUDERS1(100);
 
+// Initialized by settings.load()
 bool axis_relative_modes[] = AXIS_RELATIVE_MODES,
-     volumetric_enabled =
-        #if ENABLED(VOLUMETRIC_DEFAULT_ON)
-          true
-        #else
-          false
-        #endif
-      ;
-float filament_size[EXTRUDERS] = ARRAY_BY_EXTRUDERS1(DEFAULT_NOMINAL_FILAMENT_DIA),
-      volumetric_multiplier[EXTRUDERS] = ARRAY_BY_EXTRUDERS1(1.0);
+     volumetric_enabled;
+float filament_size[EXTRUDERS], volumetric_multiplier[EXTRUDERS];
 
 #if HAS_WORKSPACE_OFFSET
   #if HAS_POSITION_SHIFT
@@ -460,8 +458,8 @@ float filament_size[EXTRUDERS] = ARRAY_BY_EXTRUDERS1(DEFAULT_NOMINAL_FILAMENT_DI
 #if HAS_SOFTWARE_ENDSTOPS
   bool soft_endstops_enabled = true;
 #endif
-float soft_endstop_min[XYZ] = { X_MIN_POS, Y_MIN_POS, Z_MIN_POS },
-      soft_endstop_max[XYZ] = { X_MAX_POS, Y_MAX_POS, Z_MAX_POS };
+float soft_endstop_min[XYZ] = { X_MIN_BED, Y_MIN_BED, Z_MIN_POS },
+      soft_endstop_max[XYZ] = { X_MAX_BED, Y_MAX_BED, Z_MAX_POS };
 
 #if FAN_COUNT > 0
   int16_t fanSpeeds[FAN_COUNT] = { 0 };
@@ -515,7 +513,7 @@ static millis_t stepper_inactive_time = (DEFAULT_STEPPER_DEACTIVE_TIME) * 1000UL
 static uint8_t target_extruder;
 
 #if HAS_BED_PROBE
-  float zprobe_zoffset = Z_PROBE_OFFSET_FROM_EXTRUDER;
+  float zprobe_zoffset; // Initialized by settings.load()
 #endif
 
 #if HAS_ABL
@@ -544,18 +542,12 @@ static uint8_t target_extruder;
 #endif
 
 #if ENABLED(Z_DUAL_ENDSTOPS)
-  float z_endstop_adj =
-    #ifdef Z_DUAL_ENDSTOPS_ADJUSTMENT
-      Z_DUAL_ENDSTOPS_ADJUSTMENT
-    #else
-      0
-    #endif
-  ;
+  float z_endstop_adj;
 #endif
 
 // Extruder offsets
 #if HOTENDS > 1
-  float hotend_offset[XYZ][HOTENDS];
+  float hotend_offset[XYZ][HOTENDS]; // Initialized by settings.load()
 #endif
 
 #if HAS_Z_SERVO_ENDSTOP
@@ -563,8 +555,8 @@ static uint8_t target_extruder;
 #endif
 
 #if ENABLED(BARICUDA)
-  int baricuda_valve_pressure = 0;
-  int baricuda_e_to_p_pressure = 0;
+  uint8_t baricuda_valve_pressure = 0,
+          baricuda_e_to_p_pressure = 0;
 #endif
 
 #if ENABLED(FWRETRACT)
@@ -598,8 +590,7 @@ static uint8_t target_extruder;
   float delta[ABC],
         endstop_adj[ABC] = { 0 };
 
-  // These values are loaded or reset at boot time when setup() calls
-  // settings.load(), which calls recalc_delta_settings().
+  // Initialized by settings.load()
   float delta_radius,
         delta_tower_angle_trim[2],
         delta_tower[ABC][2],
@@ -984,12 +975,60 @@ void servo_init() {
 
 #if HAS_COLOR_LEDS
 
+  #if ENABLED(NEOPIXEL_RGBW_LED)
+
+    Adafruit_NeoPixel pixels(NEOPIXEL_PIXELS, NEOPIXEL_PIN, NEO_GRBW + NEO_KHZ800);
+
+    void set_neopixel_color(const uint32_t color) {
+      for (uint16_t i = 0; i < pixels.numPixels(); ++i)
+        pixels.setPixelColor(i, color);
+      pixels.show();
+    }
+
+    void setup_neopixel() {
+      pixels.setBrightness(255); // 0 - 255 range
+      pixels.begin();
+      pixels.show(); // initialize to all off
+
+      #if ENABLED(NEOPIXEL_STARTUP_TEST)
+        delay(2000);
+        set_neopixel_color(pixels.Color(255, 0, 0, 0));  // red
+        delay(2000);
+        set_neopixel_color(pixels.Color(0, 255, 0, 0));  // green
+        delay(2000);
+        set_neopixel_color(pixels.Color(0, 0, 255, 0));  // blue
+        delay(2000);
+      #endif
+      set_neopixel_color(pixels.Color(0, 0, 0, 255));    // white
+    }
+
+  #endif // NEOPIXEL_RGBW_LED
+
   void set_led_color(
     const uint8_t r, const uint8_t g, const uint8_t b
-      #if ENABLED(RGBW_LED)
-        , const uint8_t w=0
+      #if ENABLED(RGBW_LED) || ENABLED(NEOPIXEL_RGBW_LED)
+        , const uint8_t w = 0
+        #if ENABLED(NEOPIXEL_RGBW_LED)
+          , bool isSequence = false
+        #endif
       #endif
   ) {
+
+    #if ENABLED(NEOPIXEL_RGBW_LED)
+
+      const uint32_t color = pixels.Color(r, g, b, w);
+      static uint16_t nextLed = 0;
+
+      if (!isSequence)
+        set_neopixel_color(color);
+      else {
+        pixels.setPixelColor(nextLed, color);
+        pixels.show();
+        if (++nextLed >= pixels.numPixels()) nextLed = 0;
+        return;
+      }
+
+    #endif
 
     #if ENABLED(BLINKM)
 
@@ -3406,19 +3445,23 @@ inline void gcode_G4() {
 
   /**
    * G10 - Retract filament according to settings of M207
-   * G11 - Recover filament according to settings of M208
    */
-  inline void gcode_G10_G11(bool doRetract=false) {
+  inline void gcode_G10() {
     #if EXTRUDERS > 1
-      if (doRetract)
-        retracted_swap[active_extruder] = parser.boolval('S'); // checks for swap retract argument
+      const bool rs = parser.boolval('S');
+      retracted_swap[active_extruder] = rs; // Use 'S' for swap, default to false
     #endif
-    retract(doRetract
-     #if EXTRUDERS > 1
-      , retracted_swap[active_extruder]
-     #endif
+    retract(true
+      #if EXTRUDERS > 1
+        , rs
+      #endif
     );
   }
+
+  /**
+   * G11 - Recover filament according to settings of M208
+   */
+  inline void gcode_G11() { retract(false); }
 
 #endif // FWRETRACT
 
@@ -4535,6 +4578,9 @@ void home_all_axes() { gcode_G28(true); }
 
       #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
 
+        #if ENABLED(PROBE_MANUALLY)
+          if (!no_action)
+        #endif
         if ( xGridSpacing != bilinear_grid_spacing[X_AXIS]
           || yGridSpacing != bilinear_grid_spacing[Y_AXIS]
           || left_probe_bed_position != LOGICAL_X_POSITION(bilinear_start[X_AXIS])
@@ -5559,12 +5605,14 @@ void home_all_axes() { gcode_G28(true); }
 
     bool G38_pass_fail = false;
 
-    // Get direction of move and retract
-    float retract_mm[XYZ];
-    LOOP_XYZ(i) {
-      float dist = destination[i] - current_position[i];
-      retract_mm[i] = FABS(dist) < G38_MINIMUM_MOVE ? 0 : home_bump_mm((AxisEnum)i) * (dist > 0 ? -1 : 1);
-    }
+    #if ENABLED(PROBE_DOUBLE_TOUCH)
+      // Get direction of move and retract
+      float retract_mm[XYZ];
+      LOOP_XYZ(i) {
+        float dist = destination[i] - current_position[i];
+        retract_mm[i] = FABS(dist) < G38_MINIMUM_MOVE ? 0 : home_bump_mm((AxisEnum)i) * (dist > 0 ? -1 : 1);
+      }
+    #endif
 
     stepper.synchronize();  // wait until the machine is idle
 
@@ -5628,7 +5676,7 @@ void home_all_axes() { gcode_G28(true); }
     // If any axis has enough movement, do the move
     LOOP_XYZ(i)
       if (FABS(destination[i] - current_position[i]) >= G38_MINIMUM_MOVE) {
-        if (!parser.seenval('F')) feedrate_mm_s = homing_feedrate(i);
+        if (!parser.seenval('F')) feedrate_mm_s = homing_feedrate((AxisEnum)i);
         // If G38.2 fails throw an error
         if (!G38_run_probe() && is_38_2) {
           SERIAL_ERROR_START();
@@ -6865,15 +6913,16 @@ inline void gcode_M42() {
 
     for (uint8_t n = 0; n < n_samples; n++) {
       if (n_legs) {
-        int dir = (random(0, 10) > 5.0) ? -1 : 1;  // clockwise or counter clockwise
-        float angle = random(0.0, 360.0),
-              radius = random(
-                #if ENABLED(DELTA)
-                  DELTA_PROBEABLE_RADIUS / 8, DELTA_PROBEABLE_RADIUS / 3
-                #else
-                  5, X_MAX_LENGTH / 8
-                #endif
-              );
+        const int dir = (random(0, 10) > 5.0) ? -1 : 1;  // clockwise or counter clockwise
+        float angle = random(0.0, 360.0);
+        const float radius = random(
+          #if ENABLED(DELTA)
+            0.1250000000 * (DELTA_PROBEABLE_RADIUS),
+            0.3333333333 * (DELTA_PROBEABLE_RADIUS)
+          #else
+            5.0, 0.125 * min(X_BED_SIZE, Y_BED_SIZE)
+          #endif
+        );
 
         if (verbose_level > 3) {
           SERIAL_ECHOPAIR("Starting radius: ", radius);
@@ -7367,7 +7416,14 @@ inline void gcode_M109() {
       // Gradually change LED strip from violet to red as nozzle heats up
       if (!wants_to_cool) {
         const uint8_t blue = map(constrain(temp, start_temp, target_temp), start_temp, target_temp, 255, 0);
-        if (blue != old_blue) set_led_color(255, 0, (old_blue = blue));
+        if (blue != old_blue) {
+          old_blue = blue;
+          set_led_color(255, 0, blue
+            #if ENABLED(NEOPIXEL_RGBW_LED)
+              , 0, true
+            #endif
+          );
+        }
       }
     #endif
 
@@ -7402,7 +7458,7 @@ inline void gcode_M109() {
   if (wait_for_heatup) {
     LCD_MESSAGEPGM(MSG_HEATING_COMPLETE);
     #if ENABLED(PRINTER_EVENT_LEDS)
-      #if ENABLED(RGBW_LED)
+      #if ENABLED(RGBW_LED) || ENABLED(NEOPIXEL_RGBW_LED)
         set_led_color(0, 0, 0, 255);  // Turn on the WHITE LED
       #else
         set_led_color(255, 255, 255); // Set LEDs All On
@@ -7500,7 +7556,14 @@ inline void gcode_M109() {
         // Gradually change LED strip from blue to violet as bed heats up
         if (!wants_to_cool) {
           const uint8_t red = map(constrain(temp, start_temp, target_temp), start_temp, target_temp, 0, 255);
-          if (red != old_red) set_led_color((old_red = red), 0, 255);
+          if (red != old_red) {
+            old_red = red;
+            set_led_color(red, 0, 255
+              #if ENABLED(NEOPIXEL_RGBW_LED)
+                , 0, true
+              #endif
+            );
+          }
         }
       #endif
 
@@ -8158,7 +8221,7 @@ inline void gcode_M121() { endstops.enable_globally(false); }
       parser.seen('R') ? (parser.has_value() ? parser.value_byte() : 255) : 0,
       parser.seen('U') ? (parser.has_value() ? parser.value_byte() : 255) : 0,
       parser.seen('B') ? (parser.has_value() ? parser.value_byte() : 255) : 0
-      #if ENABLED(RGBW_LED)
+      #if ENABLED(RGBW_LED) || ENABLED(NEOPIXEL_RGBW_LED)
         , parser.seen('W') ? (parser.has_value() ? parser.value_byte() : 255) : 0
       #endif
     );
@@ -10359,21 +10422,19 @@ void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool m
       //UNUSED(no_move);
       NUSED(move);
 
-      #if ENABLED(SWITCHING_EXTRUDER) && !DONT_SWITCH
-
-        stepper.synchronize();
-        move_extruder_servo(tmp_extruder);
-
-      #elif ENABLED(MK2_MULTIPLEXER)
-
+      #if ENABLED(MK2_MULTIPLEXER)
         if (tmp_extruder >= E_STEPPERS)
           return invalid_extruder_error(tmp_extruder);
 
         select_multiplexed_stepper(tmp_extruder);
-
       #endif
 
     #endif // HOTENDS <= 1
+
+    #if ENABLED(SWITCHING_EXTRUDER) && !DONT_SWITCH
+      stepper.synchronize();
+      move_extruder_servo(tmp_extruder);
+    #endif
 
     active_extruder = tmp_extruder;
 
@@ -10460,8 +10521,8 @@ void process_next_command() {
 
       // G2, G3
       #if ENABLED(ARC_SUPPORT) && DISABLED(SCARA)
-        case 2: // G2  - CW ARC
-        case 3: // G3  - CCW ARC
+        case 2: // G2: CW ARC
+        case 3: // G3: CCW ARC
           gcode_G2_G3(parser.codenum == 2);
           break;
       #endif
@@ -10472,16 +10533,17 @@ void process_next_command() {
         break;
 
       #if ENABLED(BEZIER_CURVE_SUPPORT)
-        // G5
-        case 5: // G5  - Cubic B_spline
+        case 5: // G5: Cubic B_spline
           gcode_G5();
           break;
       #endif // BEZIER_CURVE_SUPPORT
 
       #if ENABLED(FWRETRACT)
         case 10: // G10: retract
+          gcode_G10();
+          break;
         case 11: // G11: retract_recover
-          gcode_G10_G11(parser.codenum == 10);
+          gcode_G11();
           break;
       #endif // FWRETRACT
 
@@ -12521,7 +12583,7 @@ void prepare_move_to_destination() {
 
 #endif // FAST_PWM_FAN
 
-float calculate_volumetric_multiplier(float diameter) {
+float calculate_volumetric_multiplier(const float diameter) {
   if (!volumetric_enabled || diameter == 0) return 1.0;
   return 1.0 / (M_PI * sq(diameter * 0.5));
 }
@@ -12904,7 +12966,7 @@ void kill(const char* lcd_msg) {
   _delay_ms(250); //Wait to ensure all interrupts routines stopped
   thermalManager.disable_all_heaters(); //turn off heaters again
 
-  #if defined(ACTION_ON_KILL)
+  #ifdef ACTION_ON_KILL
     SERIAL_ECHOLNPGM("//action:" ACTION_ON_KILL);
   #endif
 
@@ -13090,6 +13152,11 @@ void setup() {
 
   #if PIN_EXISTS(STAT_LED_BLUE)
     OUT_WRITE(STAT_LED_BLUE_PIN, LOW); // turn it off
+  #endif
+
+  #if ENABLED(NEOPIXEL_RGBW_LED)
+    SET_OUTPUT(NEOPIXEL_PIN);
+    setup_neopixel();
   #endif
 
   #if ENABLED(RGB_LED) || ENABLED(RGBW_LED)

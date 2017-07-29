@@ -50,7 +50,9 @@
 /**
  * Warnings for old configurations
  */
-#if WATCH_TEMP_PERIOD > 500
+#if !defined(X_BED_SIZE) || !defined(Y_BED_SIZE)
+  #error "X_BED_SIZE and BED_Y_SIZE are now required! Please update your configuration."
+#elif WATCH_TEMP_PERIOD > 500
   #error "WATCH_TEMP_PERIOD now uses seconds instead of milliseconds."
 #elif DISABLED(THERMAL_PROTECTION_HOTENDS) && (defined(WATCH_TEMP_PERIOD) || defined(THERMAL_PROTECTION_PERIOD))
   #error "Thermal Runaway Protection for hotends is now enabled with THERMAL_PROTECTION_HOTENDS."
@@ -1056,8 +1058,12 @@ static_assert(1 >= 0
   #if !(_RGB_TEST && PIN_EXISTS(RGB_LED_W))
     #error "RGBW_LED requires RGB_LED_R_PIN, RGB_LED_G_PIN, RGB_LED_B_PIN, and RGB_LED_W_PIN."
   #endif
-#elif ENABLED(PRINTER_EVENT_LEDS) && DISABLED(BLINKM) && DISABLED(PCA9632)
-  #error "PRINTER_EVENT_LEDS requires BLINKM, PCA9632, RGB_LED, or RGBW_LED."
+#elif ENABLED(NEOPIXEL_RGBW_LED)
+  #if !(PIN_EXISTS(NEOPIXEL) && NEOPIXEL_PIXELS > 0)
+    #error "NEOPIXEL_RGBW_LED requires NEOPIXEL_PIN and NEOPIXEL_PIXELS."
+  #endif
+#elif ENABLED(PRINTER_EVENT_LEDS) && DISABLED(BLINKM) && DISABLED(PCA9632) && DISABLED(NEOPIXEL_RGBW_LED)
+  #error "PRINTER_EVENT_LEDS requires BLINKM, PCA9632, RGB_LED, RGBW_LED or NEOPIXEL_RGBW_LED."
 #endif
 
 /**

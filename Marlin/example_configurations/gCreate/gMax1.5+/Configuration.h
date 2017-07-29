@@ -766,13 +766,17 @@
 
 // @section machine
 
-// Travel limits after homing (units are in mm)
+// The size of the print bed
+#define X_BED_SIZE 420   // These numbers are not accurate for an unaltered gMax 1.5+ printer.  My print bed
+#define Y_BED_SIZE 420   // is inset a noticable amount from the edge of the bed.  Combined with the inset,
+                         // the nozzle can reach all cordinates of the mesh.
+
+// Travel limits (mm) after homing, corresponding to endstop positions.
 #define X_MIN_POS 0
 #define Y_MIN_POS 0
 #define Z_MIN_POS 0
-#define X_MAX_POS 420   // These numbers are not accurate for an unaltered gMax 1.5+ printer.  My print bed
-#define Y_MAX_POS 420   // is inset a noticable amount from the edge of the bed.  Combined with the inset,
-                        // the nozzle can reach all cordinates of the mesh.
+#define X_MAX_POS X_BED_SIZE
+#define Y_MAX_POS Y_BED_SIZE
 #define Z_MAX_POS 500
 
 // If enabled, axes won't move below MIN_POS in response to movement commands.
@@ -1563,6 +1567,14 @@
   #define RGB_LED_W_PIN -1
 #endif
 
+// Support for Adafruit Neopixel LED driver
+//#define NEOPIXEL_RGBW_LED
+#if ENABLED(NEOPIXEL_RGBW_LED)
+  #define NEOPIXEL_PIN    4       // D4 (EXP2-5 on Printrboard)
+  #define NEOPIXEL_PIXELS 3
+  //#define NEOPIXEL_STARTUP_TEST // Cycle through colors at startup
+#endif
+
 /**
  * Printer Event LEDs
  *
@@ -1574,7 +1586,7 @@
  *  - Change to green once print has finished
  *  - Turn off after the print has finished and the user has pushed a button
  */
-#if ENABLED(BLINKM) || ENABLED(RGB_LED) || ENABLED(RGBW_LED) || ENABLED(PCA9632)
+#if ENABLED(BLINKM) || ENABLED(RGB_LED) || ENABLED(RGBW_LED) || ENABLED(PCA9632) || ENABLED(NEOPIXEL_RGBW_LED)
   #define PRINTER_EVENT_LEDS
 #endif
 
