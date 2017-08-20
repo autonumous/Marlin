@@ -21,14 +21,11 @@
  */
 
 /**
- * Melzi with ATmega1284 (MaKr3d version) pin assignments
+ * Geeetech GT2560 Revision A+ board pin assignments
  */
 
-#define BOARD_NAME "Melzi (ATmega1284)"
+#include "pins_GT2560_REV_A.h"
 
-#ifdef __AVR_ATmega1284P__
-  #define LARGE_FLASH true
-#endif
+#define BOARD_NAME  "GT2560 Rev.A+"
 
-#define SANGUINOLOLU_V_1_2
-#include "pins_SANGUINOLOLU_11.h"
+#define SERVO0_PIN  11
