@@ -41,14 +41,14 @@
    * Verbose version identifier which should contain a reference to the location
    * from where the binary was downloaded or the source code was compiled.
    */
-  #define DETAILED_BUILD_VERSION SHORT_BUILD_VERSION " BigBox Dual Hybrid Titan - 20170624"
+  #define DETAILED_BUILD_VERSION SHORT_BUILD_VERSION " BigBox Dual Hybrid Titan - 20170820"
 
   /**
    * The STRING_DISTRIBUTION_DATE represents when the binary file was built,
    * here we define this default string as the date where the latest release
    * version was tagged.
    */
-  #define STRING_DISTRIBUTION_DATE "2017-06-24 12:00"
+  #define STRING_DISTRIBUTION_DATE "2017-08-20 22:53"
 
   /**
    * Required minimum Configuration.h and Configuration_adv.h file versions.
