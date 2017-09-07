@@ -73,8 +73,11 @@
 // pt-br_utf8 Portuguese (Brazilian) (UTF8)
 // pt_utf8    Portuguese (UTF8)
 // ru         Russian
+// sk         Slovak (UTF8)
 // tr         Turkish
 // uk         Ukrainian
+// zh_CN      Chinese (Simplified)
+// zh_TW      Chinese (Taiwan)
 
 #ifdef DEFAULT_SOURCE_CODE_URL
   #undef  SOURCE_CODE_URL
@@ -157,6 +160,7 @@
 #define MSG_ERR_MATERIAL_INDEX              "M145 S<index> out of range (0-1)"
 #define MSG_ERR_M355_NONE                   "No case light"
 #define MSG_ERR_M421_PARAMETERS             "M421 incorrect parameter usage"
+#define MSG_ERR_BAD_PLANE_MODE              "G5 requires XY plane mode"
 #define MSG_ERR_MESH_XY                     "Mesh point cannot be resolved"
 #define MSG_ERR_ARC_ARGS                    "G2/G3 bad parameters"
 #define MSG_ERR_PROTECTED_PIN               "Protected Pin"
@@ -301,7 +305,8 @@
  && DISABLED(DISPLAY_CHARSET_ISO10646_CN) \
  && DISABLED(DISPLAY_CHARSET_ISO10646_TR) \
  && DISABLED(DISPLAY_CHARSET_ISO10646_PL) \
- && DISABLED(DISPLAY_CHARSET_ISO10646_CZ)
+ && DISABLED(DISPLAY_CHARSET_ISO10646_CZ) \
+ && DISABLED(DISPLAY_CHARSET_ISO10646_SK)
   #define DISPLAY_CHARSET_ISO10646_1 // use the better font on full graphic displays.
 #endif
 

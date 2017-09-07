@@ -281,6 +281,10 @@
   #include "watchdog.h"
 #endif
 
+#if ENABLED(MAX7219_DEBUG)
+  #include "Max7219_Debug_LEDs.h"
+#endif
+
 #if ENABLED(NEOPIXEL_RGBW_LED)
   #include <Adafruit_NeoPixel.h>
 #endif
@@ -3534,6 +3538,14 @@ inline void gcode_G4() {
   inline void gcode_G5() {
     if (IsRunning()) {
 
+      #if ENABLED(CNC_WORKSPACE_PLANES)
+        if (workspace_plane != PLANE_XY) {
+          SERIAL_ERROR_START();
+          SERIAL_ERRORLNPGM(MSG_ERR_BAD_PLANE_MODE);
+          return;
+        }
+      #endif
+
       gcode_get_destination();
 
       const float offset[] = {
@@ -5558,7 +5570,7 @@ void home_all_axes() { gcode_G28(true); }
             N++;
           }
         zero_std_dev_old = zero_std_dev;
-        zero_std_dev = round(sqrt(S2 / N) * 1000.0) / 1000.0 + 0.00001;
+        zero_std_dev = round(SQRT(S2 / N) * 1000.0) / 1000.0 + 0.00001;
 
         // Solve matrices
 
@@ -7744,16 +7756,17 @@ inline void gcode_M110() {
  * M111: Set the debug level
  */
 inline void gcode_M111() {
-  marlin_debug_flags = parser.byteval('S', (uint8_t)DEBUG_NONE);
+  if (parser.seen('S')) marlin_debug_flags = parser.byteval('S');
 
-  const static char str_debug_1[] PROGMEM = MSG_DEBUG_ECHO;
-  const static char str_debug_2[] PROGMEM = MSG_DEBUG_INFO;
-  const static char str_debug_4[] PROGMEM = MSG_DEBUG_ERRORS;
-  const static char str_debug_8[] PROGMEM = MSG_DEBUG_DRYRUN;
-  const static char str_debug_16[] PROGMEM = MSG_DEBUG_COMMUNICATION;
-  #if ENABLED(DEBUG_LEVELING_FEATURE)
-    const static char str_debug_32[] PROGMEM = MSG_DEBUG_LEVELING;
-  #endif
+  const static char str_debug_1[] PROGMEM = MSG_DEBUG_ECHO,
+                    str_debug_2[] PROGMEM = MSG_DEBUG_INFO,
+                    str_debug_4[] PROGMEM = MSG_DEBUG_ERRORS,
+                    str_debug_8[] PROGMEM = MSG_DEBUG_DRYRUN,
+                    str_debug_16[] PROGMEM = MSG_DEBUG_COMMUNICATION
+                    #if ENABLED(DEBUG_LEVELING_FEATURE)
+                      , str_debug_32[] PROGMEM = MSG_DEBUG_LEVELING
+                    #endif
+                    ;
 
   const static char* const debug_strings[] PROGMEM = {
     str_debug_1, str_debug_2, str_debug_4, str_debug_8, str_debug_16
@@ -9244,7 +9257,10 @@ inline void gcode_M400() { stepper.synchronize(); }
   /**
    * M406: Turn off filament sensor for control
    */
-  inline void gcode_M406() { filament_sensor = false; }
+  inline void gcode_M406() {
+    filament_sensor = false;
+    calculate_volumetric_multipliers();   // Restore correct 'volumetric_multiplier' value
+  }
 
   /**
    * M407: Get measured filament diameter on serial output
@@ -10274,6 +10290,31 @@ inline void invalid_extruder_error(const uint8_t e) {
 
 #endif // PARKING_EXTRUDER
 
+#if HAS_FANMUX
+
+  void fanmux_switch(const uint8_t e) {
+    WRITE(FANMUX0_PIN, TEST(e, 0) ? HIGH : LOW);
+    #if PIN_EXISTS(FANMUX1)
+      WRITE(FANMUX1_PIN, TEST(e, 1) ? HIGH : LOW);
+      #if PIN_EXISTS(FANMUX2)
+        WRITE(FANMUX2, TEST(e, 2) ? HIGH : LOW);
+      #endif
+    #endif
+  }
+
+  FORCE_INLINE void fanmux_init(void){
+    SET_OUTPUT(FANMUX0_PIN);
+    #if PIN_EXISTS(FANMUX1)
+      SET_OUTPUT(FANMUX1_PIN);
+      #if PIN_EXISTS(FANMUX2)
+        SET_OUTPUT(FANMUX2_PIN);
+      #endif
+    #endif
+    fanmux_switch(0);
+  }
+
+#endif // HAS_FANMUX
+
 /**
  * Perform a tool-change, which may result in moving the
  * previous tool out of the way and the new tool into place.
@@ -10361,7 +10402,7 @@ void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool m
           current_position[Y_AXIS] -= hotend_offset[Y_AXIS][active_extruder] - hotend_offset[Y_AXIS][tmp_extruder];
           current_position[Z_AXIS] -= hotend_offset[Z_AXIS][active_extruder] - hotend_offset[Z_AXIS][tmp_extruder];
 
-          // Activate the new extruder
+          // Activate the new extruder ahead of calling set_axis_is_at_home!
           active_extruder = tmp_extruder;
 
           // This function resets the max/min values - the current position may be overwritten below.
@@ -10697,14 +10738,19 @@ void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool m
         select_multiplexed_stepper(tmp_extruder);
       #endif
 
+      // Set the new active extruder
+      active_extruder = tmp_extruder;
+
     #endif // HOTENDS <= 1
 
     #if ENABLED(SWITCHING_EXTRUDER) && !DONT_SWITCH
       stepper.synchronize();
-      move_extruder_servo(tmp_extruder);
+      move_extruder_servo(active_extruder);
     #endif
 
-    active_extruder = tmp_extruder;
+    #if HAS_FANMUX
+      fanmux_switch(active_extruder);
+    #endif
 
     SERIAL_ECHO_START();
     SERIAL_ECHOLNPAIR(MSG_ACTIVE_EXTRUDER, (int)active_extruder);
@@ -12565,7 +12611,7 @@ void prepare_move_to_destination() {
     millis_t next_idle_ms = millis() + 200UL;
 
     #if N_ARC_CORRECTION > 1
-      int8_t count = N_ARC_CORRECTION;
+      int8_t arc_recalc_count = N_ARC_CORRECTION;
     #endif
 
     for (uint16_t i = 1; i < segments; i++) { // Iterate (segments-1) times
@@ -12577,7 +12623,7 @@ void prepare_move_to_destination() {
       }
 
       #if N_ARC_CORRECTION > 1
-        if (--count) {
+        if (--arc_recalc_count) {
           // Apply vector rotation matrix to previous r_P / 1
           const float r_new_Y = r_P * sin_T + r_Q * cos_T;
           r_P = r_P * cos_T - r_Q * sin_T;
@@ -12587,7 +12633,7 @@ void prepare_move_to_destination() {
       #endif
       {
         #if N_ARC_CORRECTION > 1
-          count = N_ARC_CORRECTION;
+          arc_recalc_count = N_ARC_CORRECTION;
         #endif
 
         // Arc correction to radius vector. Computed only every N_ARC_CORRECTION increments.
@@ -12617,8 +12663,9 @@ void prepare_move_to_destination() {
     // motion control system might still be processing the action and the real tool position
     // in any intermediate location.
     set_current_to_destination();
-  }
-#endif
+  } // plan_arc
+
+#endif // ARC_SUPPORT
 
 #if ENABLED(BEZIER_CURVE_SUPPORT)
 
@@ -13179,6 +13226,10 @@ void idle(
     bool no_stepper_sleep/*=false*/
   #endif
 ) {
+  #if ENABLED(MAX7219_DEBUG)
+    Max7219_idle_tasks();
+  #endif  // MAX7219_DEBUG
+
   lcd_update();
 
   host_keepalive();
@@ -13294,6 +13345,10 @@ void stop() {
  */
 void setup() {
 
+  #if ENABLED(MAX7219_DEBUG)
+    Max7219_init();
+  #endif
+
   #ifdef DISABLE_JTAG
     // Disable JTAG on AT90USB chips to free up pins for IO
     MCUCR = 0x80;
@@ -13335,6 +13390,7 @@ void setup() {
     SERIAL_ECHOPGM(MSG_CONFIGURATION_VER);
     SERIAL_ECHOPGM(STRING_DISTRIBUTION_DATE);
     SERIAL_ECHOLNPGM(MSG_AUTHOR STRING_CONFIG_H_AUTHOR);
+    SERIAL_ECHO_START();
     SERIAL_ECHOLNPGM("Compiled: " __DATE__);
   #endif
 
@@ -13445,6 +13501,10 @@ void setup() {
     SET_OUTPUT(E_MUX2_PIN);
   #endif
 
+  #if HAS_FANMUX
+    fanmux_init();
+  #endif
+
   lcd_init();
 
   #ifndef CUSTOM_BOOTSCREEN_TIMEOUT
@@ -13502,12 +13562,12 @@ void setup() {
   #if ENABLED(SWITCHING_NOZZLE)
     move_nozzle_servo(0);  // Initialize nozzle servo
   #endif
-  
+
   #if ENABLED(PARKING_EXTRUDER)
     #if ENABLED(PARKING_EXTRUDER_SOLENOIDS_INVERT)
       pe_activate_magnet(0);
       pe_activate_magnet(1);
-    #else 
+    #else
       pe_deactivate_magnet(0);
       pe_deactivate_magnet(1);
     #endif

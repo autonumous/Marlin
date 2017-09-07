@@ -305,6 +305,10 @@ static_assert(X_MAX_LENGTH >= X_BED_SIZE && Y_MAX_LENGTH >= Y_BED_SIZE,
     #error "MESH_BED_LEVELING and BABYSTEP_ZPROBE_OFFSET is not a valid combination"
   #elif ENABLED(BABYSTEP_ZPROBE_OFFSET) && !HAS_BED_PROBE
     #error "BABYSTEP_ZPROBE_OFFSET requires a probe."
+  #elif ENABLED(BABYSTEP_ZPROBE_GFX_OVERLAY) && !ENABLED(DOGLCD)
+    #error "BABYSTEP_ZPROBE_GFX_OVERLAY requires a DOGLCD."
+  #elif ENABLED(BABYSTEP_ZPROBE_GFX_OVERLAY) && !ENABLED(BABYSTEP_ZPROBE_OFFSET)
+    #error "BABYSTEP_ZPROBE_GFX_OVERLAY requires a BABYSTEP_ZPROBE_OFFSET."
   #endif
 #endif
 
@@ -443,6 +447,16 @@ static_assert(X_MAX_LENGTH >= X_BED_SIZE && Y_MAX_LENGTH >= Y_BED_SIZE,
   #endif
 #endif
 
+/**
+ * Part-Cooling Fan Multiplexer requirements
+ */
+#if PIN_EXISTS(FANMUX1)
+  #if !HAS_FANMUX
+    #error "FANMUX0_PIN must be set before FANMUX1_PIN can be set."
+  #endif
+#elif PIN_EXISTS(FANMUX2)
+  #error "FANMUX0_PIN and FANMUX1_PIN must be set before FANMUX2_PIN can be set."
+#endif
 
 /**
  * Limited number of servos
