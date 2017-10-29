@@ -297,7 +297,7 @@ extern float soft_endstop_min[XYZ], soft_endstop_max[XYZ];
 #endif
 
 #if ENABLED(DELTA)
-  extern float endstop_adj[ABC],
+  extern float delta_endstop_adj[ABC],
                delta_radius,
                delta_diagonal_rod,
                delta_calibration_radius,
@@ -331,6 +331,12 @@ extern float soft_endstop_min[XYZ], soft_endstop_max[XYZ];
   void set_z_fade_height(const float zfh);
 #endif
 
+#if ENABLED(X_DUAL_ENDSTOPS)
+  extern float x_endstop_adj;
+#endif
+#if ENABLED(Y_DUAL_ENDSTOPS)
+  extern float y_endstop_adj;
+#endif
 #if ENABLED(Z_DUAL_ENDSTOPS)
   extern float z_endstop_adj;
 #endif
