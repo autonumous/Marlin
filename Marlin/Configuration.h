@@ -584,7 +584,7 @@
 // @section probes
 
 //
-// See http://marlinfw.org/configuration/probes.html
+// See http://marlinfw.org/docs/configuration/probes.html
 //
 
 /**
@@ -1561,6 +1561,11 @@
 // Tiny, but very sharp OLED display
 //
 //#define MKS_12864OLED
+
+// Silvergate GLCD controller
+// http://github.com/android444/Silvergate
+//
+//#define SILVER_GATE_GLCD_CONTROLLER
 
 //=============================================================================
 //=============================== Extra Features ==============================
