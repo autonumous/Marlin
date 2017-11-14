@@ -242,8 +242,6 @@
  *
  */
 
-//#define CUSTOM_BOOTSCREEN_TIMEOUT   2500  //added 02/07/17 to resolve custom bootscreen issue // removed 19/07/2017, assuming fixed
-
 #include "Marlin.h"
 
 #include "ultralcd.h"
@@ -766,7 +764,7 @@ void set_current_from_steppers_for_axis(const AxisEnum axis);
 
 //void tool_change(const uint8_t tmp_extruder, const float fr_mm_s=0.0, bool no_move=false);
 void tool_change(const uint8_t tmp_extruder, const float fr_mm_s=0.0, bool move=false);
-static void report_current_position();
+void report_current_position();
 void report_current_position_detail();
 
 #if ENABLED(DEBUG_LEVELING_FEATURE)
