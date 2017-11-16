@@ -35,20 +35,20 @@
   /**
    * Marlin release version identifier
    */
-  #define SHORT_BUILD_VERSION "bugfix-1.1.xBF"
+  #define SHORT_BUILD_VERSION "bugfix-1.1.x (BB)"
 
   /**
    * Verbose version identifier which should contain a reference to the location
    * from where the binary was downloaded or the source code was compiled.
    */
-  #define DETAILED_BUILD_VERSION SHORT_BUILD_VERSION " BigBox Dual Hybrid Titan - 20171022"
+  #define DETAILED_BUILD_VERSION SHORT_BUILD_VERSION " - e3D BigBox V1.1 Dual Hybrid Titan (github)"
 
   /**
    * The STRING_DISTRIBUTION_DATE represents when the binary file was built,
    * here we define this default string as the date where the latest release
    * version was tagged.
    */
-  #define STRING_DISTRIBUTION_DATE __DATE__  //"2017-10-29 12:00"
+  #define STRING_DISTRIBUTION_DATE __DATE__ __TIME__ //"2017-10-29 12:00"
 
   /**
    * Required minimum Configuration.h and Configuration_adv.h file versions.
@@ -70,7 +70,7 @@
   /**
    * Defines a generic printer name to be output to the LCD after booting Marlin.
    */
-  #define MACHINE_NAME "BigBox V1.1 Dual Hybrid Titan 3D Printer"
+  #define MACHINE_NAME "e3D BigBox Dual"
 
   /**
    * The SOURCE_CODE_URL is the location where users will find the Marlin Source
