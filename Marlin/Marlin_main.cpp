@@ -8415,7 +8415,7 @@ inline void gcode_M18_M84() {
     }
 
     #if ENABLED(AUTO_BED_LEVELING_UBL) && ENABLED(ULTRA_LCD)  // Only needed with an LCD
-      ubl_lcd_map_control = defer_return_to_status = false;
+      ubl.lcd_map_control = defer_return_to_status = false;
     #endif
   }
 }
@@ -11127,12 +11127,11 @@ void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool m
         SYNC_PLAN_POSITION_KINEMATIC();
 
         // Move to the "old position" (move the extruder into place)
+        #if ENABLED(SWITCHING_NOZZLE)
+          destination[Z_AXIS] += z_diff;  // Include the Z restore with the "move back"
+        #endif
         //if (!no_move && IsRunning()) {
         if (move && IsRunning()) {
-          #if ENABLED(SWITCHING_NOZZLE)
-            if (z_raise != z_diff)
-              destination[Z_AXIS] += z_diff;  // Include the Z restore with the "move back"
-          #endif
           #if ENABLED(DEBUG_LEVELING_FEATURE)
             if (DEBUGGING(LEVELING)) DEBUG_POS("Move back", destination);
           #endif
@@ -11140,9 +11139,10 @@ void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool m
           do_blocking_move_to(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS]);
         }
         #if ENABLED(SWITCHING_NOZZLE)
-          // Move back down, if needed. (Including when the new tool is higher.)
-          else if (z_raise != z_diff)
-            do_blocking_move_to_z(destination[Z_AXIS] + z_diff, planner.max_feedrate_mm_s[Z_AXIS]);
+          else {
+            // Move back down. (Including when the new tool is higher.)
+            do_blocking_move_to_z(destination[Z_AXIS], planner.max_feedrate_mm_s[Z_AXIS]);
+          }
         #endif
       } // (tmp_extruder != active_extruder)
 
@@ -13492,7 +13492,7 @@ void manage_inactivity(bool ignore_stepper_queue/*=false*/) {
       disable_e_steppers();
     #endif
     #if ENABLED(AUTO_BED_LEVELING_UBL) && ENABLED(ULTRA_LCD)  // Only needed with an LCD
-      ubl_lcd_map_control = defer_return_to_status = false;
+      ubl.lcd_map_control = defer_return_to_status = false;
     #endif
   }
 
@@ -13913,9 +13913,6 @@ void setup() {
 
   #if ENABLED(SHOW_BOOTSCREEN)
     lcd_bootscreen();
-    #if DISABLED(DOGLCD) && ENABLED(ULTRA_LCD) && DISABLED(SDSUPPORT)
-      lcd_init();
-    #endif
   #endif
 
   #if ENABLED(MIXING_EXTRUDER) && MIXING_VIRTUAL_TOOLS > 1
