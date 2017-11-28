@@ -1698,6 +1698,8 @@ void do_blocking_move_to(const float &rx, const float &ry, const float &rz, cons
     if (DEBUGGING(LEVELING)) print_xyz(PSTR(">>> do_blocking_move_to"), NULL, LOGICAL_X_POSITION(rx), LOGICAL_Y_POSITION(ry), LOGICAL_Z_POSITION(rz));
   #endif
 
+  const float z_feedrate = fr_mm_s ? fr_mm_s : homing_feedrate(Z_AXIS);
+
   #if ENABLED(DELTA)
 
     if (!position_is_reachable(rx, ry)) return;
@@ -1722,18 +1724,16 @@ void do_blocking_move_to(const float &rx, const float &ry, const float &rz, cons
         #endif
         return;
       }
-      else {
-        destination[Z_AXIS] = delta_clip_start_height;
-        prepare_uninterpolated_move_to_destination(); // set_current_from_destination
-        #if ENABLED(DEBUG_LEVELING_FEATURE)
-          if (DEBUGGING(LEVELING)) DEBUG_POS("zone border move", current_position);
-        #endif
-      }
+      destination[Z_AXIS] = delta_clip_start_height;
+      prepare_uninterpolated_move_to_destination(); // set_current_from_destination
+      #if ENABLED(DEBUG_LEVELING_FEATURE)
+        if (DEBUGGING(LEVELING)) DEBUG_POS("zone border move", current_position);
+      #endif
     }
 
     if (rz > current_position[Z_AXIS]) {    // raising?
       destination[Z_AXIS] = rz;
-      prepare_uninterpolated_move_to_destination();   // set_current_from_destination
+      prepare_uninterpolated_move_to_destination(z_feedrate);   // set_current_from_destination
       #if ENABLED(DEBUG_LEVELING_FEATURE)
         if (DEBUGGING(LEVELING)) DEBUG_POS("z raise move", current_position);
       #endif
@@ -1748,7 +1748,7 @@ void do_blocking_move_to(const float &rx, const float &ry, const float &rz, cons
 
     if (rz < current_position[Z_AXIS]) {    // lowering?
       destination[Z_AXIS] = rz;
-      prepare_uninterpolated_move_to_destination();   // set_current_from_destination
+      prepare_uninterpolated_move_to_destination(z_feedrate);   // set_current_from_destination
       #if ENABLED(DEBUG_LEVELING_FEATURE)
         if (DEBUGGING(LEVELING)) DEBUG_POS("z lower move", current_position);
       #endif
@@ -1763,7 +1763,7 @@ void do_blocking_move_to(const float &rx, const float &ry, const float &rz, cons
     // If Z needs to raise, do it before moving XY
     if (destination[Z_AXIS] < rz) {
       destination[Z_AXIS] = rz;
-      prepare_uninterpolated_move_to_destination(fr_mm_s ? fr_mm_s : homing_feedrate(Z_AXIS));
+      prepare_uninterpolated_move_to_destination(z_feedrate);
     }
 
     destination[X_AXIS] = rx;
@@ -1773,14 +1773,14 @@ void do_blocking_move_to(const float &rx, const float &ry, const float &rz, cons
     // If Z needs to lower, do it after moving XY
     if (destination[Z_AXIS] > rz) {
       destination[Z_AXIS] = rz;
-      prepare_uninterpolated_move_to_destination(fr_mm_s ? fr_mm_s : homing_feedrate(Z_AXIS));
+      prepare_uninterpolated_move_to_destination(z_feedrate);
     }
 
   #else
 
     // If Z needs to raise, do it before moving XY
     if (current_position[Z_AXIS] < rz) {
-      feedrate_mm_s = fr_mm_s ? fr_mm_s : homing_feedrate(Z_AXIS);
+      feedrate_mm_s = z_feedrate;
       current_position[Z_AXIS] = rz;
       buffer_line_to_current_position();
     }
@@ -1792,7 +1792,7 @@ void do_blocking_move_to(const float &rx, const float &ry, const float &rz, cons
 
     // If Z needs to lower, do it after moving XY
     if (current_position[Z_AXIS] > rz) {
-      feedrate_mm_s = fr_mm_s ? fr_mm_s : homing_feedrate(Z_AXIS);
+      feedrate_mm_s = z_feedrate;
       current_position[Z_AXIS] = rz;
       buffer_line_to_current_position();
     }
@@ -4261,27 +4261,26 @@ void home_all_axes() { gcode_G28(true); }
 
 #if ENABLED(MESH_BED_LEVELING) || ENABLED(PROBE_MANUALLY)
 
-  #if ENABLED(PROBE_MANUALLY) && ENABLED(LCD_BED_LEVELING)
+  #if ENABLED(LCD_BED_LEVELING)
     extern bool lcd_wait_for_move;
+  #else
+    constexpr bool lcd_wait_for_move = false;
   #endif
 
   inline void _manual_goto_xy(const float &rx, const float &ry) {
 
     #if MANUAL_PROBE_HEIGHT > 0
       const float prev_z = current_position[Z_AXIS];
-      do_blocking_move_to_z(MANUAL_PROBE_HEIGHT, homing_feedrate(Z_AXIS));
-    #endif
-
-    do_blocking_move_to_xy(rx, ry, MMM_TO_MMS(XY_PROBE_SPEED));
-
-    #if MANUAL_PROBE_HEIGHT > 0
-      do_blocking_move_to_z(prev_z, homing_feedrate(Z_AXIS));
+      do_blocking_move_to(rx, ry, MANUAL_PROBE_HEIGHT);
+      do_blocking_move_to_z(prev_z);
+    #else
+      do_blocking_move_to_xy(rx, ry);
     #endif
 
     current_position[X_AXIS] = rx;
     current_position[Y_AXIS] = ry;
 
-    #if ENABLED(PROBE_MANUALLY) && ENABLED(LCD_BED_LEVELING)
+    #if ENABLED(LCD_BED_LEVELING)
       lcd_wait_for_move = false;
     #endif
   }
@@ -4300,18 +4299,6 @@ void home_all_axes() { gcode_G28(true); }
     print_2d_array(GRID_MAX_POINTS_X, GRID_MAX_POINTS_Y, 5,
       [](const uint8_t ix, const uint8_t iy) { return mbl.z_values[ix][iy]; }
     );
-  }
-
-  void mesh_probing_done() {
-    mbl.has_mesh = true;
-    home_all_axes();
-    set_bed_leveling_enabled(true);
-    #if ENABLED(MESH_G28_REST_ORIGIN)
-      current_position[Z_AXIS] = Z_MIN_POS;
-      set_destination_from_current();
-      buffer_line_to_destination(homing_feedrate(Z_AXIS));
-      stepper.synchronize();
-    #endif
   }
 
   /**
@@ -4363,7 +4350,7 @@ void home_all_axes() { gcode_G28(true); }
       case MeshStart:
         mbl.reset();
         mbl_probe_index = 0;
-        enqueue_and_echo_commands_P(PSTR("G28\nG29 S2"));
+        enqueue_and_echo_commands_P(lcd_wait_for_move ? PSTR("G29 S2") : PSTR("G28\nG29 S2"));
         break;
 
       case MeshNext:
@@ -4409,7 +4396,21 @@ void home_all_axes() { gcode_G28(true); }
           SERIAL_PROTOCOLLNPGM("Mesh probing done.");
           BUZZ(100, 659);
           BUZZ(100, 698);
-          mesh_probing_done();
+          mbl.has_mesh = true;
+
+          home_all_axes();
+          set_bed_leveling_enabled(true);
+
+          #if ENABLED(MESH_G28_REST_ORIGIN)
+            current_position[Z_AXIS] = Z_MIN_POS;
+            set_destination_from_current();
+            buffer_line_to_destination(homing_feedrate(Z_AXIS));
+            stepper.synchronize();
+          #endif
+
+          #if ENABLED(LCD_BED_LEVELING)
+            lcd_wait_for_move = false;
+          #endif
         }
         break;
 
@@ -4438,9 +4439,8 @@ void home_all_axes() { gcode_G28(true); }
           return;
         }
 
-        if (parser.seenval('Z')) {
+        if (parser.seenval('Z'))
           mbl.z_values[px][py] = parser.value_linear_units();
-        }
         else {
           SERIAL_CHAR('Z'); echo_not_entered();
           return;
@@ -4448,9 +4448,8 @@ void home_all_axes() { gcode_G28(true); }
         break;
 
       case MeshSetZOffset:
-        if (parser.seenval('Z')) {
+        if (parser.seenval('Z'))
           mbl.z_offset = parser.value_linear_units();
-        }
         else {
           SERIAL_CHAR('Z'); echo_not_entered();
           return;
@@ -4462,6 +4461,11 @@ void home_all_axes() { gcode_G28(true); }
         break;
 
     } // switch(state)
+
+    if (state == MeshStart || state == MeshNext) {
+      SERIAL_PROTOCOLPAIR("MBL G29 point ", min(mbl_probe_index, GRID_MAX_POINTS));
+      SERIAL_PROTOCOLLNPAIR(" of ", int(GRID_MAX_POINTS));
+    }
 
     report_current_position();
   }
@@ -10924,7 +10928,7 @@ void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool m
             if (!no_move) {
 
               const float parkingposx[] = PARKING_EXTRUDER_PARKING_X,
-                          midpos = ((parkingposx[1] - parkingposx[0])/2) + parkingposx[0] + hotend_offset[X_AXIS][active_extruder],
+                          midpos = (parkingposx[0] + parkingposx[1]) * 0.5 + hotend_offset[X_AXIS][active_extruder],
                           grabpos = parkingposx[tmp_extruder] + hotend_offset[X_AXIS][active_extruder]
                                     + (tmp_extruder == 0 ? -(PARKING_EXTRUDER_GRAB_DISTANCE) : PARKING_EXTRUDER_GRAB_DISTANCE);
               /**
