@@ -420,65 +420,9 @@ void Planner::check_axes_activity() {
   if (blocks_queued()) {
 
     #if FAN_COUNT > 0
-
       for (uint8_t i = 0; i < FAN_COUNT; i++)
         tail_fan_speed[i] = block_buffer[block_buffer_tail].fan_speed[i];
-
-      #ifdef FAN_KICKSTART_TIME
-
-        static millis_t fan_kick_end[FAN_COUNT] = { 0 };
-
-        #define KICKSTART_FAN(f) \
-          if (tail_fan_speed[f]) { \
-            millis_t ms = millis(); \
-            if (fan_kick_end[f] == 0) { \
-              fan_kick_end[f] = ms + FAN_KICKSTART_TIME; \
-              tail_fan_speed[f] = 255; \
-            } else if (PENDING(ms, fan_kick_end[f])) \
-              tail_fan_speed[f] = 255; \
-          } else fan_kick_end[f] = 0
-
-        #if HAS_FAN0
-          KICKSTART_FAN(0);
-        #endif
-        #if HAS_FAN1
-          KICKSTART_FAN(1);
-        #endif
-        #if HAS_FAN2
-          KICKSTART_FAN(2);
-        #endif
-
-      #endif // FAN_KICKSTART_TIME
-
-      #ifdef FAN_MIN_PWM
-        #define CALC_FAN_SPEED(f) (tail_fan_speed[f] ? ( FAN_MIN_PWM + (tail_fan_speed[f] * (255 - FAN_MIN_PWM)) / 255 ) : 0)
-      #else
-        #define CALC_FAN_SPEED(f) tail_fan_speed[f]
-      #endif
-
-      #if ENABLED(FAN_SOFT_PWM)
-        #if HAS_FAN0
-          thermalManager.soft_pwm_amount_fan[0] = CALC_FAN_SPEED(0);
-        #endif
-        #if HAS_FAN1
-          thermalManager.soft_pwm_amount_fan[1] = CALC_FAN_SPEED(1);
-        #endif
-        #if HAS_FAN2
-          thermalManager.soft_pwm_amount_fan[2] = CALC_FAN_SPEED(2);
-        #endif
-      #else
-        #if HAS_FAN0
-          analogWrite(FAN_PIN, CALC_FAN_SPEED(0));
-        #endif
-        #if HAS_FAN1
-          analogWrite(FAN1_PIN, CALC_FAN_SPEED(1));
-        #endif
-        #if HAS_FAN2
-          analogWrite(FAN2_PIN, CALC_FAN_SPEED(2));
-        #endif
-      #endif
-
-    #endif // FAN_COUNT > 0
+    #endif
 
     block_t* block;
 
@@ -524,6 +468,64 @@ void Planner::check_axes_activity() {
   #if ENABLED(DISABLE_E)
     if (!axis_active[E_AXIS]) disable_e_steppers();
   #endif
+
+  #if FAN_COUNT > 0
+
+    #if FAN_KICKSTART_TIME > 0
+
+      static millis_t fan_kick_end[FAN_COUNT] = { 0 };
+
+      #define KICKSTART_FAN(f) \
+        if (tail_fan_speed[f]) { \
+          millis_t ms = millis(); \
+          if (fan_kick_end[f] == 0) { \
+            fan_kick_end[f] = ms + FAN_KICKSTART_TIME; \
+            tail_fan_speed[f] = 255; \
+          } else if (PENDING(ms, fan_kick_end[f])) \
+            tail_fan_speed[f] = 255; \
+        } else fan_kick_end[f] = 0
+
+      #if HAS_FAN0
+        KICKSTART_FAN(0);
+      #endif
+      #if HAS_FAN1
+        KICKSTART_FAN(1);
+      #endif
+      #if HAS_FAN2
+        KICKSTART_FAN(2);
+      #endif
+
+    #endif // FAN_KICKSTART_TIME > 0
+
+    #ifdef FAN_MIN_PWM
+      #define CALC_FAN_SPEED(f) (tail_fan_speed[f] ? ( FAN_MIN_PWM + (tail_fan_speed[f] * (255 - FAN_MIN_PWM)) / 255 ) : 0)
+    #else
+      #define CALC_FAN_SPEED(f) tail_fan_speed[f]
+    #endif
+
+    #if ENABLED(FAN_SOFT_PWM)
+      #if HAS_FAN0
+        thermalManager.soft_pwm_amount_fan[0] = CALC_FAN_SPEED(0);
+      #endif
+      #if HAS_FAN1
+        thermalManager.soft_pwm_amount_fan[1] = CALC_FAN_SPEED(1);
+      #endif
+      #if HAS_FAN2
+        thermalManager.soft_pwm_amount_fan[2] = CALC_FAN_SPEED(2);
+      #endif
+    #else
+      #if HAS_FAN0
+        analogWrite(FAN_PIN, CALC_FAN_SPEED(0));
+      #endif
+      #if HAS_FAN1
+        analogWrite(FAN1_PIN, CALC_FAN_SPEED(1));
+      #endif
+      #if HAS_FAN2
+        analogWrite(FAN2_PIN, CALC_FAN_SPEED(2));
+      #endif
+    #endif
+
+  #endif // FAN_COUNT > 0
 
   #if ENABLED(AUTOTEMP)
     getHighESpeed();
@@ -1069,9 +1071,10 @@ void Planner::_buffer_line(const float &a, const float &b, const float &c, const
     if (WITHIN(moves_queued, 2, (BLOCK_BUFFER_SIZE) / 2 - 1)) {
       if (segment_time_us < min_segment_time_us) {
         // buffer is draining, add extra time.  The amount of time added increases if the buffer is still emptied more.
-        inverse_mm_s = 1000000.0 / (segment_time_us + LROUND(2 * (min_segment_time_us - segment_time_us) / moves_queued));
+        const uint32_t nst = segment_time_us + LROUND(2 * (min_segment_time_us - segment_time_us) / moves_queued);
+        inverse_mm_s = 1000000.0 / nst;
         #if defined(XY_FREQUENCY_LIMIT) || ENABLED(ULTRA_LCD)
-          segment_time_us = LROUND(1000000.0 / inverse_mm_s);
+          segment_time_us = nst;
         #endif
       }
     }
@@ -1099,7 +1102,7 @@ void Planner::_buffer_line(const float &a, const float &b, const float &c, const
       filwidth_delay_dist += delta_mm[E_AXIS];
 
       // Only get new measurements on forward E movement
-      if (filwidth_e_count > 0.0001) {
+      if (!UNEAR_ZERO(filwidth_e_count)) {
 
         // Loop the delay distance counter (modulus by the mm length)
         while (filwidth_delay_dist >= MMD_MM) filwidth_delay_dist -= MMD_MM;
@@ -1302,18 +1305,18 @@ void Planner::_buffer_line(const float &a, const float &b, const float &c, const
     }
   }
 
-  if (moves_queued > 1 && previous_nominal_speed > 0.0001) {
+  if (moves_queued > 1 && !UNEAR_ZERO(previous_nominal_speed)) {
     // Estimate a maximum velocity allowed at a joint of two successive segments.
     // If this maximum velocity allowed is lower than the minimum of the entry / exit safe velocities,
     // then the machine is not coasting anymore and the safe entry / exit velocities shall be used.
 
     // The junction velocity will be shared between successive segments. Limit the junction velocity to their minimum.
-    bool prev_speed_larger = previous_nominal_speed > block->nominal_speed;
+    const bool prev_speed_larger = previous_nominal_speed > block->nominal_speed;
     float smaller_speed_factor = prev_speed_larger ? (block->nominal_speed / previous_nominal_speed) : (previous_nominal_speed / block->nominal_speed);
     // Pick the smaller of the nominal speeds. Higher speed shall not be achieved at the junction during coasting.
     vmax_junction = prev_speed_larger ? block->nominal_speed : previous_nominal_speed;
     // Factor to multiply the previous / current nominal velocities to get componentwise limited velocities.
-    float v_factor = 1.f;
+    float v_factor = 1;
     limited = 0;
     // Now limit the jerk in all axes.
     LOOP_XYZE(axis) {
@@ -1328,9 +1331,9 @@ void Planner::_buffer_line(const float &a, const float &b, const float &c, const
       // Calculate jerk depending on whether the axis is coasting in the same direction or reversing.
       const float jerk = (v_exit > v_entry)
           ? //                                  coasting             axis reversal
-            ( (v_entry > 0.f || v_exit < 0.f) ? (v_exit - v_entry) : max(v_exit, -v_entry) )
+            ( (v_entry > 0 || v_exit < 0) ? (v_exit - v_entry) : max(v_exit, -v_entry) )
           : // v_exit <= v_entry                coasting             axis reversal
-            ( (v_entry < 0.f || v_exit > 0.f) ? (v_entry - v_exit) : max(-v_exit, v_entry) );
+            ( (v_entry < 0 || v_exit > 0) ? (v_entry - v_exit) : max(-v_exit, v_entry) );
 
       if (jerk > max_jerk[axis]) {
         v_factor *= max_jerk[axis] / jerk;

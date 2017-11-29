@@ -105,7 +105,8 @@ script:
   #
   # And with a Sled Z Probe
   #
-  - opt_enable Z_PROBE_SLED 
+  - opt_enable Z_PROBE_SLED
+  - opt_enable_adv BABYSTEP_ZPROBE_OFFSET DOUBLECLICK_FOR_Z_BABYSTEPPING
   - build_marlin
   #
   # Test a Servo Probe

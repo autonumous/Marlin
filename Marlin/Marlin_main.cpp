@@ -2418,8 +2418,8 @@ static void clean_up_after_endstop_or_probe_move() {
       ny -= (Y_PROBE_OFFSET_FROM_EXTRUDER);
     }
     else if (!position_is_reachable(nx, ny)) return NAN;        // The given position is in terms of the nozzle
-  
-    const float nz = 
+
+    const float nz =
       #if ENABLED(DELTA)
         // Move below clip height or xy move will be aborted by do_blocking_move_to
         min(current_position[Z_AXIS], delta_clip_start_height)
@@ -3447,7 +3447,7 @@ inline void gcode_G0_G1(
     #else
       prepare_move_to_destination();
     #endif
-	
+
     #if ENABLED(NANODLP_Z_SYNC)
       // If G0/G1 command include Z-axis, wait for move and output sync text.
       if (parser.seenval('Z')) {
@@ -9347,7 +9347,7 @@ inline void gcode_M226() {
           const float offs = constrain(parser.value_axis_units((AxisEnum)a), -2, 2);
           thermalManager.babystep_axis((AxisEnum)a, offs * planner.axis_steps_per_mm[a]);
           #if ENABLED(BABYSTEP_ZPROBE_OFFSET)
-            if (a == Z_AXIS && parser.boolval('P', true)) mod_zprobe_zoffset(offs);
+            if (a == Z_AXIS && (!parser.seen('P') || parser.value_bool())) mod_zprobe_zoffset(offs);
           #endif
         }
     #else
@@ -9355,7 +9355,7 @@ inline void gcode_M226() {
         const float offs = constrain(parser.value_axis_units(Z_AXIS), -2, 2);
         thermalManager.babystep_axis(Z_AXIS, offs * planner.axis_steps_per_mm[Z_AXIS]);
         #if ENABLED(BABYSTEP_ZPROBE_OFFSET)
-          if (parser.boolval('P', true)) mod_zprobe_zoffset(offs);
+          if (!parser.seen('P') || parser.value_bool()) mod_zprobe_zoffset(offs);
         #endif
       }
     #endif
@@ -12755,6 +12755,14 @@ void set_current_from_steppers_for_axis(const AxisEnum axis) {
 
     // Calculate and execute the segments
     for (uint16_t s = segments + 1; --s;) {
+
+      static millis_t next_idle_ms = millis() + 200UL;
+      thermalManager.manage_heater();  // This returns immediately if not really needed.
+      if (ELAPSED(millis(), next_idle_ms)) {
+        next_idle_ms = millis() + 200UL;
+        idle();
+      }
+
       LOOP_XYZE(i) raw[i] += segment_distance[i];
       #if ENABLED(DELTA)
         DELTA_RAW_IK(); // Delta can inline its kinematics
