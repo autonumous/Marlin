@@ -692,11 +692,11 @@ void Planner::calculate_volumetric_multipliers() {
  *
  * Add a new linear movement to the buffer (in terms of steps).
  *
- *  target    - target position in steps units
- *  fr_mm_s   - (target) speed of the move
- *  extruder  - target extruder
+ *  target      - target position in steps units
+ *  fr_mm_s     - (target) speed of the move
+ *  extruder    - target extruder
  */
-void Planner::_buffer_steps(const int32_t target[XYZE], float fr_mm_s, const uint8_t extruder) {
+void Planner::_buffer_steps(const int32_t (&target)[XYZE], float fr_mm_s, const uint8_t extruder) {
 
   const int32_t da = target[X_AXIS] - position[X_AXIS],
                 db = target[Y_AXIS] - position[Y_AXIS],
@@ -710,9 +710,9 @@ void Planner::_buffer_steps(const int32_t target[XYZE], float fr_mm_s, const uin
     SERIAL_ECHOPAIR(" (", da);
     SERIAL_ECHOPAIR(" steps) B:", target[B_AXIS]);
     SERIAL_ECHOPAIR(" (", db);
-    SERIAL_ECHOLNPGM(" steps) C:", target[C_AXIS]);
+    SERIAL_ECHOPAIR(" steps) C:", target[C_AXIS]);
     SERIAL_ECHOPAIR(" (", dc);
-    SERIAL_ECHOLNPGM(" steps) E:", target[E_AXIS]);
+    SERIAL_ECHOPAIR(" steps) E:", target[E_AXIS]);
     SERIAL_ECHOPAIR(" (", de);
     SERIAL_ECHOLNPGM(" steps)");
   //*/
@@ -1217,12 +1217,12 @@ void Planner::_buffer_steps(const int32_t target[XYZE], float fr_mm_s, const uin
     vmax_junction = MINIMUM_PLANNER_SPEED; // Set default max junction speed
 
     // Skip first block or when previous_nominal_speed is used as a flag for homing and offset cycles.
-    if (block_buffer_head != block_buffer_tail && previous_nominal_speed > 0.0) {
+    if (moves_queued && !UNEAR_ZERO(previous_nominal_speed)) {
       // Compute cosine of angle between previous and current path. (prev_unit_vec is negative)
       // NOTE: Max junction velocity is computed without sin() or acos() by trig half angle identity.
-      float cos_theta = - previous_unit_vec[X_AXIS] * unit_vec[X_AXIS]
-                        - previous_unit_vec[Y_AXIS] * unit_vec[Y_AXIS]
-                        - previous_unit_vec[Z_AXIS] * unit_vec[Z_AXIS] ;
+      const float cos_theta = - previous_unit_vec[X_AXIS] * unit_vec[X_AXIS]
+                              - previous_unit_vec[Y_AXIS] * unit_vec[Y_AXIS]
+                              - previous_unit_vec[Z_AXIS] * unit_vec[Z_AXIS];
       // Skip and use default max junction speed for 0 degree acute junction.
       if (cos_theta < 0.95) {
         vmax_junction = min(previous_nominal_speed, block->nominal_speed);
@@ -1268,18 +1268,19 @@ void Planner::_buffer_steps(const int32_t target[XYZE], float fr_mm_s, const uin
     // then the machine is not coasting anymore and the safe entry / exit velocities shall be used.
 
     // The junction velocity will be shared between successive segments. Limit the junction velocity to their minimum.
-    const bool prev_speed_larger = previous_nominal_speed > block->nominal_speed;
-    const float smaller_speed_factor = prev_speed_larger ? (block->nominal_speed / previous_nominal_speed) : (previous_nominal_speed / block->nominal_speed);
     // Pick the smaller of the nominal speeds. Higher speed shall not be achieved at the junction during coasting.
-    vmax_junction = prev_speed_larger ? block->nominal_speed : previous_nominal_speed;
+    vmax_junction = min(block->nominal_speed, previous_nominal_speed);
+
     // Factor to multiply the previous / current nominal velocities to get componentwise limited velocities.
     float v_factor = 1;
     limited = 0;
+
     // Now limit the jerk in all axes.
+    const float smaller_speed_factor = vmax_junction / previous_nominal_speed;
     LOOP_XYZE(axis) {
       // Limit an axis. We have to differentiate: coasting, reversal of an axis, full stop.
-      float v_exit = previous_speed[axis], v_entry = current_speed[axis];
-      if (prev_speed_larger) v_exit *= smaller_speed_factor;
+      float v_exit = previous_speed[axis] * smaller_speed_factor,
+            v_entry = current_speed[axis];
       if (limited) {
         v_exit *= v_factor;
         v_entry *= v_factor;
@@ -1370,6 +1371,7 @@ void Planner::_buffer_steps(const int32_t target[XYZE], float fr_mm_s, const uin
   block_buffer_head = next_buffer_head;
 
   // Update the position (only when a move was queued)
+  static_assert(COUNT(target) > 1, "Parameter to _buffer_steps must be (&target)[XYZE]!");
   COPY(position, target);
 
   recalculate();
@@ -1409,34 +1411,39 @@ void Planner::_buffer_line(const float &a, const float &b, const float &c, const
     SERIAL_ECHOPAIR("  _buffer_line FR:", fr_mm_s);
     #if IS_KINEMATIC
       SERIAL_ECHOPAIR(" A:", a);
-      SERIAL_ECHOPAIR(" (", target[A_AXIS]);
-      SERIAL_ECHOPAIR(" steps) B:", b);
+      SERIAL_ECHOPAIR(" (", position[A_AXIS]);
+      SERIAL_ECHOPAIR("->", target[A_AXIS]);
+      SERIAL_ECHOPAIR(") B:", b);
     #else
       SERIAL_ECHOPAIR(" X:", a);
-      SERIAL_ECHOPAIR(" (", target[X_AXIS]);
-      SERIAL_ECHOPAIR(" steps) Y:", b);
+      SERIAL_ECHOPAIR(" (", position[X_AXIS]);
+      SERIAL_ECHOPAIR("->", target[X_AXIS]);
+      SERIAL_ECHOPAIR(") Y:", b);
     #endif
-    SERIAL_ECHOPAIR(" (", target[Y_AXIS]);
+    SERIAL_ECHOPAIR(" (", position[Y_AXIS]);
+    SERIAL_ECHOPAIR("->", target[Y_AXIS]);
     #if ENABLED(DELTA)
-      SERIAL_ECHOPAIR(" steps) C:", c);
+      SERIAL_ECHOPAIR(") C:", c);
     #else
-      SERIAL_ECHOPAIR(" steps) Z:", c);
+      SERIAL_ECHOPAIR(") Z:", c);
     #endif
-    SERIAL_ECHOPAIR(" (", target[Z_AXIS]);
-    SERIAL_ECHOPAIR(" steps) E:", e);
-    SERIAL_ECHOPAIR(" (", target[E_AXIS]);
-    SERIAL_ECHOLNPGM(" steps)");
+    SERIAL_ECHOPAIR(" (", position[Z_AXIS]);
+    SERIAL_ECHOPAIR("->", target[Z_AXIS]);
+    SERIAL_ECHOPAIR(") E:", e);
+    SERIAL_ECHOPAIR(" (", position[E_AXIS]);
+    SERIAL_ECHOPAIR("->", target[E_AXIS]);
+    SERIAL_ECHOLNPGM(")");
   //*/
 
   // DRYRUN ignores all temperature constraints and assures that the extruder is instantly satisfied
   if (DEBUGGING(DRYRUN))
     position[E_AXIS] = target[E_AXIS];
 
-  // Always split the first move in two so it can chain
+  // Always split the first move into one longer and one shorter move
   if (!blocks_queued()) {
-    DISABLE_STEPPER_DRIVER_INTERRUPT();
     #define _BETWEEN(A) (position[A##_AXIS] + target[A##_AXIS]) >> 1
     const int32_t between[XYZE] = { _BETWEEN(X), _BETWEEN(Y), _BETWEEN(Z), _BETWEEN(E) };
+    DISABLE_STEPPER_DRIVER_INTERRUPT();
     _buffer_steps(between, fr_mm_s, extruder);
     _buffer_steps(target, fr_mm_s, extruder);
     ENABLE_STEPPER_DRIVER_INTERRUPT();

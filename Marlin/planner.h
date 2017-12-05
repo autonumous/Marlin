@@ -353,11 +353,11 @@ class Planner {
      *
      * Add a new linear movement to the buffer (in terms of steps).
      *
-     *  target    - target position in steps units
-     *  fr_mm_s   - (target) speed of the move
-     *  extruder  - target extruder
+     *  target      - target position in steps units
+     *  fr_mm_s     - (target) speed of the move
+     *  extruder    - target extruder
      */
-    static void _buffer_steps(const int32_t target[XYZE], float fr_mm_s, const uint8_t extruder);
+    static void _buffer_steps(const int32_t (&target)[XYZE], float fr_mm_s, const uint8_t extruder);
 
     /**
      * Planner::_buffer_line
