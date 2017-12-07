@@ -161,6 +161,7 @@ class Planner {
                  travel_acceleration,  // Travel acceleration mm/s^2  DEFAULT ACCELERATION for all NON printing moves. M204 MXXXX
                  max_jerk[XYZE],       // The largest speed change requiring no acceleration
                  min_travel_feedrate_mm_s;
+    static bool split_first_move;
 
     #if HAS_LEVELING
       static bool leveling_active;          // Flag that bed leveling is enabled
@@ -170,6 +171,8 @@ class Planner {
       #if ENABLED(ENABLE_LEVELING_FADE_HEIGHT)
         static float z_fade_height, inverse_z_fade_height;
       #endif
+    #else
+      static constexpr bool leveling_active = false;
     #endif
 
     #if ENABLED(LIN_ADVANCE)
