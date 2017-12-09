@@ -83,7 +83,7 @@ block_t* Stepper::current_block = NULL;  // A pointer to the block currently bei
 // private:
 
 uint8_t Stepper::last_direction_bits = 0;        // The next stepping-bits to be output
-uint16_t Stepper::cleaning_buffer_counter = 0;
+int16_t Stepper::cleaning_buffer_counter = 0;
 
 #if ENABLED(X_DUAL_ENDSTOPS)
   bool Stepper::locked_x_motor = false, Stepper::locked_x2_motor = false;
@@ -381,8 +381,8 @@ void Stepper::isr() {
 
   uint16_t ocr_val;
 
-  #define ENDSTOP_NOMINAL_OCR_VAL 3000    // check endstops every 1.5ms to guarantee two stepper ISRs within 5ms for BLTouch
-  #define OCR_VAL_TOLERANCE 1000          // First max delay is 2.0ms, last min delay is 0.5ms, all others 1.5ms
+  #define ENDSTOP_NOMINAL_OCR_VAL 3000 // Check endstops every 1.5ms to guarantee two stepper ISRs within 5ms for BLTouch
+  #define OCR_VAL_TOLERANCE       1000 // First max delay is 2.0ms, last min delay is 0.5ms, all others 1.5ms
 
   #if DISABLED(LIN_ADVANCE)
     // Disable Timer0 ISRs and enable global ISR again to capture UART events (incoming chars)
@@ -393,9 +393,13 @@ void Stepper::isr() {
 
   #define _SPLIT(L) (ocr_val = (uint16_t)L)
   #if ENABLED(ENDSTOP_INTERRUPTS_FEATURE)
+
     #define SPLIT(L) _SPLIT(L)
-  #else                 // sample endstops in between step pulses
+
+  #else // !ENDSTOP_INTERRUPTS_FEATURE : Sample endstops between stepping ISRs
+
     static uint32_t step_remaining = 0;
+
     #define SPLIT(L) do { \
       _SPLIT(L); \
       if (ENDSTOPS_ENABLED && L > ENDSTOP_NOMINAL_OCR_VAL) { \
@@ -407,33 +411,37 @@ void Stepper::isr() {
 
     if (step_remaining && ENDSTOPS_ENABLED) {   // Just check endstops - not yet time for a step
       endstops.update();
-      if (step_remaining > ENDSTOP_NOMINAL_OCR_VAL) {
-        step_remaining -= ENDSTOP_NOMINAL_OCR_VAL;
-        ocr_val = ENDSTOP_NOMINAL_OCR_VAL;
-      }
-      else {
-        ocr_val = step_remaining;
-        step_remaining = 0;  //  last one before the ISR that does the step
-      }
 
+      // Next ISR either for endstops or stepping
+      ocr_val = step_remaining <= ENDSTOP_NOMINAL_OCR_VAL ? step_remaining : ENDSTOP_NOMINAL_OCR_VAL;
+      step_remaining -= ocr_val;
       _NEXT_ISR(ocr_val);
-
       NOLESS(OCR1A, TCNT1 + 16);
-
       _ENABLE_ISRs(); // re-enable ISRs
       return;
     }
-  #endif
 
+  #endif // !ENDSTOP_INTERRUPTS_FEATURE
+
+  //
+  // When cleaning, discard the current block and run fast
+  //
   if (cleaning_buffer_counter) {
-    --cleaning_buffer_counter;
-    current_block = NULL;
-    planner.discard_current_block();
-    #ifdef SD_FINISHED_RELEASECOMMAND
-      if (!cleaning_buffer_counter && (SD_FINISHED_STEPPERRELEASE)) enqueue_and_echo_commands_P(PSTR(SD_FINISHED_RELEASECOMMAND));
-    #endif
-    _NEXT_ISR(200); // Run at max speed - 10 KHz
-    _ENABLE_ISRs(); // re-enable ISRs
+    if (cleaning_buffer_counter < 0) {          // Count up for endstop hit
+      if (current_block) planner.discard_current_block(); // Discard the active block that led to the trigger
+      if (!planner.discard_continued_block())   // Discard next CONTINUED block
+        cleaning_buffer_counter = 0;            // Keep discarding until non-CONTINUED
+    }
+    else {
+      planner.discard_current_block();
+      --cleaning_buffer_counter;                // Count down for abort print
+      #ifdef SD_FINISHED_RELEASECOMMAND
+        if (!cleaning_buffer_counter && (SD_FINISHED_STEPPERRELEASE)) enqueue_and_echo_commands_P(PSTR(SD_FINISHED_RELEASECOMMAND));
+      #endif
+    }
+    current_block = NULL;                       // Prep to get a new block after cleaning
+    _NEXT_ISR(200);                             // Run at max speed - 10 KHz
+    _ENABLE_ISRs();
     return;
   }
 
@@ -1119,9 +1127,9 @@ void Stepper::init() {
 
 
 /**
- * Block until all buffered steps are executed
+ * Block until all buffered steps are executed / cleaned
  */
-void Stepper::synchronize() { while (planner.blocks_queued()) idle(); }
+void Stepper::synchronize() { while (planner.blocks_queued() || cleaning_buffer_counter) idle(); }
 
 /**
  * Set the stepper positions directly in steps
@@ -1219,12 +1227,7 @@ void Stepper::finish_and_disable() {
 }
 
 void Stepper::quick_stop() {
-  #if ENABLED(AUTO_BED_LEVELING_UBL) && ENABLED(ULTIPANEL)
-    if (!ubl.lcd_map_control)
-      cleaning_buffer_counter = 5000;
-  #else
-    cleaning_buffer_counter = 5000;
-  #endif
+  cleaning_buffer_counter = 5000;
   DISABLE_STEPPER_DRIVER_INTERRUPT();
   while (planner.blocks_queued()) planner.discard_current_block();
   current_block = NULL;
@@ -1250,6 +1253,7 @@ void Stepper::endstop_triggered(AxisEnum axis) {
   #endif // !COREXY && !COREXZ && !COREYZ
 
   kill_current_block();
+  cleaning_buffer_counter = -1; // Discard the rest of the move
 }
 
 void Stepper::report_positions() {
