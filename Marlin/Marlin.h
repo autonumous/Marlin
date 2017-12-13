@@ -223,7 +223,7 @@ extern volatile bool wait_for_heatup;
   extern volatile bool wait_for_user;
 #endif
 
-extern float current_position[NUM_AXIS];
+extern float current_position[XYZE], destination[XYZE];
 
 // Workspace offsets
 #if HAS_WORKSPACE_OFFSET
@@ -373,7 +373,7 @@ void report_current_position();
 #endif
 
 #if ENABLED(ENABLE_LEVELING_FADE_HEIGHT)
-  void set_z_fade_height(const float zfh);
+  void set_z_fade_height(const float zfh, const bool do_report=true);
 #endif
 
 #if ENABLED(X_DUAL_ENDSTOPS)

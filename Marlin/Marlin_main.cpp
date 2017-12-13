@@ -340,11 +340,6 @@
   #include "ubl.h"
   extern bool defer_return_to_status;
   unified_bed_leveling ubl;
-  #define UBL_MESH_VALID !( ( ubl.z_values[0][0] == ubl.z_values[0][1] && ubl.z_values[0][1] == ubl.z_values[0][2] \
-                           && ubl.z_values[1][0] == ubl.z_values[1][1] && ubl.z_values[1][1] == ubl.z_values[1][2] \
-                           && ubl.z_values[2][0] == ubl.z_values[2][1] && ubl.z_values[2][1] == ubl.z_values[2][2] \
-                           && ubl.z_values[0][0] == 0 && ubl.z_values[1][0] == 0 && ubl.z_values[2][0] == 0 )  \
-                           || isnan(ubl.z_values[0][0]))
 #endif
 
 #if ENABLED(CNC_COORDINATE_SYSTEMS)
@@ -711,7 +706,7 @@ FORCE_INLINE signed char pgm_read_any(const signed char *p) { return pgm_read_by
 
 #define XYZ_CONSTS_FROM_CONFIG(type, array, CONFIG) \
   static const PROGMEM type array##_P[XYZ] = { X_##CONFIG, Y_##CONFIG, Z_##CONFIG }; \
-  static inline type array(AxisEnum axis) { return pgm_read_any(&array##_P[axis]); } \
+  static inline type array(const AxisEnum axis) { return pgm_read_any(&array##_P[axis]); } \
   typedef void __void_##CONFIG##__
 
 XYZ_CONSTS_FROM_CONFIG(float, base_min_pos,   MIN_POS);
@@ -738,11 +733,11 @@ void get_cartesian_from_steppers();
 void set_current_from_steppers_for_axis(const AxisEnum axis);
 
 #if ENABLED(ARC_SUPPORT)
-  void plan_arc(float target[XYZE], float* offset, uint8_t clockwise);
+  void plan_arc(const float (&cart)[XYZE], const float (&offset)[2], const bool clockwise);
 #endif
 
 #if ENABLED(BEZIER_CURVE_SUPPORT)
-  void plan_cubic_move(const float offset[4]);
+  void plan_cubic_move(const float (&offset)[4]);
 #endif
 
 //void tool_change(const uint8_t tmp_extruder, const float fr_mm_s=0.0, bool no_move=false);
@@ -1556,7 +1551,7 @@ inline void set_destination_from_current() { COPY(destination, current_position)
 
     refresh_cmd_timeout();
 
-    #if UBL_DELTA
+    #if UBL_SEGMENTED
       // ubl segmented line will do z-only moves in single segment
       ubl.prepare_segmented_line_to(destination, MMS_SCALED(fr_mm_s ? fr_mm_s : feedrate_mm_s));
     #else
@@ -1814,7 +1809,7 @@ static void clean_up_after_endstop_or_probe_move() {
 
 #elif ENABLED(Z_PROBE_ALLEN_KEY)
 
-  FORCE_INLINE void do_blocking_move_to(const float raw[XYZ], const float &fr_mm_s) {
+  FORCE_INLINE void do_blocking_move_to(const float (&raw)[XYZ], const float &fr_mm_s) {
     do_blocking_move_to(raw[X_AXIS], raw[Y_AXIS], raw[Z_AXIS], fr_mm_s);
   }
 
@@ -2470,13 +2465,17 @@ static void clean_up_after_endstop_or_probe_move() {
           // so compensation will give the right stepper counts.
           planner.unapply_leveling(current_position);
 
+        SYNC_PLAN_POSITION_KINEMATIC();
+
       #endif // ABL
     }
   }
 
   #if ENABLED(ENABLE_LEVELING_FADE_HEIGHT)
 
-    void set_z_fade_height(const float zfh) {
+    void set_z_fade_height(const float zfh, const bool do_report/*=true*/) {
+
+      if (planner.z_fade_height == zfh) return; // do nothing if no change
 
       const bool level_active = planner.leveling_active;
 
@@ -2487,6 +2486,7 @@ static void clean_up_after_endstop_or_probe_move() {
       planner.set_z_fade_height(zfh);
 
       if (level_active) {
+        const float oldpos[] = { current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS] };
         #if ENABLED(AUTO_BED_LEVELING_UBL)
           set_bed_leveling_enabled(true);  // turn back on after changing fade height
         #else
@@ -2497,7 +2497,10 @@ static void clean_up_after_endstop_or_probe_move() {
               Z_AXIS
             #endif
           );
+          SYNC_PLAN_POSITION_KINEMATIC();
         #endif
+        if (do_report && memcmp(oldpos, current_position, sizeof(oldpos)))
+          report_current_position();
       }
     }
 
@@ -4626,6 +4629,7 @@ void home_all_axes() { gcode_G28(true); }
               bed_level_virt_interpolate();
             #endif
             set_bed_leveling_enabled(abl_should_enable);
+            report_current_position();
           }
           return;
         } // parser.seen('W')
@@ -8323,7 +8327,7 @@ void report_current_position() {
 
 #ifdef M114_DETAIL
 
-  void report_xyze(const float pos[XYZE], const uint8_t n = 4, const uint8_t precision = 3) {
+  void report_xyze(const float pos[], const uint8_t n = 4, const uint8_t precision = 3) {
     char str[12];
     for (uint8_t i = 0; i < n; i++) {
       SERIAL_CHAR(' ');
@@ -8334,7 +8338,7 @@ void report_current_position() {
     SERIAL_EOL();
   }
 
-  inline void report_xyz(const float pos[XYZ]) { report_xyze(pos, 3); }
+  inline void report_xyz(const float pos[]) { report_xyze(pos, 3); }
 
   void report_current_position_detail() {
 
@@ -8375,8 +8379,13 @@ void report_current_position() {
     #endif
 
     SERIAL_PROTOCOLPGM("Stepper:");
-    const float step_count[XYZE] = { stepper.position(X_AXIS), stepper.position(Y_AXIS), stepper.position(Z_AXIS), stepper.position(E_AXIS) };
-    report_xyze(step_count, 4, 0);
+    LOOP_XYZE(i) {
+      SERIAL_CHAR(' ');
+      SERIAL_CHAR(axis_codes[i]);
+      SERIAL_CHAR(':');
+      SERIAL_PROTOCOL(stepper.position((AxisEnum)i));
+    }
+    SERIAL_EOL();
 
     #if IS_SCARA
       const float deg[XYZ] = {
@@ -9600,6 +9609,8 @@ void quickstop_stepper() {
    */
   inline void gcode_M420() {
 
+    const float oldpos[] = { current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS] };
+
     #if ENABLED(AUTO_BED_LEVELING_UBL)
 
       // L to load a mesh from the EEPROM
@@ -9634,7 +9645,7 @@ void quickstop_stepper() {
       // L to load a mesh from the EEPROM
       if (parser.seen('L') || parser.seen('V')) {
         ubl.display_map(0);  // Currently only supports one map type
-        SERIAL_ECHOLNPAIR("UBL_MESH_VALID = ", UBL_MESH_VALID);
+        SERIAL_ECHOLNPAIR("ubl.mesh_is_valid = ", ubl.mesh_is_valid());
         SERIAL_ECHOLNPAIR("ubl.storage_slot = ", ubl.storage_slot);
       }
 
@@ -9659,13 +9670,15 @@ void quickstop_stepper() {
       #endif
     }
 
-    const bool to_enable = parser.boolval('S');
-    if (parser.seen('S'))
-      set_bed_leveling_enabled(to_enable);
-
     #if ENABLED(ENABLE_LEVELING_FADE_HEIGHT)
-      if (parser.seen('Z')) set_z_fade_height(parser.value_linear_units());
+      if (parser.seen('Z')) set_z_fade_height(parser.value_linear_units(), false);
     #endif
+
+    bool to_enable = false;
+    if (parser.seen('S')) {
+      to_enable = parser.value_bool();
+      set_bed_leveling_enabled(to_enable);
+    }
 
     const bool new_status = planner.leveling_active;
 
@@ -9685,6 +9698,10 @@ void quickstop_stepper() {
       else
         SERIAL_ECHOLNPGM(MSG_OFF);
     #endif
+
+    // Report change in position
+    if (memcmp(oldpos, current_position, sizeof(oldpos)))
+      report_current_position();
   }
 #endif
 
@@ -9898,43 +9915,60 @@ inline void gcode_M502() {
    *  K[yz_factor] - New YZ skew factor
    */
   inline void gcode_M852() {
-    const bool ijk = parser.seen('I') || parser.seen('S')
-      #if ENABLED(SKEW_CORRECTION_FOR_Z)
-        || parser.seen('J') || parser.seen('K')
-      #endif
-    ;
-    bool badval = false;
+    uint8_t ijk = 0, badval = 0, setval = 0;
 
     if (parser.seen('I') || parser.seen('S')) {
+      ++ijk;
       const float value = parser.value_linear_units();
-      if (WITHIN(value, SKEW_FACTOR_MIN, SKEW_FACTOR_MAX))
-        planner.xy_skew_factor = value;
+      if (WITHIN(value, SKEW_FACTOR_MIN, SKEW_FACTOR_MAX)) {
+        if (planner.xy_skew_factor != value) {
+          planner.xy_skew_factor = value;
+          ++setval;
+        }
+      }
       else
-        badval = true;
+        ++badval;
     }
 
     #if ENABLED(SKEW_CORRECTION_FOR_Z)
 
       if (parser.seen('J')) {
+        ++ijk;
         const float value = parser.value_linear_units();
-        if (WITHIN(value, SKEW_FACTOR_MIN, SKEW_FACTOR_MAX))
-          planner.xz_skew_factor = value;
+        if (WITHIN(value, SKEW_FACTOR_MIN, SKEW_FACTOR_MAX)) {
+          if (planner.xz_skew_factor != value) {
+            planner.xz_skew_factor = value;
+            ++setval;
+          }
+        }
         else
-          badval = true;
+          ++badval;
       }
 
       if (parser.seen('K')) {
+        ++ijk;
         const float value = parser.value_linear_units();
-        if (WITHIN(value, SKEW_FACTOR_MIN, SKEW_FACTOR_MAX))
-          planner.yz_skew_factor = value;
+        if (WITHIN(value, SKEW_FACTOR_MIN, SKEW_FACTOR_MAX)) {
+          if (planner.yz_skew_factor != value) {
+            planner.yz_skew_factor = value;
+            ++setval;
+          }
+        }
         else
-          badval = true;
+          ++badval;
       }
 
     #endif
 
     if (badval)
       SERIAL_ECHOLNPGM(MSG_SKEW_MIN " " STRINGIFY(SKEW_FACTOR_MIN) " " MSG_SKEW_MAX " " STRINGIFY(SKEW_FACTOR_MAX));
+
+    // When skew is changed the current position changes
+    if (setval) {
+      set_current_from_steppers_for_axis(ALL_AXES);
+      SYNC_PLAN_POSITION_KINEMATIC();
+      report_current_position();
+    }
 
     if (!ijk) {
       SERIAL_ECHO_START();
@@ -12395,6 +12429,12 @@ void get_cartesian_from_steppers() {
  * Set the current_position for an axis based on
  * the stepper positions, removing any leveling that
  * may have been applied.
+ *
+ * To prevent small shifts in axis position always call
+ * SYNC_PLAN_POSITION_KINEMATIC after updating axes with this.
+ *
+ * To keep hosts in sync, always call report_current_position
+ * after updating the current_position.
  */
 void set_current_from_steppers_for_axis(const AxisEnum axis) {
   get_cartesian_from_steppers();
@@ -12616,7 +12656,7 @@ void set_current_from_steppers_for_axis(const AxisEnum axis) {
 #endif // AUTO_BED_LEVELING_BILINEAR
 #endif // IS_CARTESIAN
 
-#if !UBL_DELTA
+#if !UBL_SEGMENTED
 #if IS_KINEMATIC
 
   /**
@@ -12628,7 +12668,7 @@ void set_current_from_steppers_for_axis(const AxisEnum axis) {
    * For Unified Bed Leveling (Delta or Segmented Cartesian)
    * the ubl.prepare_segmented_line_to method replaces this.
    */
-  inline bool prepare_kinematic_move_to(float rtarget[XYZE]) {
+  inline bool prepare_kinematic_move_to(const float (&rtarget)[XYZE]) {
 
     // Get the top feedrate of the move in the XY plane
     const float _feedrate_mm_s = MMS_SCALED(feedrate_mm_s);
@@ -12788,18 +12828,19 @@ void set_current_from_steppers_for_axis(const AxisEnum axis) {
   }
 
 #endif // !IS_KINEMATIC
-#endif // !UBL_DELTA
+#endif // !UBL_SEGMENTED
 
 #if ENABLED(DUAL_X_CARRIAGE)
 
   /**
-   * Prepare a linear move in a dual X axis setup
+   * Unpark the carriage, if needed
    */
-  inline bool prepare_move_to_destination_dualx() {
-    if (active_extruder_parked) {
+  inline bool dual_x_carriage_unpark() {
+    if (active_extruder_parked)
       switch (dual_x_carriage_mode) {
-        case DXC_FULL_CONTROL_MODE:
-          break;
+
+        case DXC_FULL_CONTROL_MODE: break;
+
         case DXC_AUTO_PARK_MODE:
           if (current_position[E_AXIS] == destination[E_AXIS]) {
             // This is a travel move (with no extrusion)
@@ -12828,6 +12869,7 @@ void set_current_from_steppers_for_axis(const AxisEnum axis) {
             if (DEBUGGING(LEVELING)) SERIAL_ECHOLNPGM("Clear active_extruder_parked");
           #endif
           break;
+
         case DXC_DUPLICATION_MODE:
           if (active_extruder == 0) {
             #if ENABLED(DEBUG_LEVELING_FEATURE)
@@ -12863,8 +12905,7 @@ void set_current_from_steppers_for_axis(const AxisEnum axis) {
           }
           break;
       }
-    }
-    return prepare_move_to_destination_cartesian();
+    return false;
   }
 
 #endif // DUAL_X_CARRIAGE
@@ -12905,13 +12946,15 @@ void prepare_move_to_destination() {
 
   #endif
 
+  #if ENABLED(DUAL_X_CARRIAGE)
+    if (dual_x_carriage_unpark()) return;
+  #endif
+
   if (
-    #if UBL_DELTA // Also works for CARTESIAN (smaller segments follow mesh more closely)
+    #if UBL_SEGMENTED
       ubl.prepare_segmented_line_to(destination, MMS_SCALED(feedrate_mm_s))
     #elif IS_KINEMATIC
       prepare_kinematic_move_to(destination)
-    #elif ENABLED(DUAL_X_CARRIAGE)
-      prepare_move_to_destination_dualx()
     #else
       prepare_move_to_destination_cartesian()
     #endif
@@ -12937,9 +12980,9 @@ void prepare_move_to_destination() {
    * options for G2/G3 arc generation. In future these options may be GCode tunable.
    */
   void plan_arc(
-    float raw[XYZE],     // Destination position
-    float *offset,       // Center of rotation relative to current_position
-    uint8_t clockwise    // Clockwise?
+    const float (&cart)[XYZE], // Destination position
+    const float (&offset)[2], // Center of rotation relative to current_position
+    const bool clockwise      // Clockwise?
   ) {
     #if ENABLED(CNC_WORKSPACE_PLANES)
       AxisEnum p_axis, q_axis, l_axis;
@@ -12959,10 +13002,10 @@ void prepare_move_to_destination() {
     const float radius = HYPOT(r_P, r_Q),
                 center_P = current_position[p_axis] - r_P,
                 center_Q = current_position[q_axis] - r_Q,
-                rt_X = raw[p_axis] - center_P,
-                rt_Y = raw[q_axis] - center_Q,
-                linear_travel = raw[l_axis] - current_position[l_axis],
-                extruder_travel = raw[E_AXIS] - current_position[E_AXIS];
+                rt_X = cart[p_axis] - center_P,
+                rt_Y = cart[q_axis] - center_Q,
+                linear_travel = cart[l_axis] - current_position[l_axis],
+                extruder_travel = cart[E_AXIS] - current_position[E_AXIS];
 
     // CCW angle of rotation between position and target from the circle center. Only one atan2() trig computation required.
     float angular_travel = ATAN2(r_P * rt_Y - r_Q * rt_X, r_P * rt_X + r_Q * rt_Y);
@@ -12970,7 +13013,7 @@ void prepare_move_to_destination() {
     if (clockwise) angular_travel -= RADIANS(360);
 
     // Make a circle if the angular rotation is 0 and the target is current position
-    if (angular_travel == 0 && current_position[p_axis] == raw[p_axis] && current_position[q_axis] == raw[q_axis])
+    if (angular_travel == 0 && current_position[p_axis] == cart[p_axis] && current_position[q_axis] == cart[q_axis])
       angular_travel = RADIANS(360);
 
     const float mm_of_travel = HYPOT(angular_travel * radius, FABS(linear_travel));
@@ -13070,7 +13113,7 @@ void prepare_move_to_destination() {
     }
 
     // Ensure last segment arrives at target location.
-    planner.buffer_line_kinematic(raw, fr_mm_s, active_extruder);
+    planner.buffer_line_kinematic(cart, fr_mm_s, active_extruder);
 
     // As far as the parser is concerned, the position is now == target. In reality the
     // motion control system might still be processing the action and the real tool position
@@ -13082,7 +13125,7 @@ void prepare_move_to_destination() {
 
 #if ENABLED(BEZIER_CURVE_SUPPORT)
 
-  void plan_cubic_move(const float offset[4]) {
+  void plan_cubic_move(const float (&offset)[4]) {
     cubic_b_spline(current_position, destination, offset, MMS_SCALED(feedrate_mm_s), active_extruder);
 
     // As far as the parser is concerned, the position is now == destination. In reality the
