@@ -640,9 +640,9 @@ float cartes[XYZ] = { 0 };
   bool filament_sensor = false;                                 // M405 turns on filament sensor control. M406 turns it off.
   float filament_width_nominal = DEFAULT_NOMINAL_FILAMENT_DIA,  // Nominal filament width. Change with M404.
         filament_width_meas = DEFAULT_MEASURED_FILAMENT_DIA;    // Measured filament diameter
-  uint8_t meas_delay_cm = MEASUREMENT_DELAY_CM,                 // Distance delay setting
-          measurement_delay[MAX_MEASUREMENT_DELAY + 1];         // Ring buffer to delayed measurement. Store extruder factor after subtracting 100
-  int8_t filwidth_delay_index[2] = { 0, -1 };                   // Indexes into ring buffer
+  uint8_t meas_delay_cm = MEASUREMENT_DELAY_CM;                 // Distance delay setting
+  int8_t measurement_delay[MAX_MEASUREMENT_DELAY + 1],          // Ring buffer to delayed measurement. Store extruder factor after subtracting 100
+         filwidth_delay_index[2] = { 0, -1 };                   // Indexes into ring buffer
 #endif
 
 #if ENABLED(FILAMENT_RUNOUT_SENSOR)
@@ -8447,92 +8447,107 @@ inline void gcode_M114() {
 /**
  * M115: Capabilities string
  */
+
+#if ENABLED(EXTENDED_CAPABILITIES_REPORT)
+  static void cap_line(const char * const name, bool ena=false) {
+    SERIAL_PROTOCOLPGM("Cap:");
+    serialprintPGM(name);
+    SERIAL_PROTOCOLLN(int(ena ? 1 : 0));
+  }
+#endif
+
 inline void gcode_M115() {
   SERIAL_PROTOCOLLNPGM(MSG_M115_REPORT);
 
   #if ENABLED(EXTENDED_CAPABILITIES_REPORT)
 
     // SERIAL_XON_XOFF
-    #if ENABLED(SERIAL_XON_XOFF)
-      SERIAL_PROTOCOLLNPGM("Cap:SERIAL_XON_XOFF:1");
-    #else
-      SERIAL_PROTOCOLLNPGM("Cap:SERIAL_XON_XOFF:0");
-    #endif
+    cap_line(PSTR("SERIAL_XON_XOFF")
+      #if ENABLED(SERIAL_XON_XOFF)
+        , true
+      #endif
+    );
 
     // EEPROM (M500, M501)
-    #if ENABLED(EEPROM_SETTINGS)
-      SERIAL_PROTOCOLLNPGM("Cap:EEPROM:1");
-    #else
-      SERIAL_PROTOCOLLNPGM("Cap:EEPROM:0");
-    #endif
+    cap_line(PSTR("EEPROM")
+      #if ENABLED(EEPROM_SETTINGS)
+        , true
+      #endif
+    );
+
+    // Volumetric Extrusion (M200)
+    cap_line(PSTR("VOLUMETRIC")
+      #if DISABLED(NO_VOLUMETRICS)
+        , true
+      #endif
+    );
 
     // AUTOREPORT_TEMP (M155)
-    #if ENABLED(AUTO_REPORT_TEMPERATURES)
-      SERIAL_PROTOCOLLNPGM("Cap:AUTOREPORT_TEMP:1");
-    #else
-      SERIAL_PROTOCOLLNPGM("Cap:AUTOREPORT_TEMP:0");
-    #endif
+    cap_line(PSTR("AUTOREPORT_TEMP")
+      #if ENABLED(AUTO_REPORT_TEMPERATURES)
+        , true
+      #endif
+    );
 
     // PROGRESS (M530 S L, M531 <file>, M532 X L)
-    SERIAL_PROTOCOLLNPGM("Cap:PROGRESS:0");
+    cap_line(PSTR("PROGRESS"));
 
     // Print Job timer M75, M76, M77
-    SERIAL_PROTOCOLLNPGM("Cap:PRINT_JOB:1");
+    cap_line(PSTR("PRINT_JOB"), true);
 
     // AUTOLEVEL (G29)
-    #if HAS_ABL
-      SERIAL_PROTOCOLLNPGM("Cap:AUTOLEVEL:1");
-    #else
-      SERIAL_PROTOCOLLNPGM("Cap:AUTOLEVEL:0");
-    #endif
+    cap_line(PSTR("AUTOLEVEL")
+      #if HAS_AUTOLEVEL
+        , true
+      #endif
+    );
 
     // Z_PROBE (G30)
-    #if HAS_BED_PROBE
-      SERIAL_PROTOCOLLNPGM("Cap:Z_PROBE:1");
-    #else
-      SERIAL_PROTOCOLLNPGM("Cap:Z_PROBE:0");
-    #endif
+    cap_line(PSTR("Z_PROBE")
+      #if HAS_BED_PROBE
+        , true
+      #endif
+    );
 
     // MESH_REPORT (M420 V)
-    #if HAS_LEVELING
-      SERIAL_PROTOCOLLNPGM("Cap:LEVELING_DATA:1");
-    #else
-      SERIAL_PROTOCOLLNPGM("Cap:LEVELING_DATA:0");
-    #endif
+    cap_line(PSTR("LEVELING_DATA")
+      #if HAS_LEVELING
+        , true
+      #endif
+    );
 
     // BUILD_PERCENT (M73)
-    #if ENABLED(LCD_SET_PROGRESS_MANUALLY)
-      SERIAL_PROTOCOLLNPGM("Cap:BUILD_PERCENT:1");
-    #else
-      SERIAL_PROTOCOLLNPGM("Cap:BUILD_PERCENT:0");
-    #endif
+    cap_line(PSTR("BUILD_PERCENT")
+      #if ENABLED(LCD_SET_PROGRESS_MANUALLY)
+        , true
+      #endif
+    );
 
     // SOFTWARE_POWER (M80, M81)
-    #if HAS_POWER_SWITCH
-      SERIAL_PROTOCOLLNPGM("Cap:SOFTWARE_POWER:1");
-    #else
-      SERIAL_PROTOCOLLNPGM("Cap:SOFTWARE_POWER:0");
-    #endif
+    cap_line(PSTR("SOFTWARE_POWER")
+      #if HAS_POWER_SWITCH
+        , true
+      #endif
+    );
 
     // CASE LIGHTS (M355)
-    #if HAS_CASE_LIGHT
-      SERIAL_PROTOCOLLNPGM("Cap:TOGGLE_LIGHTS:1");
-      if (USEABLE_HARDWARE_PWM(CASE_LIGHT_PIN)) {
-        SERIAL_PROTOCOLLNPGM("Cap:CASE_LIGHT_BRIGHTNESS:1");
-      }
-      else
-        SERIAL_PROTOCOLLNPGM("Cap:CASE_LIGHT_BRIGHTNESS:0");
-    #else
-      SERIAL_PROTOCOLLNPGM("Cap:TOGGLE_LIGHTS:0");
-      SERIAL_PROTOCOLLNPGM("Cap:CASE_LIGHT_BRIGHTNESS:0");
-    #endif
+    cap_line(PSTR("TOGGLE_LIGHTS")
+      #if HAS_CASE_LIGHT
+        , true
+      #endif
+    );
+    cap_line(PSTR("CASE_LIGHT_BRIGHTNESS")
+      #if HAS_CASE_LIGHT
+        , USEABLE_HARDWARE_PWM(CASE_LIGHT_PIN)
+      #endif
+    );
 
     // EMERGENCY_PARSER (M108, M112, M410)
-    #if ENABLED(EMERGENCY_PARSER)
-      SERIAL_PROTOCOLLNPGM("Cap:EMERGENCY_PARSER:1");
-    #else
-      SERIAL_PROTOCOLLNPGM("Cap:EMERGENCY_PARSER:0");
-    #endif
+    cap_line(PSTR("EMERGENCY_PARSER")
+      #if ENABLED(EMERGENCY_PARSER)
+        , true
+      #endif
+    );
 
   #endif // EXTENDED_CAPABILITIES_REPORT
 }
@@ -8670,25 +8685,29 @@ inline void gcode_M121() { endstops.enable_globally(false); }
 
 #endif // HAS_COLOR_LEDS
 
-/**
- * M200: Set filament diameter and set E axis units to cubic units
- *
- *    T<extruder> - Optional extruder number. Current extruder if omitted.
- *    D<linear> - Diameter of the filament. Use "D0" to switch back to linear units on the E axis.
- */
-inline void gcode_M200() {
+#if DISABLED(NO_VOLUMETRICS)
 
-  if (get_target_extruder_from_command(200)) return;
+  /**
+   * M200: Set filament diameter and set E axis units to cubic units
+   *
+   *    T<extruder> - Optional extruder number. Current extruder if omitted.
+   *    D<linear> - Diameter of the filament. Use "D0" to switch back to linear units on the E axis.
+   */
+  inline void gcode_M200() {
 
-  if (parser.seen('D')) {
-    // setting any extruder filament size disables volumetric on the assumption that
-    // slicers either generate in extruder values as cubic mm or as as filament feeds
-    // for all extruders
-    if ( (parser.volumetric_enabled = (parser.value_linear_units() != 0.0)) )
-      planner.set_filament_size(target_extruder, parser.value_linear_units());
+    if (get_target_extruder_from_command(200)) return;
+
+    if (parser.seen('D')) {
+      // setting any extruder filament size disables volumetric on the assumption that
+      // slicers either generate in extruder values as cubic mm or as as filament feeds
+      // for all extruders
+      if ( (parser.volumetric_enabled = (parser.value_linear_units() != 0.0)) )
+        planner.set_filament_size(target_extruder, parser.value_linear_units());
+    }
+    planner.calculate_volumetric_multipliers();
   }
-  planner.calculate_volumetric_multipliers();
-}
+
+#endif // !NO_VOLUMETRICS
 
 /**
  * M201: Set max acceleration in units/s^2 for print moves (M201 X1000 Y1000)
@@ -9570,7 +9589,7 @@ inline void gcode_M400() { stepper.synchronize(); }
     }
 
     if (filwidth_delay_index[1] == -1) { // Initialize the ring buffer if not done since startup
-      const uint8_t temp_ratio = thermalManager.widthFil_to_size_ratio();
+      const int8_t temp_ratio = thermalManager.widthFil_to_size_ratio();
 
       for (uint8_t i = 0; i < COUNT(measurement_delay); ++i)
         measurement_delay[i] = temp_ratio;
@@ -12045,9 +12064,12 @@ void process_parsed_command() {
         #endif
       #endif
 
-      case 200: // M200: Set filament diameter, E to cubic units
-        gcode_M200();
-        break;
+      #if DISABLED(NO_VOLUMETRICS)
+        case 200: // M200: Set filament diameter, E to cubic units
+          gcode_M200();
+          break;
+      #endif
+
       case 201: // M201: Set max acceleration for print moves (units/s^2)
         gcode_M201();
         break;
@@ -12736,7 +12758,7 @@ void ok_to_send() {
     }while(0)
 
   void inverse_kinematics(const float raw[XYZ]) {
-    DELTA_RAW_IK();
+    DELTA_IK(raw);
     // DELTA_DEBUG();
   }
 
@@ -13171,8 +13193,9 @@ void set_current_from_steppers_for_axis(const AxisEnum axis) {
     // SERIAL_ECHOPAIR(" seconds=", seconds);
     // SERIAL_ECHOLNPAIR(" segments=", segments);
 
-    #if IS_SCARA && ENABLED(SCARA_FEEDRATE_SCALING)
+    #if ENABLED(SCARA_FEEDRATE_SCALING)
       // SCARA needs to scale the feed rate from mm/s to degrees/s
+      // i.e., Complete the angular vector in the given time.
       const float inv_segment_length = min(10.0, float(segments) / cartesian_mm), // 1/mm/segs
                   inverse_secs = inv_segment_length * _feedrate_mm_s;
       float oldA = stepper.get_axis_position_degrees(A_AXIS),
@@ -13196,37 +13219,28 @@ void set_current_from_steppers_for_axis(const AxisEnum axis) {
 
       LOOP_XYZE(i) raw[i] += segment_distance[i];
       #if ENABLED(DELTA)
-        DELTA_RAW_IK(); // Delta can inline its kinematics
+        DELTA_IK(raw); // Delta can inline its kinematics
       #else
         inverse_kinematics(raw);
       #endif
 
       ADJUST_DELTA(raw); // Adjust Z if bed leveling is enabled
 
-      #if IS_SCARA && ENABLED(SCARA_FEEDRATE_SCALING)
+      #if ENABLED(SCARA_FEEDRATE_SCALING)
         // For SCARA scale the feed rate from mm/s to degrees/s
-        // Use ratio between the length of the move and the larger angle change
-        const float adiff = abs(delta[A_AXIS] - oldA),
-                    bdiff = abs(delta[B_AXIS] - oldB);
-        planner.buffer_line(delta[A_AXIS], delta[B_AXIS], delta[C_AXIS], raw[E_AXIS], max(adiff, bdiff) * inverse_secs, active_extruder);
-        oldA = delta[A_AXIS];
-        oldB = delta[B_AXIS];
+        // i.e., Complete the angular vector in the given time.
+        planner.buffer_segment(delta[A_AXIS], delta[B_AXIS], raw[Z_AXIS], raw[E_AXIS], HYPOT(delta[A_AXIS] - oldA, delta[B_AXIS] - oldB) * inverse_secs, active_extruder);
+        oldA = delta[A_AXIS]; oldB = delta[B_AXIS];
       #else
-        planner.buffer_line(delta[A_AXIS], delta[B_AXIS], delta[C_AXIS], raw[E_AXIS], _feedrate_mm_s, active_extruder);
+        planner.buffer_line(delta[A_AXIS], delta[B_AXIS], raw[Z_AXIS], raw[E_AXIS], _feedrate_mm_s, active_extruder);
       #endif
     }
 
-    // Since segment_distance is only approximate,
-    // the final move must be to the exact destination.
-
-    #if IS_SCARA && ENABLED(SCARA_FEEDRATE_SCALING)
-      // For SCARA scale the feed rate from mm/s to degrees/s
-      // With segments > 1 length is 1 segment, otherwise total length
+    // Ensure last segment arrives at target location.
+    #if ENABLED(SCARA_FEEDRATE_SCALING)
       inverse_kinematics(rtarget);
       ADJUST_DELTA(rtarget);
-      const float adiff = abs(delta[A_AXIS] - oldA),
-                  bdiff = abs(delta[B_AXIS] - oldB);
-      planner.buffer_line(delta[A_AXIS], delta[B_AXIS], delta[C_AXIS], raw[E_AXIS], max(adiff, bdiff) * inverse_secs, active_extruder);
+      planner.buffer_segment(delta[A_AXIS], delta[B_AXIS], rtarget[Z_AXIS], rtarget[E_AXIS], HYPOT(delta[A_AXIS] - oldA, delta[B_AXIS] - oldB) * inverse_secs, active_extruder);
     #else
       planner.buffer_line_kinematic(rtarget, _feedrate_mm_s, active_extruder);
     #endif
@@ -13496,7 +13510,7 @@ void prepare_move_to_destination() {
      * This is important when there are successive arc motions.
      */
     // Vector rotation matrix values
-    float arc_target[XYZE];
+    float raw[XYZE];
     const float theta_per_segment = angular_travel / segments,
                 linear_per_segment = linear_travel / segments,
                 extruder_per_segment = extruder_travel / segments,
@@ -13504,10 +13518,10 @@ void prepare_move_to_destination() {
                 cos_T = 1 - 0.5 * sq(theta_per_segment); // Small angle approximation
 
     // Initialize the linear axis
-    arc_target[l_axis] = current_position[l_axis];
+    raw[l_axis] = current_position[l_axis];
 
     // Initialize the extruder axis
-    arc_target[E_AXIS] = current_position[E_AXIS];
+    raw[E_AXIS] = current_position[E_AXIS];
 
     const float fr_mm_s = MMS_SCALED(feedrate_mm_s);
 
@@ -13515,6 +13529,14 @@ void prepare_move_to_destination() {
 
     #if N_ARC_CORRECTION > 1
       int8_t arc_recalc_count = N_ARC_CORRECTION;
+    #endif
+
+    #if ENABLED(SCARA_FEEDRATE_SCALING)
+      // SCARA needs to scale the feed rate from mm/s to degrees/s
+      const float inv_segment_length = 1.0 / (MM_PER_ARC_SEGMENT),
+                  inverse_secs = inv_segment_length * fr_mm_s;
+      float oldA = stepper.get_axis_position_degrees(A_AXIS),
+            oldB = stepper.get_axis_position_degrees(B_AXIS);
     #endif
 
     for (uint16_t i = 1; i < segments; i++) { // Iterate (segments-1) times
@@ -13548,19 +13570,34 @@ void prepare_move_to_destination() {
         r_Q = -offset[0] * sin_Ti - offset[1] * cos_Ti;
       }
 
-      // Update arc_target location
-      arc_target[p_axis] = center_P + r_P;
-      arc_target[q_axis] = center_Q + r_Q;
-      arc_target[l_axis] += linear_per_segment;
-      arc_target[E_AXIS] += extruder_per_segment;
+      // Update raw location
+      raw[p_axis] = center_P + r_P;
+      raw[q_axis] = center_Q + r_Q;
+      raw[l_axis] += linear_per_segment;
+      raw[E_AXIS] += extruder_per_segment;
 
-      clamp_to_software_endstops(arc_target);
+      clamp_to_software_endstops(raw);
 
-      planner.buffer_line_kinematic(arc_target, fr_mm_s, active_extruder);
+      #if ENABLED(SCARA_FEEDRATE_SCALING)
+        // For SCARA scale the feed rate from mm/s to degrees/s
+        // i.e., Complete the angular vector in the given time.
+        inverse_kinematics(raw);
+        ADJUST_DELTA(raw);
+        planner.buffer_segment(delta[A_AXIS], delta[B_AXIS], raw[Z_AXIS], raw[E_AXIS], HYPOT(delta[A_AXIS] - oldA, delta[B_AXIS] - oldB) * inverse_secs, active_extruder);
+        oldA = delta[A_AXIS]; oldB = delta[B_AXIS];
+      #else
+        planner.buffer_line_kinematic(raw, fr_mm_s, active_extruder);
+      #endif
     }
 
     // Ensure last segment arrives at target location.
-    planner.buffer_line_kinematic(cart, fr_mm_s, active_extruder);
+    #if ENABLED(SCARA_FEEDRATE_SCALING)
+      inverse_kinematics(cart);
+      ADJUST_DELTA(cart);
+      planner.buffer_segment(delta[A_AXIS], delta[B_AXIS], cart[Z_AXIS], cart[E_AXIS], HYPOT(delta[A_AXIS] - oldA, delta[B_AXIS] - oldB) * inverse_secs, active_extruder);
+    #else
+      planner.buffer_line_kinematic(cart, fr_mm_s, active_extruder);
+    #endif
 
     // As far as the parser is concerned, the position is now == target. In reality the
     // motion control system might still be processing the action and the real tool position
