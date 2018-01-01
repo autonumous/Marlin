@@ -74,7 +74,7 @@
 // User-specified version info of this build to display in [Pronterface, etc] terminal window during
 // startup. Implementation of an idea by Prof Braino to inform user that any changes made to this
 // build by the user have been successfully uploaded into firmware.
-#define STRING_CONFIG_H_AUTHOR "Autonomous, BB11DHT" //"Paul Begley, BB11DHT" //"(none, default config)" // Who made the changes.
+#define STRING_CONFIG_H_AUTHOR "Autonomous, BB11DHT" // Who made the changes.
 #define SHOW_BOOTSCREEN
 #define STRING_SPLASH_LINE1 SHORT_BUILD_VERSION // will be shown during bootup in line 1
 #define STRING_SPLASH_LINE2 CUSTOM_MACHINE_NAME //WEBSITE_URL         // will be shown during bootup in line 2
@@ -124,7 +124,7 @@
 
 // Optional custom name for your RepStrap or other custom machine
 // Displayed in the LCD "Ready" message
-#define CUSTOM_MACHINE_NAME "BigBox V1.1 Dual Hybrid Titan 3D Printer" // "BigBox v1.1 Dual Hybrid" 3D Printer"
+#define CUSTOM_MACHINE_NAME "BigBox V1.1 Dual Hybrid Titan 3D Printer" 
 
 // Define this to set a unique identifier for this printer, (Used by some programs to differentiate between machines)
 // You can use an online service to generate a random UUID. (eg http://www.uuidgenerator.net/version4)
@@ -371,9 +371,9 @@
   //#define  DEFAULT_Kd 440
 
   // e3D BigBoy 1.1 Dual Hybrid Titan 
-  #define  DEFAULT_Kp 28.02 
-  #define  DEFAULT_Ki 2.66   
-  #define  DEFAULT_Kd 73.69 
+  #define  DEFAULT_Kp 31.46
+  #define  DEFAULT_Ki 2.84
+  #define  DEFAULT_Kd 86.99
 
 #endif // PIDTEMP
 
@@ -908,7 +908,7 @@
   /**
    * Enable the G26 Mesh Validation Pattern tool.
    */
-  //#define G26_MESH_VALIDATION
+  #define G26_MESH_VALIDATION
   #if ENABLED(G26_MESH_VALIDATION)
     #define MESH_TEST_NOZZLE_SIZE    0.4  // (mm) Diameter of primary nozzle.
     #define MESH_TEST_LAYER_HEIGHT   0.2  // (mm) Default layer height for the G26 Mesh Validation Tool.
@@ -925,9 +925,9 @@
   #define GRID_MAX_POINTS_Y 10
 
   // Set the boundaries for probing (where the probe can reach).
-  #define LEFT_PROBE_BED_POSITION 5
+  #define LEFT_PROBE_BED_POSITION 10
   #define RIGHT_PROBE_BED_POSITION (X_MAX_POS + X_PROBE_OFFSET_FROM_EXTRUDER - LEFT_PROBE_BED_POSITION)//265// X_MAX_POS-LEFT_PROBE_BED_POSITION // 265 //170
-  #define FRONT_PROBE_BED_POSITION 5//15 //20
+  #define FRONT_PROBE_BED_POSITION 10//15 //20
   #define BACK_PROBE_BED_POSITION (200-FRONT_PROBE_BED_POSITION) //170
 
   // The Z probe minimum outer margin (to validate G29 parameters).
@@ -940,7 +940,7 @@
 
     // Beyond the probed grid, continue the implied tilt?
     // Default is to maintain the height of the nearest edge.
-    //#define EXTRAPOLATE_BEYOND_GRID
+    #define EXTRAPOLATE_BEYOND_GRID
 
     //
     // Experimental Subdivision of the grid by Catmull-Rom method.
@@ -973,7 +973,7 @@
 
   #define MESH_EDIT_GFX_OVERLAY   // Display a graphics overlay while editing the mesh
 
-  #define MESH_INSET 5              // Mesh inset margin on print area
+  #define MESH_INSET 10             // Mesh inset margin on print area
   #define GRID_MAX_POINTS_X 10      // Don't use more than 15 points per axis, implementation limited.
   #define GRID_MAX_POINTS_Y 10
 
@@ -993,9 +993,9 @@
   //=================================== Mesh ==================================
   //===========================================================================
 
-  #define MESH_INSET 5           // Mesh inset margin on print area
+  #define MESH_INSET 10           // Mesh inset margin on print area
   #define GRID_MAX_POINTS_X 3    // Don't use more than 7 points per axis, implementation limited.
-  #define GRID_MAX_POINTS_Y GRID_MAX_POINTS_X
+  #define GRID_MAX_POINTS_Y 3
 
   //#define MESH_G28_REST_ORIGIN // After homing all axes ('G28' or 'G28 XYZ') rest Z at Z_MIN_POS
 
@@ -1357,7 +1357,7 @@
  *
  * Use CRC checks and retries on the SD communication.
  */
-//#define SD_CHECK_AND_RETRY
+#define SD_CHECK_AND_RETRY
 
 //
 // ENCODER SETTINGS
