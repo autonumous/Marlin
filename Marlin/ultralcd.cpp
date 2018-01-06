@@ -2536,7 +2536,45 @@ void kill_screen(const char* lcd_msg) {
       MENU_ITEM(gcode, MSG_AUTO_HOME_Y, PSTR("G28 Y"));
       MENU_ITEM(gcode, MSG_AUTO_HOME_Z, PSTR("G28 Z"));
     #endif
+      
+      //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+      // 20170106 PB BigBox updates
 
+      
+      //
+      // Dock Extruder to waste box // 20170106 PB
+      //
+      if (axis_homed[Z_AXIS]){
+          //MENU_ITEM(gcode, "Dock Head", PSTR("G90\nT0\nG1 X70 Y200 F3000\nG1 Y240 F2000\nG1 E-4 F4500"));
+          MENU_ITEM(gcode, "Dock Head", PSTR("G91\nT0\nG1 Z1 F1000\nG90\nT0\nG1 X70 Y200 F3000\nG1 Y240 F2000\nG91\nG1 Z-1 F1000\n"));
+      }
+      else{
+          //MENU_ITEM(gcode, "Dock Head", PSTR("G28\nG90\nG1 X70 Y200 F3000\nG1 Y240 F2000\nG1 E-4 F4500"));
+          MENU_ITEM(gcode, "Dock Head", PSTR("G28\nG91\nT0\nG1 Z1 F1000\nG90\nG1 X70 Y200 F3000\nG1 Y240 F2000\nG1 Z-1 F1000\n"));
+      }
+      
+      //
+      // Wipe/Clean nozzle in dock
+      //
+      if (axis_homed[Z_AXIS]){
+          MENU_ITEM(gcode, "Clean Nozzles", PSTR("G91\nT0\nG1 Z1 F1000\nG90\nT0\nG1 X60 Y200 F3000\nG1 Y240 F2000\nG1 X90 F2000\nG1  Y200 F2000\nG91\nG1 Z-1 F1000\n"));
+      }
+      else{
+          MENU_ITEM(gcode, "Clean Nozzles", PSTR("G28\nG91\nT0\nG1 Z1 F1000\nG90\nT0\nG1 X60 Y200 F3000\nG1 Y240 F2000\nG1 X90 F2000\nG1  Y200 F2000\nG91\nG1 Z-1 F1000\n"));
+      }
+      
+      //
+      // XY Loop  useful for testing full coverage of XY plane
+      //
+      if (axis_homed[Z_AXIS]){
+          MENU_ITEM(gcode, "XY Loop", PSTR("G91\nT0\nG1 Z1 F1000\nG90\nT0\nG1 X5 Y5 F3000\nG1 Y195 F3000\nG1 X295 F3000\nG1 Y5 F3000\nG1 X5 F3000\nG91\nG1 Z-1 F1000\n"));
+      }
+      else{
+          MENU_ITEM(gcode, "XY Loop", PSTR("G28\nG91\nT0\nG1 Z1 F1000\nG90\nT0\nG1 X5 Y5 F3000\nG1 Y195 F3000\nG1 X295 F3000\nG1 Y5 F3000\nG1 X5 F3000\nG91\nG1 Z-1 F1000\n"));
+      }
+      
+      //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+      
     //
     // Level Bed
     //
@@ -3089,6 +3127,14 @@ void kill_screen(const char* lcd_msg) {
       #endif // E_MANUAL > 2
     #endif // E_MANUAL > 1
 
+    //20170108 PB added menu option to drop bed to lower position.
+    if (axis_homed[Z_AXIS]) {
+        MENU_ITEM(gcode, "Move Z to 295", PSTR("G90\nG1 Z295 F3000"));
+    }
+    else {
+        MENU_ITEM(gcode, "Move Z to 295", PSTR("G90\nG28\nG1 Z295 F3000"));
+    }
+    // PB End
     END_MENU();
   }
 
