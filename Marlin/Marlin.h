@@ -179,6 +179,16 @@ void disable_e_stepper(const uint8_t e);
 void disable_e_steppers();
 void disable_all_steppers();
 
+void sync_plan_position();
+void sync_plan_position_e();
+
+#if IS_KINEMATIC
+  void sync_plan_position_kinematic();
+  #define SYNC_PLAN_POSITION_KINEMATIC() sync_plan_position_kinematic()
+#else
+  #define SYNC_PLAN_POSITION_KINEMATIC() sync_plan_position()
+#endif
+
 void FlushSerialRequestResend();
 void ok_to_send();
 
@@ -200,6 +210,16 @@ inline bool IsStopped() { return !Running; }
 bool enqueue_and_echo_command(const char* cmd, bool say_ok=false); // Add a single command to the end of the buffer. Return false on failure.
 void enqueue_and_echo_commands_P(const char * const cmd);          // Set one or more commands to be prioritized over the next Serial/SD command.
 void clear_command_queue();
+
+#define HAS_LCD_QUEUE_NOW (ENABLED(ULTIPANEL) && (ENABLED(AUTO_BED_LEVELING_UBL) || ENABLED(PID_AUTOTUNE_MENU) || ENABLED(ADVANCED_PAUSE_FEATURE)))
+#define HAS_QUEUE_NOW (ENABLED(SDSUPPORT) || HAS_LCD_QUEUE_NOW)
+#if HAS_QUEUE_NOW
+  // Return only when commands are actually enqueued
+  void enqueue_and_echo_command_now(const char* cmd, bool say_ok=false);
+  #if HAS_LCD_QUEUE_NOW
+    void enqueue_and_echo_commands_P_now(const char * const cmd);
+  #endif
+#endif
 
 extern millis_t previous_cmd_ms;
 inline void refresh_cmd_timeout() { previous_cmd_ms = millis(); }
@@ -286,8 +306,8 @@ extern float soft_endstop_min[XYZ], soft_endstop_max[XYZ];
   void update_software_endstops(const AxisEnum axis);
 #endif
 
+#define MAX_COORDINATE_SYSTEMS 9
 #if ENABLED(CNC_COORDINATE_SYSTEMS)
-  #define MAX_COORDINATE_SYSTEMS 9
   extern float coordinate_system[MAX_COORDINATE_SYSTEMS][XYZ];
   bool select_coordinate_system(const int8_t _new);
 #endif
@@ -437,18 +457,6 @@ void report_current_position();
 
 #if ENABLED(PID_EXTRUSION_SCALING)
   extern int lpq_len;
-#endif
-
-#if ENABLED(FWRETRACT)
-  extern bool autoretract_enabled;                 // M209 S - Autoretract switch
-  extern float retract_length,                     // M207 S - G10 Retract length
-               retract_feedrate_mm_s,              // M207 F - G10 Retract feedrate
-               retract_zlift,                      // M207 Z - G10 Retract hop size
-               retract_recover_length,             // M208 S - G11 Recover length
-               retract_recover_feedrate_mm_s,      // M208 F - G11 Recover feedrate
-               swap_retract_length,                // M207 W - G10 Swap Retract length
-               swap_retract_recover_length,        // M208 W - G11 Swap Recover length
-               swap_retract_recover_feedrate_mm_s; // M208 R - G11 Swap Recover feedrate
 #endif
 
 // Print job timer
