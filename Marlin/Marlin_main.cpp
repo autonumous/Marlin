@@ -4243,6 +4243,7 @@ void home_all_axes() { gcode_G28(true); }
           SERIAL_CHAR('Z'); echo_not_entered();
           return;
         }
+        mbl.has_mesh = true; // set since user manually entered a mesh point
         break;
 
       case MeshSetZOffset:
@@ -6284,6 +6285,9 @@ inline void gcode_G92() {
   inline void gcode_M5() {
     stepper.synchronize();
     WRITE(SPINDLE_LASER_ENABLE_PIN, !SPINDLE_LASER_ENABLE_INVERT);
+    #if ENABLED(SPINDLE_LASER_PWM)
+      analogWrite(SPINDLE_LASER_PWM_PIN, SPINDLE_LASER_PWM_INVERT ? 255 : 0);
+    #endif
     delay_for_power_down();
   }
 
