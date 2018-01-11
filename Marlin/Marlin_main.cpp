@@ -6634,7 +6634,7 @@ inline void gcode_M17() {
     #if ENABLED(FWRETRACT)
       // If retracted before goto pause
       if (fwretract.retracted[active_extruder])
-        do_pause_e_move(-retract_length, fwretract.retract_feedrate_mm_s);
+        do_pause_e_move(-fwretract.retract_length, fwretract.retract_feedrate_mm_s);
     #else
       // If resume_position negative
       if (resume_position[E_AXIS] < 0) do_pause_e_move(resume_position[E_AXIS], PAUSE_PARK_RETRACT_FEEDRATE);
@@ -14293,13 +14293,15 @@ void loop() {
           card.closefile();
           SERIAL_PROTOCOLLNPGM(MSG_FILE_SAVED);
 
-          #if ENABLED(SERIAL_STATS_DROPPED_RX)
-            SERIAL_ECHOLNPAIR("Dropped bytes: ", customizedSerial.dropped());
-          #endif
+          #ifndef USBCON
+            #if ENABLED(SERIAL_STATS_DROPPED_RX)
+              SERIAL_ECHOLNPAIR("Dropped bytes: ", customizedSerial.dropped());
+            #endif
 
-          #if ENABLED(SERIAL_STATS_MAX_RX_QUEUED)
-            SERIAL_ECHOLNPAIR("Max RX Queue Size: ", customizedSerial.rxMaxEnqueued());
-          #endif
+            #if ENABLED(SERIAL_STATS_MAX_RX_QUEUED)
+              SERIAL_ECHOLNPAIR("Max RX Queue Size: ", customizedSerial.rxMaxEnqueued());
+            #endif
+          #endif // !USBCON
 
           ok_to_send();
         }
