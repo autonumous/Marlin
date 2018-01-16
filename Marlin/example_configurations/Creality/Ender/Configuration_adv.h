@@ -65,7 +65,7 @@
  */
 #if ENABLED(THERMAL_PROTECTION_HOTENDS)
   #define THERMAL_PROTECTION_PERIOD 40        // Seconds
-  #define THERMAL_PROTECTION_HYSTERESIS 2     // Degrees Celsius
+  #define THERMAL_PROTECTION_HYSTERESIS 4     // Degrees Celsius
 
   /**
    * Whenever an M104, M109, or M303 increases the target temperature, the
@@ -79,7 +79,7 @@
    * and/or decrease WATCH_TEMP_INCREASE. WATCH_TEMP_INCREASE should not be set
    * below 2.
    */
-  #define WATCH_TEMP_PERIOD 40                // Seconds
+  #define WATCH_TEMP_PERIOD 20                // Seconds
   #define WATCH_TEMP_INCREASE 2               // Degrees Celsius
 #endif
 
@@ -87,7 +87,7 @@
  * Thermal Protection parameters for the bed are just as above for hotends.
  */
 #if ENABLED(THERMAL_PROTECTION_BED)
-  #define THERMAL_PROTECTION_BED_PERIOD 40    // Seconds
+  #define THERMAL_PROTECTION_BED_PERIOD 20    // Seconds
   #define THERMAL_PROTECTION_BED_HYSTERESIS 2 // Degrees Celsius
 
   /**
@@ -351,7 +351,7 @@
 // Homing hits each endstop, retracts by these distances, then does a slower bump.
 #define X_HOME_BUMP_MM 5
 #define Y_HOME_BUMP_MM 5
-#define Z_HOME_BUMP_MM 2
+#define Z_HOME_BUMP_MM 1
 #define HOMING_BUMP_DIVISOR { 2, 2, 4 }  // Re-Bump Speed Divisor (Divides the Homing Feedrate)
 //#define QUICK_HOME                     // If homing includes X and Y, do a diagonal move initially
 
@@ -388,7 +388,7 @@
 // @section lcd
 
 #if ENABLED(ULTIPANEL)
-  #define MANUAL_FEEDRATE {50*60, 50*60, 4*60, 60} // Feedrates for manual moves along X, Y, Z, E from panel
+  #define MANUAL_FEEDRATE {50*60, 50*60, 4*60, 0} // Feedrates for manual moves along X, Y, Z, E from panel
   #define ULTIPANEL_FEEDMULTIPLY  // Comment to disable setting feedrate multiplier via encoder
 #endif
 
@@ -560,7 +560,7 @@
   #endif
 
   // Show a progress bar on HD44780 LCDs for SD printing
-  #define LCD_PROGRESS_BAR
+  //#define LCD_PROGRESS_BAR
 
   #if ENABLED(LCD_PROGRESS_BAR)
     // Amount of time (ms) to show the bar
@@ -661,13 +661,13 @@
  *
  * Warning: Does not respect endstops!
  */
-#define BABYSTEPPING
+//#define BABYSTEPPING
 #if ENABLED(BABYSTEPPING)
   //#define BABYSTEP_XY              // Also enable X/Y Babystepping. Not supported on DELTA!
   #define BABYSTEP_INVERT_Z false    // Change if Z babysteps should go the other way
-  #define BABYSTEP_MULTIPLICATOR   2 // Babysteps are very small. Increase for faster motion.
+  #define BABYSTEP_MULTIPLICATOR 1   // Babysteps are very small. Increase for faster motion.
   //#define BABYSTEP_ZPROBE_OFFSET   // Enable to combine M851 and Babystepping
-  #define DOUBLECLICK_FOR_Z_BABYSTEPPING // Double-click on the Status Screen for Z Babystepping.
+  //#define DOUBLECLICK_FOR_Z_BABYSTEPPING // Double-click on the Status Screen for Z Babystepping.
   #define DOUBLECLICK_MAX_INTERVAL 1250 // Maximum interval between clicks, in milliseconds.
                                         // Note: Extra time may be added to mitigate controller latency.
   //#define BABYSTEP_ZPROBE_GFX_OVERLAY // Enable graphical overlay on Z-offset editor
@@ -882,7 +882,7 @@
  * Requires NOZZLE_PARK_FEATURE.
  * This feature is required for the default FILAMENT_RUNOUT_SCRIPT.
  */
-#define ADVANCED_PAUSE_FEATURE
+//#define ADVANCED_PAUSE_FEATURE
 #if ENABLED(ADVANCED_PAUSE_FEATURE)
   #define PAUSE_PARK_RETRACT_FEEDRATE 60      // (mm/s) Initial retract feedrate.
   #define PAUSE_PARK_RETRACT_LENGTH 2         // (mm) Initial retract.
@@ -911,7 +911,7 @@
   #define FILAMENT_CHANGE_ALERT_BEEPS 10      // Number of alert beeps to play when a response is needed.
   #define PAUSE_PARK_NO_STEPPER_TIMEOUT       // Enable for XYZ steppers to stay powered on during filament change.
 
-  #define PARK_HEAD_ON_PAUSE                  // Park the nozzle during pause and filament change.
+  //#define PARK_HEAD_ON_PAUSE                // Park the nozzle during pause and filament change.
   //#define HOME_BEFORE_FILAMENT_CHANGE       // Ensure homing has been completed prior to parking for filament change
 
   //#define FILAMENT_LOAD_UNLOAD_GCODES       // Add M701/M702 Load/Unload G-codes, plus Load/Unload in the LCD Prepare menu.
@@ -1378,7 +1378,7 @@
 /**
  * M43 - display pin status, watch pins for changes, watch endstops & toggle LED, Z servo probe test, toggle pins
  */
-#define PINS_DEBUGGING
+//#define PINS_DEBUGGING
 
 /**
  * Auto-report temperatures with M155 S<seconds>
@@ -1413,7 +1413,7 @@
  *  - M206 and M428 are disabled.
  *  - G92 will revert to its behavior from Marlin 1.0.
  */
-#define NO_WORKSPACE_OFFSETS
+//#define NO_WORKSPACE_OFFSETS
 
 /**
  * Set the number of proportional font spaces required to fill up a typical character space.
@@ -1422,7 +1422,7 @@
  * For clients that use a fixed-width font (like OctoPrint), leave this set to 1.0.
  * Otherwise, adjust according to your client and font.
  */
-#define PROPORTIONAL_FONT_RATIO 1.5
+#define PROPORTIONAL_FONT_RATIO 1.0
 
 /**
  * Spend 28 bytes of SRAM to optimize the GCode parser
@@ -1450,8 +1450,8 @@
   #define USER_DESC_4 "Heat Bed/Home/Level"
   #define USER_GCODE_4 "M140 S" STRINGIFY(PREHEAT_2_TEMP_BED) "\nG28\nG29"
 
-  //#define USER_DESC_5 "Home & Info"
-  //#define USER_GCODE_5 "G28\nM503"
+  #define USER_DESC_5 "Home & Info"
+  #define USER_GCODE_5 "G28\nM503"
 #endif
 
 /**
@@ -1564,17 +1564,9 @@
  */
 //#define MAX7219_DEBUG
 #if ENABLED(MAX7219_DEBUG)
-//#define MAX7219_CLK_PIN   64  // on RAMPS       // Configuration of the 3 pins to control the display
-//#define MAX7219_DIN_PIN   57  // on RAMPS
-//#define MAX7219_LOAD_PIN  44  // on RAMPS
-
-//#define MAX7219_CLK_PIN   77 // on Re-ARM       // Configuration of the 3 pins to control the display
-//#define MAX7219_DIN_PIN   78 // on Re-ARM
-//#define MAX7219_LOAD_PIN  79 // on Re-ARM
-
-  #define MAX7219_CLK_PIN   30 // for RAMPS E1     // Configuration of the 3 pins to control the display
-  #define MAX7219_DIN_PIN   34 // for RAMPS E1
-  #define MAX7219_LOAD_PIN  36 // for RAMPS E1
+  #define MAX7219_CLK_PIN   64  // 77 on Re-ARM       // Configuration of the 3 pins to control the display
+  #define MAX7219_DIN_PIN   57  // 78 on Re-ARM
+  #define MAX7219_LOAD_PIN  44  // 79 on Re-ARM
 
   /**
    * Sample debug features

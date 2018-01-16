@@ -91,6 +91,10 @@
 // example configuration folder.
 //
 //#define SHOW_CUSTOM_BOOTSCREEN
+
+// Enable to show the bitmap in Marlin/_Statusscreen.h on the status screen.
+//#define CUSTOM_STATUS_SCREEN_IMAGE
+
 // @section machine
 
 /**
@@ -785,15 +789,15 @@
 // @section machine
 
 // The size of the print bed
-#define X_BED_SIZE 207
-#define Y_BED_SIZE 182
+#define X_BED_SIZE (X_MAX_POS-X_MIN_POS)
+#define Y_BED_SIZE (Y_MAX_POS-Y_MIN_POS)
 
 // Travel limits (mm) after homing, corresponding to endstop positions.
 #define X_MIN_POS 6
 #define Y_MIN_POS 3
 #define Z_MIN_POS 0
-#define X_MAX_POS X_BED_SIZE
-#define Y_MAX_POS Y_BED_SIZE
+#define X_MAX_POS 207
+#define Y_MAX_POS 182
 #define Z_MAX_POS 175
 
 /**
@@ -805,15 +809,15 @@
  * - Use 'M211' to set software endstops on/off or report current state
  */
 
-// If enabled, axes won't move below MIN_POS in response to movement commands.
 //#define MIN_SOFTWARE_ENDSTOPS
+// Min software endstops constrain movement within minimum coordinate bounds
 #if ENABLED(MIN_SOFTWARE_ENDSTOPS)
   #define MIN_SOFTWARE_ENDSTOP_X
   #define MIN_SOFTWARE_ENDSTOP_Y
   #define MIN_SOFTWARE_ENDSTOP_Z
 #endif
 
-// If enabled, axes won't move above MAX_POS in response to movement commands.
+// Max software endstops constrain movement within maximum coordinate bounds
 #define MAX_SOFTWARE_ENDSTOPS
 #if ENABLED(MAX_SOFTWARE_ENDSTOPS)
   #define MAX_SOFTWARE_ENDSTOP_X
