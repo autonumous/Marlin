@@ -34,6 +34,7 @@
   #include "temperature.h"
   #include "ultralcd.h"
   #include "gcode.h"
+  #include "serial.h"
   #include "bitmap_flags.h"
 
   #if ENABLED(MESH_BED_LEVELING)
@@ -273,6 +274,9 @@
                                     // action to give the user a more responsive 'Stop'.
           set_destination_from_current();
           idle();
+          MYSERIAL.flush();  // G26 takes a long time to complete.   PronterFace can
+                             // over run the serial character buffer with M105's without
+                             // this fix
         }
 
         wait_for_release();
@@ -499,6 +503,9 @@
               SERIAL_EOL();
             }
             idle();
+            MYSERIAL.flush();  // G26 takes a long time to complete.   PronterFace can
+                               // over run the serial character buffer with M105's without
+                               // this fix
           }
       #if ENABLED(ULTRA_LCD)
         }
@@ -521,8 +528,11 @@
         SERIAL_EOL();
       }
       idle();
-    }
 
+      MYSERIAL.flush();  // G26 takes a long time to complete.   PronterFace can
+                         // over run the serial character buffer with M105's without
+                         // this fix
+    }
     #if ENABLED(ULTRA_LCD)
       lcd_reset_status();
       lcd_quick_feedback(true);
@@ -815,11 +825,16 @@
           //}
 
           print_line_from_here_to_there(rx, ry, g26_layer_height, xe, ye, g26_layer_height);
-
+          MYSERIAL.flush();  // G26 takes a long time to complete.   PronterFace can
+                             // over run the serial character buffer with M105's without
+                             // this fix
         }
         if (look_for_lines_to_connect())
           goto LEAVE;
       }
+      MYSERIAL.flush();  // G26 takes a long time to complete.   PronterFace can
+                         // over run the serial character buffer with M105's without
+                         // this fix
     } while (--g26_repeats && location.x_index >= 0 && location.y_index >= 0);
 
     LEAVE:
