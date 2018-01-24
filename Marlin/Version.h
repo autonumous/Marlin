@@ -48,7 +48,7 @@
    * here we define this default string as the date where the latest release
    * version was tagged.
    */
-  #define STRING_DISTRIBUTION_DATE __DATE__ __TIME__ //"2017-10-29 12:00"
+  #define STRING_DISTRIBUTION_DATE __DATE__ __TIME__
 
   /**
    * Required minimum Configuration.h and Configuration_adv.h file versions.

@@ -1427,8 +1427,8 @@ static_assert(1 >= 0
 /**
  * Make sure HAVE_TMCDRIVER is warranted
  */
-#if ENABLED(HAVE_TMCDRIVER) && !( \
-         ENABLED(  X_IS_TMC ) \
+#if ENABLED(HAVE_TMCDRIVER)
+  #if !( ENABLED(  X_IS_TMC ) \
       || ENABLED( X2_IS_TMC ) \
       || ENABLED(  Y_IS_TMC ) \
       || ENABLED( Y2_IS_TMC ) \
@@ -1439,8 +1439,34 @@ static_assert(1 >= 0
       || ENABLED( E2_IS_TMC ) \
       || ENABLED( E3_IS_TMC ) \
       || ENABLED( E4_IS_TMC ) \
-  )
-  #error "HAVE_TMCDRIVER requires at least one TMC stepper to be set."
+    )
+    #error "HAVE_TMCDRIVER requires at least one TMC stepper to be set."
+  #endif
+
+  #if ENABLED(X_IS_TMC2130) && !PIN_EXISTS(X_CS)
+    #error "X_CS_PIN is required for X_IS_TMC2130. Define X_CS_PIN in Configuration_adv.h."
+  #elif ENABLED(X2_IS_TMC2130) && !PIN_EXISTS(X2_CS)
+    #error "X2_CS_PIN is required for X2_IS_TMC2130. Define X2_CS_PIN in Configuration_adv.h."
+  #elif ENABLED(Y_IS_TMC2130) && !PIN_EXISTS(Y_CS)
+    #error "Y_CS_PIN is required for Y_IS_TMC2130. Define Y_CS_PIN in Configuration_adv.h."
+  #elif ENABLED(Y2_IS_TMC2130) && !PIN_EXISTS(Y2_CS)
+    #error "Y2_CS_PIN is required for Y2_IS_TMC2130. Define Y2_CS_PIN in Configuration_adv.h."
+  #elif ENABLED(Z_IS_TMC2130) && !PIN_EXISTS(Z_CS)
+    #error "Z_CS_PIN is required for Z_IS_TMC2130. Define Z_CS_PIN in Configuration_adv.h."
+  #elif ENABLED(Z2_IS_TMC2130) && !PIN_EXISTS(Z2_CS)
+    #error "Z2_CS_PIN is required for Z2_IS_TMC2130. Define Z2_CS_PIN in Configuration_adv.h."
+  #elif ENABLED(E0_IS_TMC2130) && !PIN_EXISTS(E0_CS)
+    #error "E0_CS_PIN is required for E0_IS_TMC2130. Define E0_CS_PIN in Configuration_adv.h."
+  #elif ENABLED(E1_IS_TMC2130) && !PIN_EXISTS(E1_CS)
+    #error "E1_CS_PIN is required for E1_IS_TMC2130. Define E1_CS_PIN in Configuration_adv.h."
+  #elif ENABLED(E2_IS_TMC2130) && !PIN_EXISTS(E2_CS)
+    #error "E2_CS_PIN is required for E2_IS_TMC2130. Define E2_CS_PIN in Configuration_adv.h."
+  #elif ENABLED(E3_IS_TMC2130) && !PIN_EXISTS(E3_CS)
+    #error "E3_CS_PIN is required for E3_IS_TMC2130. Define E3_CS_PIN in Configuration_adv.h."
+  #elif ENABLED(E4_IS_TMC2130) && !PIN_EXISTS(E4_CS)
+    #error "E4_CS_PIN is required for E4_IS_TMC2130. Define E4_CS_PIN in Configuration_adv.h."
+  #endif
+
 #endif
 
 /**
@@ -1484,17 +1510,17 @@ static_assert(1 >= 0
  * TMC2208 software UART and ENDSTOP_INTERRUPTS both use pin change interrupts (PCI)
  */
 #if ENABLED(HAVE_TMC2208) && ENABLED(ENDSTOP_INTERRUPTS_FEATURE) && !( \
-       ENABLED( X_HARDWARE_SERIAL  ) \
-    || ENABLED( X2_HARDWARE_SERIAL ) \
-    || ENABLED( Y_HARDWARE_SERIAL  ) \
-    || ENABLED( Y2_HARDWARE_SERIAL ) \
-    || ENABLED( Z_HARDWARE_SERIAL  ) \
-    || ENABLED( Z2_HARDWARE_SERIAL ) \
-    || ENABLED( E0_HARDWARE_SERIAL ) \
-    || ENABLED( E1_HARDWARE_SERIAL ) \
-    || ENABLED( E2_HARDWARE_SERIAL ) \
-    || ENABLED( E3_HARDWARE_SERIAL ) \
-    || ENABLED( E4_HARDWARE_SERIAL ) )
+       defined(X_HARDWARE_SERIAL ) \
+    || defined(X2_HARDWARE_SERIAL) \
+    || defined(Y_HARDWARE_SERIAL ) \
+    || defined(Y2_HARDWARE_SERIAL) \
+    || defined(Z_HARDWARE_SERIAL ) \
+    || defined(Z2_HARDWARE_SERIAL) \
+    || defined(E0_HARDWARE_SERIAL) \
+    || defined(E1_HARDWARE_SERIAL) \
+    || defined(E2_HARDWARE_SERIAL) \
+    || defined(E3_HARDWARE_SERIAL) \
+    || defined(E4_HARDWARE_SERIAL) )
   #error "select hardware UART for TMC2208 to use both TMC2208 and ENDSTOP_INTERRUPTS_FEATURE."
 #endif
 
@@ -1619,6 +1645,10 @@ static_assert(COUNT(sanity_arr_3) <= XYZE_N, "DEFAULT_MAX_ACCELERATION has too m
 
 #if ENABLED(LED_CONTROL_MENU) && DISABLED(ULTIPANEL)
   #error "LED_CONTROL_MENU requires an LCD controller."
+#endif
+
+#if ENABLED(CASE_LIGHT_USE_NEOPIXEL) && DISABLED(NEOPIXEL_LED)
+  #error "CASE_LIGHT_USE_NEOPIXEL requires NEOPIXEL_LED."
 #endif
 
 #if ENABLED(SKEW_CORRECTION)

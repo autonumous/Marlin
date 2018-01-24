@@ -615,6 +615,19 @@ uint8_t target_extruder;
   int bilinear_grid_spacing[2], bilinear_start[2];
   float bilinear_grid_factor[2],
         z_values[GRID_MAX_POINTS_X][GRID_MAX_POINTS_Y];
+  #if ENABLED(ABL_BILINEAR_SUBDIVISION)
+    #define ABL_BG_SPACING(A) bilinear_grid_spacing_virt[A]
+    #define ABL_BG_FACTOR(A)  bilinear_grid_factor_virt[A]
+    #define ABL_BG_POINTS_X   ABL_GRID_POINTS_VIRT_X
+    #define ABL_BG_POINTS_Y   ABL_GRID_POINTS_VIRT_Y
+    #define ABL_BG_GRID(X,Y)  z_values_virt[X][Y]
+  #else
+    #define ABL_BG_SPACING(A) bilinear_grid_spacing[A]
+    #define ABL_BG_FACTOR(A)  bilinear_grid_factor[A]
+    #define ABL_BG_POINTS_X   GRID_MAX_POINTS_X
+    #define ABL_BG_POINTS_Y   GRID_MAX_POINTS_Y
+    #define ABL_BG_GRID(X,Y)  z_values[X][Y]
+  #endif
 #endif
 
 #if IS_SCARA
@@ -1344,12 +1357,14 @@ bool get_target_extruder_from_command(const uint16_t code) {
 
     #if ENABLED(DELTA)
       switch(axis) {
-        case X_AXIS:
-        case Y_AXIS:
-          // Get a minimum radius for clamping
-          soft_endstop_radius = MIN3(FABS(max(soft_endstop_min[X_AXIS], soft_endstop_min[Y_AXIS])), soft_endstop_max[X_AXIS], soft_endstop_max[Y_AXIS]);
-          soft_endstop_radius_2 = sq(soft_endstop_radius);
-          break;
+        #if HAS_SOFTWARE_ENDSTOPS
+          case X_AXIS:
+          case Y_AXIS:
+            // Get a minimum radius for clamping
+            soft_endstop_radius = MIN3(FABS(max(soft_endstop_min[X_AXIS], soft_endstop_min[Y_AXIS])), soft_endstop_max[X_AXIS], soft_endstop_max[Y_AXIS]);
+            soft_endstop_radius_2 = sq(soft_endstop_radius);
+            break;
+        #endif
         case Z_AXIS:
           delta_clip_start_height = soft_endstop_max[axis] - delta_safe_distance_from_top();
         default: break;
@@ -1361,12 +1376,8 @@ bool get_target_extruder_from_command(const uint16_t code) {
 
 #if HAS_M206_COMMAND
   /**
-   * Change the home offset for an axis, update the current
-   * position and the software endstops to retain the same
-   * relative distance to the new home.
-   *
-   * Since this changes the current_position, code should
-   * call sync_plan_position soon after this.
+   * Change the home offset for an axis.
+   * Also refreshes the workspace offset.
    */
   static void set_home_offset(const AxisEnum axis, const float v) {
     home_offset[axis] = v;
@@ -2422,7 +2433,7 @@ static void clean_up_after_endstop_or_probe_move() {
             planner.apply_leveling(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS]);
             planner.leveling_active = false;                   // disable only AFTER calling apply_leveling
           }
-          else {                                        // leveling from off to on
+          else {                                               // leveling from off to on
             planner.leveling_active = true;                    // enable BEFORE calling unapply_leveling, otherwise ignored
             // change physical current_position to unleveled current_position without moving steppers.
             planner.unapply_leveling(current_position);
@@ -3111,8 +3122,10 @@ static void homeaxis(const AxisEnum axis) {
 void gcode_get_destination() {
   LOOP_XYZE(i) {
     if (parser.seen(axis_codes[i])) {
-      const float v = parser.value_axis_units((AxisEnum)i) + (axis_relative_modes[i] || relative_mode ? current_position[i] : 0);
-      destination[i] = i == E_AXIS ? v : LOGICAL_TO_NATIVE(v, i);
+      const float v = parser.value_axis_units((AxisEnum)i);
+      destination[i] = (axis_relative_modes[i] || relative_mode)
+        ? current_position[i] + v
+        : (i == E_AXIS) ? v : LOGICAL_TO_NATIVE(v, i);
     }
     else
       destination[i] = current_position[i];
@@ -3641,6 +3654,10 @@ inline void gcode_G4() {
       #endif
       if (planner.leveling_active) {
         SERIAL_ECHOLNPGM(" (enabled)");
+        #if ENABLED(ENABLE_LEVELING_FADE_HEIGHT)
+          if (planner.z_fade_height)
+            SERIAL_ECHOLNPAIR("Z Fade: ", planner.z_fade_height);
+        #endif
         #if ABL_PLANAR
           const float diff[XYZ] = {
             stepper.get_axis_position_mm(X_AXIS) - current_position[X_AXIS],
@@ -3656,10 +3673,25 @@ inline void gcode_G4() {
           SERIAL_ECHOPGM(" Z");
           if (diff[Z_AXIS] > 0) SERIAL_CHAR('+');
           SERIAL_ECHO(diff[Z_AXIS]);
-        #elif ENABLED(AUTO_BED_LEVELING_UBL)
-          SERIAL_ECHOPAIR("UBL Adjustment Z", stepper.get_axis_position_mm(Z_AXIS) - current_position[Z_AXIS]);
-        #elif ENABLED(AUTO_BED_LEVELING_BILINEAR)
-          SERIAL_ECHOPAIR("ABL Adjustment Z", bilinear_z_offset(current_position));
+        #else
+          #if ENABLED(AUTO_BED_LEVELING_UBL)
+            SERIAL_ECHOPGM("UBL Adjustment Z");
+            const float rz = ubl.get_z_correction(current_position[X_AXIS], current_position[Y_AXIS]);
+          #elif ENABLED(AUTO_BED_LEVELING_BILINEAR)
+            SERIAL_ECHOPAIR("Bilinear Grid X", bilinear_start[X_AXIS]);
+            SERIAL_ECHOPAIR(" Y", bilinear_start[Y_AXIS]);
+            SERIAL_ECHOPAIR(" W", ABL_BG_SPACING(X_AXIS));
+            SERIAL_ECHOLNPAIR(" H", ABL_BG_SPACING(Y_AXIS));
+            SERIAL_ECHOPGM("ABL Adjustment Z");
+            const float rz = bilinear_z_offset(current_position);
+          #endif
+          SERIAL_ECHO(ftostr43sign(rz, '+'));
+          #if ENABLED(ENABLE_LEVELING_FADE_HEIGHT)
+            if (planner.z_fade_height) {
+              SERIAL_ECHOPAIR(" (", ftostr43sign(rz * planner.fade_scaling_factor_for_z(current_position[Z_AXIS]), '+'));
+              SERIAL_CHAR(')');
+            }
+          #endif
         #endif
       }
       else
@@ -3671,10 +3703,16 @@ inline void gcode_G4() {
 
       SERIAL_ECHOPGM("Mesh Bed Leveling");
       if (planner.leveling_active) {
-        float rz = current_position[Z_AXIS];
-        planner.apply_leveling(current_position[X_AXIS], current_position[Y_AXIS], rz);
         SERIAL_ECHOLNPGM(" (enabled)");
-        SERIAL_ECHOPAIR("MBL Adjustment Z", rz);
+        SERIAL_ECHOPAIR("MBL Adjustment Z", ftostr43sign(mbl.get_z(current_position[X_AXIS], current_position[Y_AXIS], 1.0), '+'));
+        #if ENABLED(ENABLE_LEVELING_FADE_HEIGHT)
+          if (planner.z_fade_height) {
+            SERIAL_ECHOPAIR(" (", ftostr43sign(
+              mbl.get_z(current_position[X_AXIS], current_position[Y_AXIS], planner.fade_scaling_factor_for_z(current_position[Z_AXIS])), '+'
+            ));
+            SERIAL_CHAR(')');
+          }
+        #endif
       }
       else
         SERIAL_ECHOPGM(" (disabled)");
@@ -4325,32 +4363,40 @@ void home_all_axes() { gcode_G28(true); }
    */
   inline void gcode_G29() {
 
+    #if ENABLED(DEBUG_LEVELING_FEATURE) || ENABLED(PROBE_MANUALLY)
+      const bool seenQ = parser.seen('Q');
+    #else
+      constexpr bool seenQ = false;
+    #endif
+
     // G29 Q is also available if debugging
     #if ENABLED(DEBUG_LEVELING_FEATURE)
-      const bool query = parser.seen('Q');
       const uint8_t old_debug_flags = marlin_debug_flags;
-      if (query) marlin_debug_flags |= DEBUG_LEVELING;
+      if (seenQ) marlin_debug_flags |= DEBUG_LEVELING;
       if (DEBUGGING(LEVELING)) {
         DEBUG_POS(">>> G29", current_position);
         log_machine_info();
       }
       marlin_debug_flags = old_debug_flags;
       #if DISABLED(PROBE_MANUALLY)
-        if (query) return;
+        if (seenQ) return;
       #endif
     #endif
 
     #if ENABLED(PROBE_MANUALLY)
-      const bool seenA = parser.seen('A'), seenQ = parser.seen('Q'), no_action = seenA || seenQ;
+      const bool seenA = parser.seen('A');
+    #else
+      constexpr bool seenA = false;
     #endif
 
-    #if ENABLED(DEBUG_LEVELING_FEATURE) && DISABLED(PROBE_MANUALLY)
-      const bool faux = parser.boolval('C');
-    #elif ENABLED(PROBE_MANUALLY)
-      const bool faux = no_action;
-    #else
-      bool constexpr faux = false;
-    #endif
+    const bool  no_action = seenA || seenQ,
+                faux =
+                  #if ENABLED(DEBUG_LEVELING_FEATURE) && DISABLED(PROBE_MANUALLY)
+                    parser.boolval('C')
+                  #else
+                    no_action
+                  #endif
+                ;
 
     // Don't allow auto-leveling without homing first
     if (axis_unhomed_error()) return;
@@ -4581,7 +4627,7 @@ void home_all_axes() { gcode_G28(true); }
 
       // Disable auto bed leveling during G29.
       // Be formal so G29 can be done successively without G28.
-      set_bed_leveling_enabled(false);
+      if (!no_action) set_bed_leveling_enabled(false);
 
       #if HAS_BED_PROBE
         // Deploy the probe. Probe will raise if needed.
@@ -6272,7 +6318,7 @@ inline void gcode_M17() {
   void do_pause_e_move(const float &length, const float &fr) {
     set_destination_from_current();
     destination[E_AXIS] += length / planner.e_factor[active_extruder];
-    buffer_line_to_destination(fr);
+    planner.buffer_line_kinematic(destination, fr, active_extruder);
     stepper.synchronize();
     set_current_from_destination();
   }
@@ -6298,6 +6344,15 @@ inline void gcode_M17() {
     }
   #endif
 
+  /**
+   * Ensure a safe temperature for extrusion
+   *
+   * - Fail if the TARGET temperature is too low
+   * - Display LCD placard with temperature status
+   * - Return when heating is done or aborted
+   *
+   * Returns 'true' if heating was completed, 'false' for abort
+   */
   static bool ensure_safe_temperature(const AdvancedPauseMode mode=ADVANCED_PAUSE_MODE_PAUSE_PRINT) {
 
     #if ENABLED(PREVENT_COLD_EXTRUSION)
@@ -6322,7 +6377,19 @@ inline void gcode_M17() {
     return status;
   }
 
-  static bool load_filament(const float &load_length=0, const float &extrude_length=0, const int8_t max_beep_count=0,
+  /**
+   * Load filament into the hotend
+   *
+   * - Fail if the a safe temperature was not reached
+   * - If pausing for confirmation, wait for a click or M108
+   * - Show "wait for load" placard
+   * - Load and purge filament
+   * - Show "Purge more" / "Continue" menu
+   * - Return when "Continue" is selected
+   *
+   * Returns 'true' if load was completed, 'false' for abort
+   */
+  static bool load_filament(const float &load_length=0, const float &purge_length=0, const int8_t max_beep_count=0,
                             const bool show_lcd=false, const bool pause_for_user=false,
                             const AdvancedPauseMode mode=ADVANCED_PAUSE_MODE_PAUSE_PRINT
   ) {
@@ -6365,15 +6432,15 @@ inline void gcode_M17() {
     }
 
     #if ENABLED(ULTIPANEL)
-      if (show_lcd) // Show "load" message
+      if (show_lcd) // Show "wait for load" message
         lcd_advanced_pause_show_message(ADVANCED_PAUSE_MESSAGE_LOAD, mode);
     #endif
 
     // Load filament
-    do_pause_e_move(load_length, FILAMENT_CHANGE_LOAD_FEEDRATE);
+    if (load_length) do_pause_e_move(load_length, FILAMENT_CHANGE_LOAD_FEEDRATE);
 
     do {
-      if (extrude_length > 0) {
+      if (purge_length > 0) {
         // "Wait for filament purge"
         #if ENABLED(ULTIPANEL)
           if (show_lcd)
@@ -6381,10 +6448,10 @@ inline void gcode_M17() {
         #endif
 
         // Extrude filament to get into hotend
-        do_pause_e_move(extrude_length, ADVANCED_PAUSE_EXTRUDE_FEEDRATE);
+        do_pause_e_move(purge_length, ADVANCED_PAUSE_EXTRUDE_FEEDRATE);
       }
 
-      // Show "Extrude More" / "Resume" menu and wait for reply
+      // Show "Purge More" / "Resume" menu and wait for reply
       #if ENABLED(ULTIPANEL)
         if (show_lcd) {
           KEEPALIVE_STATE(PAUSED_FOR_USER);
@@ -6395,7 +6462,7 @@ inline void gcode_M17() {
         }
       #endif
 
-      // Keep looping if "Extrude More" was selected
+      // Keep looping if "Purge More" was selected
     } while (
       #if ENABLED(ULTIPANEL)
         show_lcd && advanced_pause_menu_response == ADVANCED_PAUSE_RESPONSE_EXTRUDE_MORE
@@ -6407,6 +6474,16 @@ inline void gcode_M17() {
     return true;
   }
 
+  /**
+   * Unload filament from the hotend
+   *
+   * - Fail if the a safe temperature was not reached
+   * - Show "wait for unload" placard
+   * - Retract, pause, then unload filament
+   * - Disable E stepper (on most machines)
+   *
+   * Returns 'true' if unload was completed, 'false' for abort
+   */
   static bool unload_filament(const float &unload_length, const bool show_lcd=false,
                               const AdvancedPauseMode mode=ADVANCED_PAUSE_MODE_PAUSE_PRINT
   ) {
@@ -6447,16 +6524,24 @@ inline void gcode_M17() {
     return true;
   }
 
+  /**
+   * Pause procedure
+   *
+   * - Abort if already paused
+   * - Send host action for pause, if configured
+   * - Abort if TARGET temperature is too low
+   * - Display "wait for start of filament change" (if a length was specified)
+   * - Initial retract, if current temperature is hot enough
+   * - Park the nozzle at the given position
+   * - Call unload_filament (if a length was specified)
+   *
+   * Returns 'true' if pause was completed, 'false' for abort
+   */
   static bool pause_print(const float &retract, const point_t &park_point, const float &unload_length=0, const bool show_lcd=false) {
     if (did_pause_print) return false; // already paused
 
     #ifdef ACTION_ON_PAUSE
       SERIAL_ECHOLNPGM("//action:" ACTION_ON_PAUSE);
-    #endif
-
-    #if ENABLED(ULTIPANEL)
-      if (show_lcd) // Show initial message
-        lcd_advanced_pause_show_message(ADVANCED_PAUSE_MESSAGE_INIT);
     #endif
 
     if (!DEBUGGING(DRYRUN) && unload_length && thermalManager.targetTooColdToExtrude(active_extruder)) {
@@ -6466,6 +6551,7 @@ inline void gcode_M17() {
       #if ENABLED(ULTIPANEL)
         if (show_lcd) // Show status screen
           lcd_advanced_pause_show_message(ADVANCED_PAUSE_MESSAGE_STATUS);
+          LCD_MESSAGEPGM(MSG_M600_TOO_COLD);
       #endif
 
       return false; // unable to reach safe temperature
@@ -6478,7 +6564,7 @@ inline void gcode_M17() {
     #if ENABLED(SDSUPPORT)
       if (card.sdprinting) {
         card.pauseSDPrint();
-        ++did_pause_print;
+        ++did_pause_print; // Indicate SD pause also
       }
     #endif
     print_job_timer.pause();
@@ -6490,11 +6576,14 @@ inline void gcode_M17() {
     COPY(resume_position, current_position);
 
     // Initial retract before move to filament change position
-    if (retract && !thermalManager.tooColdToExtrude(active_extruder))
+    if (retract && thermalManager.hotEnoughToExtrude(active_extruder))
       do_pause_e_move(retract, PAUSE_PARK_RETRACT_FEEDRATE);
 
-    // Park the nozzle by moving up by z_lift and then moving to (x_pos, y_pos)
-    Nozzle::park(2, park_point);
+    #if ENABLED(NO_MOTION_BEFORE_HOMING)
+      if (!axis_unhomed_error())
+    #endif
+        // Park the nozzle by moving up by z_lift and then moving to (x_pos, y_pos)
+        Nozzle::park(2, park_point);
 
     // Unload the filament
     if (unload_length)
@@ -6503,6 +6592,13 @@ inline void gcode_M17() {
     return true;
   }
 
+  /**
+   * - Show "Insert filament and press button to continue"
+   * - Wait for a click before returning
+   * - Heaters can time out, reheated before accepting a click
+   *
+   * Used by M125 and M600
+   */
   static void wait_for_filament_reload(const int8_t max_beep_count=0) {
     bool nozzle_timed_out = false;
 
@@ -6589,20 +6685,37 @@ inline void gcode_M17() {
     KEEPALIVE_STATE(IN_HANDLER);
   }
 
-  static void resume_print(const float &load_length=0, const float &extrude_length=ADVANCED_PAUSE_EXTRUDE_LENGTH, const int8_t max_beep_count=0) {
-    bool nozzle_timed_out = false;
-
+  /**
+   * Resume or Start print procedure
+   *
+   * - Abort if not paused
+   * - Reset heater idle timers
+   * - Load filament if specified, but only if:
+   *   - a nozzle timed out, or
+   *   - the nozzle is already heated.
+   * - Display "wait for print to resume"
+   * - Re-prime the nozzle...
+   *   -  FWRETRACT: Recover/prime from the prior G10.
+   *   - !FWRETRACT: Retract by resume_position[E], if negative.
+   *                 Not sure how this logic comes into use.
+   * - Move the nozzle back to resume_position
+   * - Sync the planner E to resume_position[E]
+   * - Send host action for resume, if configured
+   * - Resume the current SD print job, if any
+   */
+  static void resume_print(const float &load_length=0, const float &purge_length=ADVANCED_PAUSE_EXTRUDE_LENGTH, const int8_t max_beep_count=0) {
     if (!did_pause_print) return;
 
     // Re-enable the heaters if they timed out
+    bool nozzle_timed_out = false;
     HOTEND_LOOP() {
       nozzle_timed_out |= thermalManager.is_heater_idle(e);
       thermalManager.reset_heater_idle_timer(e);
     }
 
-    if (nozzle_timed_out || !thermalManager.tooColdToExtrude(active_extruder)) {
+    if (nozzle_timed_out || thermalManager.hotEnoughToExtrude(active_extruder)) {
       // Load the new filament
-      load_filament(load_length, extrude_length, max_beep_count, true, nozzle_timed_out);
+      load_filament(load_length, purge_length, max_beep_count, true, nozzle_timed_out);
     }
 
     #if ENABLED(ULTIPANEL)
@@ -6616,7 +6729,7 @@ inline void gcode_M17() {
       if (fwretract.retracted[active_extruder])
         do_pause_e_move(-fwretract.retract_length, fwretract.retract_feedrate_mm_s);
     #else
-      // If resume_position negative
+      // If resume_position is negative
       if (resume_position[E_AXIS] < 0) do_pause_e_move(resume_position[E_AXIS], PAUSE_PARK_RETRACT_FEEDRATE);
     #endif
 
@@ -8279,7 +8392,7 @@ void report_current_position() {
       LOGICAL_Y_POSITION(current_position[Y_AXIS]),
       LOGICAL_Z_POSITION(current_position[Z_AXIS])
     };
-    report_xyze(logical);
+    report_xyz(logical);
 
     SERIAL_PROTOCOLPGM("Raw:    ");
     report_xyz(current_position);
@@ -8518,11 +8631,11 @@ inline void gcode_M121() { endstops.enable_globally(false); }
   inline void gcode_M125() {
 
     // Initial retract before move to filament change position
-    const float retract = parser.seen('L') ? parser.value_axis_units(E_AXIS) : 0
+    const float retract = -FABS(parser.seen('L') ? parser.value_axis_units(E_AXIS) : 0
       #ifdef PAUSE_PARK_RETRACT_LENGTH
-        - (PAUSE_PARK_RETRACT_LENGTH)
+        + (PAUSE_PARK_RETRACT_LENGTH)
       #endif
-    ;
+    );
 
     point_t park_point = NOZZLE_PARK_POINT;
 
@@ -9917,7 +10030,7 @@ inline void gcode_M502() {
 
     if (!ijk) {
       SERIAL_ECHO_START();
-      SERIAL_ECHO(MSG_SKEW_FACTOR " XY: ");
+      SERIAL_ECHOPGM(MSG_SKEW_FACTOR " XY: ");
       SERIAL_ECHO_F(planner.xy_skew_factor, 6);
       SERIAL_EOL();
       #if ENABLED(SKEW_CORRECTION_FOR_Z)
@@ -9977,15 +10090,11 @@ inline void gcode_M502() {
     );
 
     // Lift Z axis
-    if (parser.seenval('Z'))
-      park_point.z = parser.linearval('Z');
+    if (parser.seenval('Z')) park_point.z = parser.linearval('Z');
 
     // Move XY axes to filament change position or given position
-    if (parser.seenval('X'))
-      park_point.x = parser.linearval('X');
-
-    if (parser.seenval('Y'))
-      park_point.y = parser.linearval('Y');
+    if (parser.seenval('X')) park_point.x = parser.linearval('X');
+    if (parser.seenval('Y')) park_point.y = parser.linearval('Y');
 
     #if HOTENDS > 1 && DISABLED(DUAL_X_CARRIAGE)
       park_point.x += (active_extruder ? hotend_offset[X_AXIS][active_extruder] : 0);
@@ -10138,6 +10247,11 @@ inline void gcode_M502() {
   inline void gcode_M701() {
     point_t park_point = NOZZLE_PARK_POINT;
 
+    #if ENABLED(NO_MOTION_BEFORE_HOMING)
+      // Only raise Z if the machine is homed
+      if (axis_unhomed_error()) park_point.z = 0;
+    #endif
+
     if (get_target_extruder_from_command(701)) return;
 
     // Z axis lift
@@ -10147,7 +10261,7 @@ inline void gcode_M502() {
     const float load_length = FABS(parser.seen('L') ? parser.value_axis_units(E_AXIS) :
                                                       filament_change_load_length[target_extruder]);
 
-    // Show initial message
+    // Show initial "wait for load" message
     #if ENABLED(ULTIPANEL)
       lcd_advanced_pause_show_message(ADVANCED_PAUSE_MESSAGE_LOAD, ADVANCED_PAUSE_MODE_LOAD_FILAMENT, target_extruder);
     #endif
@@ -10194,6 +10308,11 @@ inline void gcode_M502() {
    */
   inline void gcode_M702() {
     point_t park_point = NOZZLE_PARK_POINT;
+
+    #if ENABLED(NO_MOTION_BEFORE_HOMING)
+      // Only raise Z if the machine is homed
+      if (axis_unhomed_error()) park_point.z = 0;
+    #endif
 
     if (get_target_extruder_from_command(702)) return;
 
@@ -10605,26 +10724,44 @@ inline void gcode_M907() {
 #endif // HAS_MICROSTEPS
 
 #if HAS_CASE_LIGHT
+
   #ifndef INVERT_CASE_LIGHT
     #define INVERT_CASE_LIGHT false
   #endif
   uint8_t case_light_brightness;  // LCD routine wants INT
   bool case_light_on;
 
+  #if ENABLED(CASE_LIGHT_USE_NEOPIXEL)
+    LEDColor case_light_color =
+      #ifdef CASE_LIGHT_NEOPIXEL_COLOR
+        CASE_LIGHT_NEOPIXEL_COLOR
+      #else
+        { 255, 255, 255, 255 }
+      #endif
+    ;
+  #endif
+
   void update_case_light() {
-    pinMode(CASE_LIGHT_PIN, OUTPUT); // digitalWrite doesn't set the port mode
-    if (case_light_on) {
+    const uint8_t i = case_light_on ? case_light_brightness : 0, n10ct = INVERT_CASE_LIGHT ? 255 - i : i;
+
+    #if ENABLED(CASE_LIGHT_USE_NEOPIXEL)
+
+      leds.set_color(
+        MakeLEDColor(case_light_color.r, case_light_color.g, case_light_color.b, case_light_color.w, n10ct),
+        false
+      );
+
+    #else // !CASE_LIGHT_USE_NEOPIXEL
+
+      SET_OUTPUT(CASE_LIGHT_PIN);
       if (USEABLE_HARDWARE_PWM(CASE_LIGHT_PIN))
-        analogWrite(CASE_LIGHT_PIN, INVERT_CASE_LIGHT ? 255 - case_light_brightness : case_light_brightness);
-      else
-        WRITE(CASE_LIGHT_PIN, INVERT_CASE_LIGHT ? LOW : HIGH);
-    }
-    else {
-      if (USEABLE_HARDWARE_PWM(CASE_LIGHT_PIN))
-        analogWrite(CASE_LIGHT_PIN, INVERT_CASE_LIGHT ? 255 : 0);
-      else
-        WRITE(CASE_LIGHT_PIN, INVERT_CASE_LIGHT ? HIGH : LOW);
-    }
+        analogWrite(CASE_LIGHT_PIN, n10ct);
+      else {
+        const bool s = case_light_on ? !INVERT_CASE_LIGHT : INVERT_CASE_LIGHT;
+        WRITE(CASE_LIGHT_PIN, s ? HIGH : LOW);
+      }
+
+    #endif // !CASE_LIGHT_USE_NEOPIXEL
   }
 #endif // HAS_CASE_LIGHT
 
@@ -11862,20 +11999,6 @@ void ok_to_send() {
 
 #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
 
-  #if ENABLED(ABL_BILINEAR_SUBDIVISION)
-    #define ABL_BG_SPACING(A) bilinear_grid_spacing_virt[A]
-    #define ABL_BG_FACTOR(A)  bilinear_grid_factor_virt[A]
-    #define ABL_BG_POINTS_X   ABL_GRID_POINTS_VIRT_X
-    #define ABL_BG_POINTS_Y   ABL_GRID_POINTS_VIRT_Y
-    #define ABL_BG_GRID(X,Y)  z_values_virt[X][Y]
-  #else
-    #define ABL_BG_SPACING(A) bilinear_grid_spacing[A]
-    #define ABL_BG_FACTOR(A)  bilinear_grid_factor[A]
-    #define ABL_BG_POINTS_X   GRID_MAX_POINTS_X
-    #define ABL_BG_POINTS_Y   GRID_MAX_POINTS_Y
-    #define ABL_BG_GRID(X,Y)  z_values[X][Y]
-  #endif
-
   // Get the Z adjustment for non-linear bed leveling
   float bilinear_z_offset(const float raw[XYZ]) {
 
@@ -12766,7 +12889,8 @@ void prepare_move_to_destination() {
     if (angular_travel == 0 && current_position[p_axis] == cart[p_axis] && current_position[q_axis] == cart[q_axis])
       angular_travel = RADIANS(360);
 
-    const float mm_of_travel = HYPOT(angular_travel * radius, FABS(linear_travel));
+    const float flat_mm = radius * angular_travel,
+                mm_of_travel = linear_travel ? HYPOT(flat_mm, linear_travel) : flat_mm;
     if (mm_of_travel < 0.001) return;
 
     uint16_t segments = FLOOR(mm_of_travel / (MM_PER_ARC_SEGMENT));
@@ -13163,7 +13287,10 @@ void disable_all_steppers() {
 void manage_inactivity(bool ignore_stepper_queue/*=false*/) {
 
   #if ENABLED(FILAMENT_RUNOUT_SENSOR)
-    if ((IS_SD_PRINTING || print_job_timer.isRunning()) && (READ(FIL_RUNOUT_PIN) == FIL_RUNOUT_INVERTING))
+    if ((IS_SD_PRINTING || print_job_timer.isRunning())
+       && READ(FIL_RUNOUT_PIN) == FIL_RUNOUT_INVERTING
+       && thermalManager.targetHotEnoughToExtrude(active_extruder)
+    )
       handle_filament_runout();
   #endif
 
