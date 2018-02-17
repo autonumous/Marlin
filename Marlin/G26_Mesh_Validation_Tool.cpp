@@ -274,7 +274,7 @@
                                     // action to give the user a more responsive 'Stop'.
           set_destination_from_current();
           idle();
-          MYSERIAL0.flush(); // Prevent host M105 buffer overrun.
+          SERIAL_FLUSH(); // Prevent host M105 buffer overrun.
         }
 
         wait_for_release();
@@ -501,7 +501,7 @@
               SERIAL_EOL();
             }
             idle();
-            MYSERIAL0.flush(); // Prevent host M105 buffer overrun.
+            SERIAL_FLUSH(); // Prevent host M105 buffer overrun.
           }
       #if ENABLED(ULTRA_LCD)
         }
@@ -525,7 +525,7 @@
       }
       idle();
 
-      MYSERIAL0.flush(); // Prevent host M105 buffer overrun.
+      SERIAL_FLUSH(); // Prevent host M105 buffer overrun.
     }
     #if ENABLED(ULTRA_LCD)
       lcd_reset_status();
@@ -741,14 +741,18 @@
     /**
      * Pre-generate radius offset values at 30 degree intervals to reduce CPU load.
      */
-
-    #define A_CNT ((360 / 30) / 2)  // must be a multiple of 2 for _COS() and _SIN() macro to work correctly!
-    #define NEGATION_of_COS_TABLE(A) (((A + A_CNT * 16) % (A_CNT * 2)) >= A_CNT ? -1 : 1) 
-    #define _COS(A) (trig_table[(A + A_CNT * 16) % A_CNT] * NEGATION_of_COS_TABLE(A))
-    #define _SIN(A) (-_COS((A + A_CNT / 2) % (A_CNT * 2)))
+    #define A_INT 30
+    #define _ANGS (360 / A_INT)
+    #define A_CNT (_ANGS / 2)
+    #define _IND(A) ((A + _ANGS * 8) % _ANGS)
+    #define _COS(A) (trig_table[_IND(A) % A_CNT] * (_IND(A) >= A_CNT ? -1 : 1))
+    #define _SIN(A) (-_COS((A + A_CNT / 2) % _ANGS))
+    #if A_CNT & 1
+      #error "A_CNT must be a positive value. Please change A_INT."
+    #endif
     float trig_table[A_CNT];
     for (uint8_t i = 0; i < A_CNT; i++)
-      trig_table[i] = INTERSECTION_CIRCLE_RADIUS * cos(RADIANS(i * 30));
+      trig_table[i] = INTERSECTION_CIRCLE_RADIUS * cos(RADIANS(i * A_INT));
 
     mesh_index_pair location;
     do {
@@ -807,12 +811,12 @@
           #endif
 
           print_line_from_here_to_there(rx, ry, g26_layer_height, xe, ye, g26_layer_height);
-          MYSERIAL0.flush();  // Prevent host M105 buffer overrun.
+          SERIAL_FLUSH();  // Prevent host M105 buffer overrun.
         }
         if (look_for_lines_to_connect())
           goto LEAVE;
       }
-      MYSERIAL0.flush(); // Prevent host M105 buffer overrun.
+      SERIAL_FLUSH(); // Prevent host M105 buffer overrun.
     } while (--g26_repeats && location.x_index >= 0 && location.y_index >= 0);
 
     LEAVE:

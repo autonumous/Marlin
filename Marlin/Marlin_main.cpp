@@ -487,7 +487,7 @@ float soft_endstop_min[XYZ] = { X_MIN_BED, Y_MIN_BED, Z_MIN_POS },
   #endif
 #endif
 
-#if HAS_CONTROLLERFAN
+#if ENABLED(USE_CONTROLLER_FAN)
   int controllerFanSpeed = 0;
 #endif
 
@@ -11990,7 +11990,7 @@ void process_next_command() {
  */
 void FlushSerialRequestResend() {
   //char command_queue[cmd_queue_index_r][100]="Resend:";
-  MYSERIAL0.flush();
+  SERIAL_FLUSH();
   SERIAL_PROTOCOLPGM(MSG_RESEND);
   SERIAL_PROTOCOLLN(gcode_LastN + 1);
   ok_to_send();

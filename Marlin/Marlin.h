@@ -29,7 +29,6 @@
 #include <inttypes.h>
 
 #include <util/delay.h>
-#include <avr/pgmspace.h>
 #include <avr/eeprom.h>
 #include <avr/interrupt.h>
 
@@ -440,7 +439,7 @@ void report_current_position();
   #endif
 #endif
 
-#if HAS_CONTROLLERFAN
+#if ENABLED(USE_CONTROLLER_FAN)
   extern int controllerFanSpeed;
 #endif
 
