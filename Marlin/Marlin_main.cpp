@@ -925,15 +925,30 @@ void setup_killpin() {
 
 #if ENABLED(FILAMENT_RUNOUT_SENSOR)
 
-  void setup_filrunoutpin() {
-    #if ENABLED(ENDSTOPPULLUP_FIL_RUNOUT)
-      SET_INPUT_PULLUP(FIL_RUNOUT_PIN);
+  void setup_filament_runout_pins() {
+
+    #if ENABLED(FIL_RUNOUT_PULLUP)
+      #define INIT_RUNOUT_PIN(P) SET_INPUT_PULLUP(P)
     #else
-      SET_INPUT(FIL_RUNOUT_PIN);
+      #define INIT_RUNOUT_PIN(P) SET_INPUT(P)
+    #endif
+
+    INIT_RUNOUT_PIN(FIL_RUNOUT_PIN);
+    #if NUM_RUNOUT_SENSORS > 1
+      INIT_RUNOUT_PIN(FIL_RUNOUT2_PIN);
+      #if NUM_RUNOUT_SENSORS > 2
+        INIT_RUNOUT_PIN(FIL_RUNOUT3_PIN);
+        #if NUM_RUNOUT_SENSORS > 3
+          INIT_RUNOUT_PIN(FIL_RUNOUT4_PIN);
+          #if NUM_RUNOUT_SENSORS > 4
+            INIT_RUNOUT_PIN(FIL_RUNOUT5_PIN);
+          #endif
+        #endif
+      #endif
     #endif
   }
 
-#endif
+#endif // FILAMENT_RUNOUT_SENSOR
 
 void setup_powerhold() {
   #if HAS_SUICIDE
@@ -2093,8 +2108,15 @@ static void clean_up_after_endstop_or_probe_move() {
 
     if (endstops.z_probe_enabled == deploy) return false;
 
-    // Make room for probe
-    do_probe_raise(_Z_CLEARANCE_DEPLOY_PROBE);
+    // Fix-mounted probe should only raise for deploy
+    #if ENABLED(FIX_MOUNTED_PROBE)
+      #define RAISE_COND deploy
+    #else
+      #define RAISE_COND true
+    #endif
+
+    // Make room for probe to deploy (or stow)
+    if (RAISE_COND) do_probe_raise(_Z_CLEARANCE_DEPLOY_PROBE);
 
     #if ENABLED(Z_PROBE_SLED) || ENABLED(Z_PROBE_ALLEN_KEY)
       #if ENABLED(Z_PROBE_SLED)
@@ -3600,6 +3622,9 @@ inline void gcode_G4() {
     do_blocking_move_to_xy(1.5 * mlx * x_axis_home_dir, 1.5 * mly * home_dir(Y_AXIS), fr_mm_s);
     endstops.hit_on_purpose(); // clear endstop hit flags
     current_position[X_AXIS] = current_position[Y_AXIS] = 0.0;
+    #if ENABLED(SENSORLESS_HOMING)
+      safe_delay(500); // Short delay needed to settle
+    #endif
   }
 
 #endif // QUICK_HOME
@@ -3866,6 +3891,10 @@ inline void gcode_G4() {
       // This causes the carriage on Dual X to unpark
       #if ENABLED(DUAL_X_CARRIAGE)
         active_extruder_parked = false;
+      #endif
+
+      #if ENABLED(SENSORLESS_HOMING)
+        safe_delay(500); // Short delay needed to settle
       #endif
 
       do_blocking_move_to_xy(destination[X_AXIS], destination[Y_AXIS]);
@@ -13294,6 +13323,38 @@ void disable_all_steppers() {
   disable_e_steppers();
 }
 
+#if ENABLED(FILAMENT_RUNOUT_SENSOR)
+
+  FORCE_INLINE bool check_filament_runout() {
+
+    if (IS_SD_PRINTING || print_job_timer.isRunning()) {
+
+      #if NUM_RUNOUT_SENSORS < 2
+        // A single sensor applying to all extruders
+        return READ(FIL_RUNOUT_PIN) == FIL_RUNOUT_INVERTING;
+      #else
+        // Read the sensor for the active extruder
+        switch (active_extruder) {
+          case 0: return READ(FIL_RUNOUT_PIN) == FIL_RUNOUT_INVERTING;
+          case 1: return READ(FIL_RUNOUT2_PIN) == FIL_RUNOUT_INVERTING;
+          #if NUM_RUNOUT_SENSORS > 2
+            case 2: return READ(FIL_RUNOUT3_PIN) == FIL_RUNOUT_INVERTING;
+            #if NUM_RUNOUT_SENSORS > 3
+              case 3: return READ(FIL_RUNOUT4_PIN) == FIL_RUNOUT_INVERTING;
+              #if NUM_RUNOUT_SENSORS > 4
+                case 4: return READ(FIL_RUNOUT5_PIN) == FIL_RUNOUT_INVERTING;
+              #endif
+            #endif
+          #endif
+        }
+      #endif
+
+    }
+    return false;
+  }
+
+#endif // FILAMENT_RUNOUT_SENSOR
+
 /**
  * Manage several activities:
  *  - Check for Filament Runout
@@ -13309,11 +13370,7 @@ void disable_all_steppers() {
 void manage_inactivity(bool ignore_stepper_queue/*=false*/) {
 
   #if ENABLED(FILAMENT_RUNOUT_SENSOR)
-    if ((IS_SD_PRINTING || print_job_timer.isRunning())
-       && READ(FIL_RUNOUT_PIN) == FIL_RUNOUT_INVERTING
-       && thermalManager.targetHotEnoughToExtrude(active_extruder)
-    )
-      handle_filament_runout();
+    if (check_filament_runout()) handle_filament_runout();
   #endif
 
   if (commands_in_queue < BUFSIZE) get_available_commands();
@@ -13620,7 +13677,7 @@ void setup() {
   #endif
 
   #if ENABLED(FILAMENT_RUNOUT_SENSOR)
-    setup_filrunoutpin();
+    setup_filament_runout_pins();
   #endif
 
   setup_killpin();
