@@ -44,12 +44,6 @@
 #include "utility.h"
 #include "serial.h"
 
-#if ENABLED(PRINTCOUNTER)
-  #include "printcounter.h"
-#else
-  #include "stopwatch.h"
-#endif
-
 void idle(
   #if ENABLED(ADVANCED_PAUSE_FEATURE)
     bool no_stepper_sleep = false  // pass true to keep steppers from disabling on timeout
@@ -196,10 +190,6 @@ void ok_to_send();
 void kill(const char*);
 
 void quickstop_stepper();
-
-#if ENABLED(FILAMENT_RUNOUT_SENSOR)
-  void handle_filament_runout();
-#endif
 
 extern uint8_t marlin_debug_flags;
 #define DEBUGGING(F) (marlin_debug_flags & (DEBUG_## F))
@@ -457,13 +447,6 @@ void report_current_position();
 
 #if ENABLED(PID_EXTRUSION_SCALING)
   extern int lpq_len;
-#endif
-
-// Print job timer
-#if ENABLED(PRINTCOUNTER)
-  extern PrintCounter print_job_timer;
-#else
-  extern Stopwatch print_job_timer;
 #endif
 
 // Handling multiple extruders pins

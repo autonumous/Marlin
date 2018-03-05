@@ -21,30 +21,41 @@
  */
 
 /**
- * MKS BASE 1.0 – Arduino Mega2560 with RAMPS v1.4 pin assignments
- *
- * Rev B - Override pin definitions for CASE_LIGHT and M3/M4/M5 spindle control
+ * runout.cpp - Runout sensor support
  */
 
-#if HOTENDS > 2 || E_STEPPERS > 2
-  #error "MKS BASE 1.0 supports up to 2 hotends / E-steppers. Comment out this line to continue."
-#endif
+#include "MarlinConfig.h"
 
-#define BOARD_NAME "MKS BASE 1.0"
+#if ENABLED(FILAMENT_RUNOUT_SENSOR)
 
-//
-// Heaters / Fans
-//
-// Power outputs EFBF or EFBE
-#define MOSFET_D_PIN 7
+#include "runout.h"
 
-#define CASE_LIGHT_PIN            2
+FilamentRunoutSensor runout;
 
-//
-// M3/M4/M5 - Spindle/Laser Control
-//
-#define SPINDLE_LASER_PWM_PIN     2  // MUST BE HARDWARE PWM
-#define SPINDLE_LASER_ENABLE_PIN 15  // Pin should have a pullup!
-#define SPINDLE_DIR_PIN          19
+bool FilamentRunoutSensor::filament_ran_out; // = false
+uint8_t FilamentRunoutSensor::runout_count; // = 0
 
-#include "pins_RAMPS.h"
+void FilamentRunoutSensor::setup() {
+
+  #if ENABLED(FIL_RUNOUT_PULLUP)
+    #define INIT_RUNOUT_PIN(P) SET_INPUT_PULLUP(P)
+  #else
+    #define INIT_RUNOUT_PIN(P) SET_INPUT(P)
+  #endif
+
+  INIT_RUNOUT_PIN(FIL_RUNOUT_PIN);
+  #if NUM_RUNOUT_SENSORS > 1
+    INIT_RUNOUT_PIN(FIL_RUNOUT2_PIN);
+    #if NUM_RUNOUT_SENSORS > 2
+      INIT_RUNOUT_PIN(FIL_RUNOUT3_PIN);
+      #if NUM_RUNOUT_SENSORS > 3
+        INIT_RUNOUT_PIN(FIL_RUNOUT4_PIN);
+        #if NUM_RUNOUT_SENSORS > 4
+          INIT_RUNOUT_PIN(FIL_RUNOUT5_PIN);
+        #endif
+      #endif
+    #endif
+  #endif
+}
+
+#endif // FILAMENT_RUNOUT_SENSOR

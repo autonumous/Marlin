@@ -260,6 +260,7 @@
 #include "pins_arduino.h"
 #include "math.h"
 #include "nozzle.h"
+#include "printcounter.h"
 #include "duration_t.h"
 #include "types.h"
 #include "gcode.h"
@@ -283,6 +284,10 @@
 
 #if ENABLED(FWRETRACT)
   #include "fwretract.h"
+#endif
+
+#if ENABLED(FILAMENT_RUNOUT_SENSOR)
+  #include "runout.h"
 #endif
 
 #if HAS_BUZZER && DISABLED(LCD_USE_I2C_BUZZER)
@@ -515,13 +520,6 @@ millis_t previous_cmd_ms = 0;
 static millis_t max_inactive_time = 0;
 static millis_t stepper_inactive_time = (DEFAULT_STEPPER_DEACTIVE_TIME) * 1000UL;
 
-// Print Job Timer
-#if ENABLED(PRINTCOUNTER)
-  PrintCounter print_job_timer = PrintCounter();
-#else
-  Stopwatch print_job_timer = Stopwatch();
-#endif
-
 // Auto Power Control
 #if ENABLED(AUTO_POWER_CONTROL)
   #define PSU_ON()  powerManager.power_on()
@@ -664,10 +662,6 @@ float cartes[XYZ] = { 0 };
   uint8_t meas_delay_cm = MEASUREMENT_DELAY_CM;                 // Distance delay setting
   int8_t measurement_delay[MAX_MEASUREMENT_DELAY + 1],          // Ring buffer to delayed measurement. Store extruder factor after subtracting 100
          filwidth_delay_index[2] = { 0, -1 };                   // Indexes into ring buffer
-#endif
-
-#if ENABLED(FILAMENT_RUNOUT_SENSOR)
-  static bool filament_ran_out = false;
 #endif
 
 #if ENABLED(ADVANCED_PAUSE_FEATURE)
@@ -922,33 +916,6 @@ void setup_killpin() {
     SET_INPUT_PULLUP(KILL_PIN);
   #endif
 }
-
-#if ENABLED(FILAMENT_RUNOUT_SENSOR)
-
-  void setup_filament_runout_pins() {
-
-    #if ENABLED(FIL_RUNOUT_PULLUP)
-      #define INIT_RUNOUT_PIN(P) SET_INPUT_PULLUP(P)
-    #else
-      #define INIT_RUNOUT_PIN(P) SET_INPUT(P)
-    #endif
-
-    INIT_RUNOUT_PIN(FIL_RUNOUT_PIN);
-    #if NUM_RUNOUT_SENSORS > 1
-      INIT_RUNOUT_PIN(FIL_RUNOUT2_PIN);
-      #if NUM_RUNOUT_SENSORS > 2
-        INIT_RUNOUT_PIN(FIL_RUNOUT3_PIN);
-        #if NUM_RUNOUT_SENSORS > 3
-          INIT_RUNOUT_PIN(FIL_RUNOUT4_PIN);
-          #if NUM_RUNOUT_SENSORS > 4
-            INIT_RUNOUT_PIN(FIL_RUNOUT5_PIN);
-          #endif
-        #endif
-      #endif
-    #endif
-  }
-
-#endif // FILAMENT_RUNOUT_SENSOR
 
 void setup_powerhold() {
   #if HAS_SUICIDE
@@ -2890,6 +2857,7 @@ static void clean_up_after_endstop_or_probe_move() {
           #endif
           break;
       #endif
+      default: break;
     }
   }
 
@@ -3121,6 +3089,12 @@ static void homeaxis(const AxisEnum axis) {
   // Put away the Z probe
   #if HOMING_Z_WITH_PROBE
     if (axis == Z_AXIS && STOW_PROBE()) return;
+  #endif
+
+  // Clear retracted status if homing the Z axis
+  #if ENABLED(FWRETRACT)
+    if (axis == Z_AXIS)
+      for (uint8_t i = 0; i < EXTRUDERS; i++) fwretract.retracted[i] = false;
   #endif
 
   #if ENABLED(DEBUG_LEVELING_FEATURE)
@@ -3469,7 +3443,7 @@ inline void gcode_G4() {
    */
   inline void gcode_G10() {
     #if EXTRUDERS > 1
-      const bool rs = parser.boolval('S');      
+      const bool rs = parser.boolval('S');
     #endif
     fwretract.retract(true
       #if EXTRUDERS > 1
@@ -6826,7 +6800,7 @@ inline void gcode_M17() {
     planner.set_e_position_mm((destination[E_AXIS] = current_position[E_AXIS] = resume_position[E_AXIS]));
 
     #if ENABLED(FILAMENT_RUNOUT_SENSOR)
-      filament_ran_out = false;
+      runout.reset();
     #endif
 
     #if ENABLED(ULTIPANEL)
@@ -10032,16 +10006,18 @@ inline void gcode_M502() {
 #if HAS_BED_PROBE
 
   inline void gcode_M851() {
+    if (parser.seenval('Z')) {
+      const float value = parser.value_linear_units();
+      if (WITHIN(value, Z_PROBE_OFFSET_RANGE_MIN, Z_PROBE_OFFSET_RANGE_MAX))
+        zprobe_zoffset = value;
+      else {
+        SERIAL_ERROR_START();
+        SERIAL_ERRORLNPGM("?Z out of range (" STRINGIFY(Z_PROBE_OFFSET_RANGE_MIN) " to " STRINGIFY(Z_PROBE_OFFSET_RANGE_MAX) ")");
+      }
+      return;
+    }
     SERIAL_ECHO_START();
     SERIAL_ECHOPGM(MSG_PROBE_Z_OFFSET);
-    if (parser.seen('Z')) {
-      const float value = parser.value_linear_units();
-      if (!WITHIN(value, Z_PROBE_OFFSET_RANGE_MIN, Z_PROBE_OFFSET_RANGE_MAX)) {
-        SERIAL_ECHOLNPGM(" " MSG_Z_MIN " " STRINGIFY(Z_PROBE_OFFSET_RANGE_MIN) " " MSG_Z_MAX " " STRINGIFY(Z_PROBE_OFFSET_RANGE_MAX));
-        return;
-      }
-      zprobe_zoffset = value;
-    }
     SERIAL_ECHOLNPAIR(": ", zprobe_zoffset);
   }
 
@@ -10679,11 +10655,11 @@ inline void gcode_M502() {
       }
 
       #if Z_IS_TRINAMIC
-        uint16_t Z_current_1 = stepperZ.getCurrent(),
+        uint16_t Z_current_1 = stepperZ.getCurrent();
         stepperZ.setCurrent(_rms, R_SENSE, HOLD_MULTIPLIER);
       #endif
       #if Z2_IS_TRINAMIC
-        uint16_t Z2_current_1 = stepperZ.getCurrent();
+        uint16_t Z2_current_1 = stepperZ2.getCurrent();
         stepperZ2.setCurrent(_rms, R_SENSE, HOLD_MULTIPLIER);
       #endif
 
@@ -13232,18 +13208,6 @@ void prepare_move_to_destination() {
 
 #endif
 
-#if ENABLED(FILAMENT_RUNOUT_SENSOR)
-
-  void handle_filament_runout() {
-    if (!filament_ran_out) {
-      filament_ran_out = true;
-      enqueue_and_echo_commands_P(PSTR(FILAMENT_RUNOUT_SCRIPT));
-      stepper.synchronize();
-    }
-  }
-
-#endif // FILAMENT_RUNOUT_SENSOR
-
 void enable_all_steppers() {
   #if ENABLED(AUTO_POWER_CONTROL)
     powerManager.power_on();
@@ -13283,38 +13247,6 @@ void disable_all_steppers() {
   disable_e_steppers();
 }
 
-#if ENABLED(FILAMENT_RUNOUT_SENSOR)
-
-  FORCE_INLINE bool check_filament_runout() {
-
-    if (IS_SD_PRINTING || print_job_timer.isRunning()) {
-
-      #if NUM_RUNOUT_SENSORS < 2
-        // A single sensor applying to all extruders
-        return READ(FIL_RUNOUT_PIN) == FIL_RUNOUT_INVERTING;
-      #else
-        // Read the sensor for the active extruder
-        switch (active_extruder) {
-          case 0: return READ(FIL_RUNOUT_PIN) == FIL_RUNOUT_INVERTING;
-          case 1: return READ(FIL_RUNOUT2_PIN) == FIL_RUNOUT_INVERTING;
-          #if NUM_RUNOUT_SENSORS > 2
-            case 2: return READ(FIL_RUNOUT3_PIN) == FIL_RUNOUT_INVERTING;
-            #if NUM_RUNOUT_SENSORS > 3
-              case 3: return READ(FIL_RUNOUT4_PIN) == FIL_RUNOUT_INVERTING;
-              #if NUM_RUNOUT_SENSORS > 4
-                case 4: return READ(FIL_RUNOUT5_PIN) == FIL_RUNOUT_INVERTING;
-              #endif
-            #endif
-          #endif
-        }
-      #endif
-
-    }
-    return false;
-  }
-
-#endif // FILAMENT_RUNOUT_SENSOR
-
 /**
  * Manage several activities:
  *  - Check for Filament Runout
@@ -13330,7 +13262,7 @@ void disable_all_steppers() {
 void manage_inactivity(bool ignore_stepper_queue/*=false*/) {
 
   #if ENABLED(FILAMENT_RUNOUT_SENSOR)
-    if (check_filament_runout()) handle_filament_runout();
+    runout.run();
   #endif
 
   if (commands_in_queue < BUFSIZE) get_available_commands();
@@ -13637,7 +13569,7 @@ void setup() {
   #endif
 
   #if ENABLED(FILAMENT_RUNOUT_SENSOR)
-    setup_filament_runout_pins();
+    runout.setup();
   #endif
 
   setup_killpin();
@@ -13704,6 +13636,8 @@ void setup() {
   SYNC_PLAN_POSITION_KINEMATIC();
 
   thermalManager.init();    // Initialize temperature loop
+
+  print_job_timer.init();   // Initial setup of print job timer
 
   #if ENABLED(USE_WATCHDOG)
     watchdog_init();
