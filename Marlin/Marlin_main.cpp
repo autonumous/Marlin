@@ -89,7 +89,7 @@
  * M24  - Start/resume SD print. (Requires SDSUPPORT)
  * M25  - Pause SD print. (Requires SDSUPPORT)
  * M26  - Set SD position in bytes: "M26 S12345". (Requires SDSUPPORT)
- * M27  - Report SD print status. (Requires SDSUPPORT)
+ * M27  - Report SD print status. (Requires SDSUPPORT) Or, with 'S<seconds>' sets the SD status auto-report interval. (Requires AUTO_REPORT_SD_STATUS)
  * M28  - Start SD write: "M28 /path/file.gco". (Requires SDSUPPORT)
  * M29  - Stop SD write. (Requires SDSUPPORT)
  * M30  - Delete file from SD: "M30 /path/file.gco"
@@ -508,6 +508,10 @@ volatile bool wait_for_heatup = true;
 // For M0/M1, this flag may be cleared (by M108) to exit the wait-for-user loop
 #if HAS_RESUME_CONTINUE
   volatile bool wait_for_user = false;
+#endif
+
+#if HAS_AUTO_REPORTING
+  bool suspend_auto_report; // = false
 #endif
 
 const char axis_codes[XYZE] = { 'X', 'Y', 'Z', 'E' };
@@ -5313,7 +5317,7 @@ void home_all_axes() { gcode_G28(true); }
   constexpr uint8_t _7P_STEP = 1,              // 7-point step - to change number of calibration points
                     _4P_STEP = _7P_STEP * 2,   // 4-point step
                     NPP      = _7P_STEP * 6;   // number of calibration points on the radius
-  enum CalEnum {                               // the 7 main calibration points - add definitions if needed
+  enum CalEnum : char {                               // the 7 main calibration points - add definitions if needed
     CEN      = 0,
     __A      = 1,
     _AB      = __A + _7P_STEP,
@@ -6887,9 +6891,16 @@ inline void gcode_M17() {
   }
 
   /**
-   * M27: Get SD Card status
+   * M27: Get SD Card status or set the SD status auto-report interval.
    */
-  inline void gcode_M27() { card.getStatus(); }
+  inline void gcode_M27() {
+    #if ENABLED(AUTO_REPORT_SD_STATUS)
+      if (parser.seenval('S'))
+        card.set_auto_report_interval(parser.value_byte());
+      else
+    #endif
+        card.getStatus();
+  }
 
   /**
    * M28: Start SD Write
@@ -7700,7 +7711,7 @@ inline void gcode_M104() {
 inline void gcode_M105() {
   if (get_target_extruder_from_command(105)) return;
 
-  #if HAS_TEMP_HOTEND || HAS_TEMP_BED
+  #if HAS_TEMP_SENSOR
     SERIAL_PROTOCOLPGM(MSG_OK);
     thermalManager.print_heaterstates();
   #else // !HAS_TEMP_HOTEND && !HAS_TEMP_BED
@@ -7711,7 +7722,7 @@ inline void gcode_M105() {
   SERIAL_EOL();
 }
 
-#if ENABLED(AUTO_REPORT_TEMPERATURES) && (HAS_TEMP_HOTEND || HAS_TEMP_BED)
+#if ENABLED(AUTO_REPORT_TEMPERATURES)
 
   /**
    * M155: Set temperature auto-report interval. M155 S<seconds>
@@ -8633,6 +8644,13 @@ inline void gcode_M115() {
     // EMERGENCY_PARSER (M108, M112, M410)
     cap_line(PSTR("EMERGENCY_PARSER")
       #if ENABLED(EMERGENCY_PARSER)
+        , true
+      #endif
+    );
+
+    // AUTOREPORT_SD_STATUS (M27 extension)
+    cap_line(PSTR("AUTOREPORT_SD_STATUS")
+      #if ENABLED(AUTO_REPORT_SD_STATUS)
         , true
       #endif
     );
@@ -10474,8 +10492,8 @@ inline void gcode_M502() {
     LOOP_XYZE(i) values[i] = parser.intval(axis_codes[i]);
 
     #define TMC_SET_GET_CURRENT(P,Q) do { \
-      if (values[P##_AXIS]) tmc_set_current(stepper##Q, extended_axis_codes[TMC_##Q], values[P##_AXIS]); \
-      else tmc_get_current(stepper##Q, extended_axis_codes[TMC_##Q]); } while(0)
+      if (values[P##_AXIS]) tmc_set_current(stepper##Q, TMC_##Q, values[P##_AXIS]); \
+      else tmc_get_current(stepper##Q, TMC_##Q); } while(0)
 
     #if X_IS_TRINAMIC
       TMC_SET_GET_CURRENT(X,X);
@@ -10518,16 +10536,16 @@ inline void gcode_M502() {
    */
   inline void gcode_M911() {
     #if ENABLED(X_IS_TMC2130) || (ENABLED(X_IS_TMC2208) && PIN_EXISTS(X_SERIAL_RX)) || ENABLED(IS_TRAMS)
-      tmc_report_otpw(stepperX, extended_axis_codes[TMC_X]);
+      tmc_report_otpw(stepperX, TMC_X);
     #endif
     #if ENABLED(Y_IS_TMC2130) || (ENABLED(Y_IS_TMC2208) && PIN_EXISTS(Y_SERIAL_RX)) || ENABLED(IS_TRAMS)
-      tmc_report_otpw(stepperY, extended_axis_codes[TMC_Y]);
+      tmc_report_otpw(stepperY, TMC_Y);
     #endif
     #if ENABLED(Z_IS_TMC2130) || (ENABLED(Z_IS_TMC2208) && PIN_EXISTS(Z_SERIAL_RX)) || ENABLED(IS_TRAMS)
-      tmc_report_otpw(stepperZ, extended_axis_codes[TMC_Z]);
+      tmc_report_otpw(stepperZ, TMC_Z);
     #endif
     #if ENABLED(E0_IS_TMC2130) || (ENABLED(E0_IS_TMC2208) && PIN_EXISTS(E0_SERIAL_RX)) || ENABLED(IS_TRAMS)
-      tmc_report_otpw(stepperE0, extended_axis_codes[TMC_E0]);
+      tmc_report_otpw(stepperE0, TMC_E0);
     #endif
   }
 
@@ -10538,22 +10556,22 @@ inline void gcode_M502() {
     const bool clearX = parser.seen(axis_codes[X_AXIS]), clearY = parser.seen(axis_codes[Y_AXIS]), clearZ = parser.seen(axis_codes[Z_AXIS]), clearE = parser.seen(axis_codes[E_AXIS]),
              clearAll = (!clearX && !clearY && !clearZ && !clearE) || (clearX && clearY && clearZ && clearE);
     #if ENABLED(X_IS_TMC2130) || ENABLED(IS_TRAMS) || (ENABLED(X_IS_TMC2208) && PIN_EXISTS(X_SERIAL_RX))
-      if (clearX || clearAll) tmc_clear_otpw(stepperX, extended_axis_codes[TMC_X]);
+      if (clearX || clearAll) tmc_clear_otpw(stepperX, TMC_X);
     #endif
     #if ENABLED(X2_IS_TMC2130) || (ENABLED(X2_IS_TMC2208) && PIN_EXISTS(X_SERIAL_RX))
-      if (clearX || clearAll) tmc_clear_otpw(stepperX, extended_axis_codes[TMC_X]);
+      if (clearX || clearAll) tmc_clear_otpw(stepperX, TMC_X);
     #endif
 
     #if ENABLED(Y_IS_TMC2130) || (ENABLED(Y_IS_TMC2208) && PIN_EXISTS(Y_SERIAL_RX))
-      if (clearY || clearAll) tmc_clear_otpw(stepperY, extended_axis_codes[TMC_Y]);
+      if (clearY || clearAll) tmc_clear_otpw(stepperY, TMC_Y);
     #endif
 
     #if ENABLED(Z_IS_TMC2130) || (ENABLED(Z_IS_TMC2208) && PIN_EXISTS(Z_SERIAL_RX))
-      if (clearZ || clearAll) tmc_clear_otpw(stepperZ, extended_axis_codes[TMC_Z]);
+      if (clearZ || clearAll) tmc_clear_otpw(stepperZ, TMC_Z);
     #endif
 
     #if ENABLED(E0_IS_TMC2130) || (ENABLED(E0_IS_TMC2208) && PIN_EXISTS(E0_SERIAL_RX))
-      if (clearE || clearAll) tmc_clear_otpw(stepperE0, extended_axis_codes[TMC_E0]);
+      if (clearE || clearAll) tmc_clear_otpw(stepperE0, TMC_E0);
     #endif
   }
 
@@ -10566,8 +10584,8 @@ inline void gcode_M502() {
       LOOP_XYZE(i) values[i] = parser.intval(axis_codes[i]);
 
       #define TMC_SET_GET_PWMTHRS(P,Q) do { \
-        if (values[P##_AXIS]) tmc_set_pwmthrs(stepper##Q, extended_axis_codes[TMC_##Q], values[P##_AXIS], planner.axis_steps_per_mm[P##_AXIS]); \
-        else tmc_get_pwmthrs(stepper##Q, extended_axis_codes[TMC_##Q], planner.axis_steps_per_mm[P##_AXIS]); } while(0)
+        if (values[P##_AXIS]) tmc_set_pwmthrs(stepper##Q, TMC_##Q, values[P##_AXIS], planner.axis_steps_per_mm[P##_AXIS]); \
+        else tmc_get_pwmthrs(stepper##Q, TMC_##Q, planner.axis_steps_per_mm[P##_AXIS]); } while(0)
 
       #if X_IS_TRINAMIC
         TMC_SET_GET_PWMTHRS(X,X);
@@ -10611,8 +10629,8 @@ inline void gcode_M502() {
   #if ENABLED(SENSORLESS_HOMING)
     inline void gcode_M914() {
       #define TMC_SET_GET_SGT(P,Q) do { \
-        if (parser.seen(axis_codes[P##_AXIS])) tmc_set_sgt(stepper##Q, extended_axis_codes[TMC_##Q], parser.value_int()); \
-        else tmc_get_sgt(stepper##Q, extended_axis_codes[TMC_##Q]); } while(0)
+        if (parser.seen(axis_codes[P##_AXIS])) tmc_set_sgt(stepper##Q, TMC_##Q, parser.value_int()); \
+        else tmc_get_sgt(stepper##Q, TMC_##Q); } while(0)
 
       #ifdef X_HOMING_SENSITIVITY
         #if ENABLED(X_IS_TMC2130) || ENABLED(IS_TRAMS)
@@ -11677,7 +11695,7 @@ void process_parsed_command() {
 
       case 105: gcode_M105(); KEEPALIVE_STATE(NOT_BUSY); return;  // M105: Report Temperatures (and say "ok")
 
-      #if ENABLED(AUTO_REPORT_TEMPERATURES) && (HAS_TEMP_HOTEND || HAS_TEMP_BED)
+      #if ENABLED(AUTO_REPORT_TEMPERATURES)
         case 155: gcode_M155(); break;                            // M155: Set Temperature Auto-report Interval
       #endif
 
@@ -13449,10 +13467,6 @@ void idle(
 
   host_keepalive();
 
-  #if ENABLED(AUTO_REPORT_TEMPERATURES) && (HAS_TEMP_HOTEND || HAS_TEMP_BED)
-    thermalManager.auto_report_temperatures();
-  #endif
-
   manage_inactivity(
     #if ENABLED(ADVANCED_PAUSE_FEATURE)
       no_stepper_sleep
@@ -13474,6 +13488,17 @@ void idle(
     if (planner.blocks_queued() && ELAPSED(millis(), i2cpem_next_update_ms)) {
       I2CPEM.update();
       i2cpem_next_update_ms = millis() + I2CPE_MIN_UPD_TIME_MS;
+    }
+  #endif
+
+  #if HAS_AUTO_REPORTING
+    if (!suspend_auto_report) {
+      #if ENABLED(AUTO_REPORT_TEMPERATURES)
+        thermalManager.auto_report_temperatures();
+      #endif
+      #if ENABLED(AUTO_REPORT_SD_STATUS)
+        card.auto_report_sd_status();
+      #endif
     }
   #endif
 }
