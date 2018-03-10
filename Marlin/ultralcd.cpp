@@ -85,7 +85,11 @@ uint8_t lcd_status_update_delay = 1, // First update one loop delayed
         lcd_status_message_level;    // Higher level blocks lower level
 
 #if ENABLED(STATUS_MESSAGE_SCROLLING)
-  #define MAX_MESSAGE_LENGTH max(CHARSIZE * 2 * (LCD_WIDTH), LONG_FILENAME_LENGTH)
+  #if LONG_FILENAME_LENGTH > CHARSIZE * 2 * (LCD_WIDTH)
+    #define MAX_MESSAGE_LENGTH LONG_FILENAME_LENGTH
+  #else
+    #define MAX_MESSAGE_LENGTH CHARSIZE * 2 * (LCD_WIDTH)
+  #endif
   uint8_t status_scroll_pos = 0;
 #else
   #define MAX_MESSAGE_LENGTH CHARSIZE * (LCD_WIDTH)
@@ -2924,7 +2928,7 @@ void kill_screen(const char* lcd_msg) {
    */
   inline void manual_move_to_current(AxisEnum axis
     #if E_MANUAL > 1
-      , int8_t eindex=-1
+      , const int8_t eindex=-1
     #endif
   ) {
     #if ENABLED(DUAL_X_CARRIAGE) || E_MANUAL > 1
@@ -3024,7 +3028,7 @@ void kill_screen(const char* lcd_msg) {
   void lcd_move_z() { _lcd_move_xyz(PSTR(MSG_MOVE_Z), Z_AXIS); }
   void _lcd_move_e(
     #if E_MANUAL > 1
-      int8_t eindex=-1
+      const int8_t eindex=-1
     #endif
   ) {
     if (use_click()) { return lcd_goto_previous_menu(); }
@@ -4897,6 +4901,9 @@ void kill_screen(const char* lcd_msg) {
       encoderTopLine = 0;
       encoderPosition = 2 * ENCODER_STEPS_PER_MENU_ITEM;
       screen_changed = true;
+      #if ENABLED(DOGLCD)
+        drawing_screen = false;
+      #endif
       lcdDrawUpdate = LCDVIEW_CLEAR_CALL_REDRAW;
     }
 
