@@ -654,7 +654,7 @@
   //#define DOGM_SPI_DELAY_US 5
 
   // Swap the CW/CCW indicators in the graphics overlay
-//  #define OVERLAY_GFX_REVERSE
+  #define OVERLAY_GFX_REVERSE
 
   #if ENABLED(U8GLIB_ST7920)
     /**

@@ -29,8 +29,7 @@
 
 #include "MarlinConfig.h"
 
-// BigBox Enable Splash Screen
-#define START_BMPHIGH // Costs 399 bytes more flash
+//#define START_BMPHIGH // Costs 399 bytes more flash
 
 #if ENABLED(SHOW_BOOTSCREEN)
 
