@@ -89,7 +89,9 @@
  * M24  - Start/resume SD print. (Requires SDSUPPORT)
  * M25  - Pause SD print. (Requires SDSUPPORT)
  * M26  - Set SD position in bytes: "M26 S12345". (Requires SDSUPPORT)
- * M27  - Report SD print status. (Requires SDSUPPORT) Or, with 'S<seconds>' set the SD status auto-report interval. (Requires AUTO_REPORT_SD_STATUS)
+ * M27  - Report SD print status. (Requires SDSUPPORT)
+ *        OR, with 'S<seconds>' set the SD status auto-report interval. (Requires AUTO_REPORT_SD_STATUS)
+ *        OR, with 'C' get the current filename.
  * M28  - Start SD write: "M28 /path/file.gco". (Requires SDSUPPORT)
  * M29  - Stop SD write. (Requires SDSUPPORT)
  * M30  - Delete file from SD: "M30 /path/file.gco"
@@ -3775,6 +3777,14 @@ inline void gcode_G4() {
 
 #if ENABLED(DELTA)
 
+  #if ENABLED(SENSORLESS_HOMING)
+    inline void delta_sensorless_homing(const bool on=true) {
+      sensorless_homing_per_axis(A_AXIS, on);
+      sensorless_homing_per_axis(B_AXIS, on);
+      sensorless_homing_per_axis(C_AXIS, on);
+    }
+  #endif
+
   /**
    * A delta can only safely home all axes at the same time
    * This is like quick_home_xy() but for 3 towers.
@@ -3789,9 +3799,7 @@ inline void gcode_G4() {
 
     // Disable stealthChop if used. Enable diag1 pin on driver.
     #if ENABLED(SENSORLESS_HOMING)
-      sensorless_homing_per_axis(A_AXIS);
-      sensorless_homing_per_axis(B_AXIS);
-      sensorless_homing_per_axis(C_AXIS);
+      delta_sensorless_homing();
     #endif
 
     // Move all carriages together linearly until an endstop is hit.
@@ -3800,19 +3808,15 @@ inline void gcode_G4() {
     buffer_line_to_current_position();
     stepper.synchronize();
 
-    // Re-enable stealthChop if used. Disable diag1 pin on driver.
-    #if ENABLED(SENSORLESS_HOMING)
-      sensorless_homing_per_axis(A_AXIS, false);
-      sensorless_homing_per_axis(B_AXIS, false);
-      sensorless_homing_per_axis(C_AXIS, false);
-    #endif
-
     // If an endstop was not hit, then damage can occur if homing is continued.
     // This can occur if the delta height not set correctly.
     if (!(Endstops::endstop_hit_bits & (_BV(X_MAX) | _BV(Y_MAX) | _BV(Z_MAX)))) {
       LCD_MESSAGEPGM(MSG_ERR_HOMING_FAILED);
       SERIAL_ERROR_START();
       SERIAL_ERRORLNPGM(MSG_ERR_HOMING_FAILED);
+      #if ENABLED(SENSORLESS_HOMING)
+        delta_sensorless_homing(false);
+      #endif
       return false;
     }
 
@@ -3823,6 +3827,11 @@ inline void gcode_G4() {
     HOMEAXIS(A);
     HOMEAXIS(B);
     HOMEAXIS(C);
+
+    // Re-enable stealthChop if used. Disable diag1 pin on driver.
+    #if ENABLED(SENSORLESS_HOMING)
+      delta_sensorless_homing(false);
+    #endif
 
     // Set all carriages to their home positions
     // Do this here all at once for Delta, because
@@ -3963,7 +3972,9 @@ inline void gcode_G28(const bool always_home_all) {
 
   // Always home with tool 0 active
   #if HOTENDS > 1
-    const uint8_t old_tool_index = active_extruder;
+    #if DISABLED(DELTA) || ENABLED(DELTA_HOME_TO_SAFE_ZONE)
+      const uint8_t old_tool_index = active_extruder;
+    #endif
     tool_change(0, 0, true);
   #endif
 
@@ -4105,7 +4116,7 @@ inline void gcode_G28(const bool always_home_all) {
   clean_up_after_endstop_or_probe_move();
 
   // Restore the active tool after homing
-  #if HOTENDS > 1
+  #if HOTENDS > 1 && (DISABLED(DELTA) || ENABLED(DELTA_HOME_TO_SAFE_ZONE))
     #if ENABLED(PARKING_EXTRUDER)
       #define NO_FETCH false // fetch the previous toolhead
     #else
@@ -5634,15 +5645,15 @@ void home_all_axes() { gcode_G28(true); }
    *      P1     Probe center and set height only.
    *      P2     Probe center and towers. Set height, endstops and delta radius.
    *      P3     Probe all positions: center, towers and opposite towers. Set all.
-   *      P4-P10 Probe all positions + at different itermediate locations and average them.
+   *      P4-P10 Probe all positions + at different intermediate locations and average them.
    *
    *   T   Don't calibrate tower angle corrections
    *
    *   Cn.nn  Calibration precision; when omitted calibrates to maximum precision
    *
-   *   Fn  Force to run at least n iterations and takes the best result
+   *   Fn  Force to run at least n iterations and take the best result
    *
-   *   A   Auto tune calibartion factors (set in Configuration.h)
+   *   A   Auto-tune calibration factors (set in Configuration.h)
    *
    *   Vn  Verbose level:
    *      V0  Dry-run mode. Report settings and probe results. No calibration.
@@ -6881,15 +6892,23 @@ inline void gcode_M17() {
   }
 
   /**
-   * M27: Get SD Card status or set the SD status auto-report interval.
+   * M27: Get SD Card status
+   *      OR, with 'S<seconds>' set the SD status auto-report interval. (Requires AUTO_REPORT_SD_STATUS)
+   *      OR, with 'C' get the current filename.
    */
   inline void gcode_M27() {
+    if (parser.seen('C')) {
+      SERIAL_ECHOPGM("Current file: ");
+      card.printFilename();
+    }
+
     #if ENABLED(AUTO_REPORT_SD_STATUS)
-      if (parser.seenval('S'))
+      else if (parser.seenval('S'))
         card.set_auto_report_interval(parser.value_byte());
-      else
     #endif
-        card.getStatus();
+
+    else
+      card.getStatus();
   }
 
   /**
@@ -8702,7 +8721,7 @@ inline void gcode_M121() { endstops.enable_globally(false); }
     // Lift Z axis
     if (parser.seenval('Z')) park_point.z = parser.linearval('Z');
 
-    #if HOTENDS > 1 && DISABLED(DUAL_X_CARRIAGE)
+    #if HOTENDS > 1 && DISABLED(DUAL_X_CARRIAGE) && DISABLED(DELTA)
       park_point.x += (active_extruder ? hotend_offset[X_AXIS][active_extruder] : 0);
       park_point.y += (active_extruder ? hotend_offset[Y_AXIS][active_extruder] : 0);
     #endif
@@ -9153,6 +9172,11 @@ inline void gcode_M211() {
       }
       SERIAL_EOL();
     }
+
+    #if ENABLED(DELTA)
+      if (target_extruder == active_extruder)
+        do_blocking_move_to_xy(current_position[X_AXIS], current_position[Y_AXIS], planner.max_feedrate_mm_s[X_AXIS]);
+    #endif
   }
 
 #endif // HOTENDS > 1
@@ -10194,7 +10218,7 @@ inline void gcode_M502() {
     if (parser.seenval('X')) park_point.x = parser.linearval('X');
     if (parser.seenval('Y')) park_point.y = parser.linearval('Y');
 
-    #if HOTENDS > 1 && DISABLED(DUAL_X_CARRIAGE)
+    #if HOTENDS > 1 && DISABLED(DUAL_X_CARRIAGE) && DISABLED(DELTA)
       park_point.x += (active_extruder ? hotend_offset[X_AXIS][active_extruder] : 0);
       park_point.y += (active_extruder ? hotend_offset[Y_AXIS][active_extruder] : 0);
     #endif
@@ -11326,7 +11350,7 @@ void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool m
             const float z_diff = hotend_offset[Z_AXIS][active_extruder] - hotend_offset[Z_AXIS][tmp_extruder],
                         z_raise = 0.3 + (z_diff > 0.0 ? z_diff : 0.0);
 
-            // Always raise by some amount (destination copied from current_position earlier)
+            // Always raise by some amount
             current_position[Z_AXIS] += z_raise;
             planner.buffer_line_kinematic(current_position, planner.max_feedrate_mm_s[Z_AXIS], active_extruder);
             move_nozzle_servo(tmp_extruder);
@@ -11436,12 +11460,25 @@ void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool m
         // Tell the planner the new "current position"
         SYNC_PLAN_POSITION_KINEMATIC();
 
-        // Move to the "old position" (move the extruder into place)
+        #if ENABLED(DELTA)
+          //LOOP_XYZ(i) update_software_endstops(i); // or modify the constrain function
+          // Do a small lift to avoid the workpiece in the move back (below)
+          const bool safe_to_move = current_position[Z_AXIS] < delta_clip_start_height - 1;
+          if (!no_move && IsRunning() && safe_to_move) {
+            ++current_position[Z_AXIS];
+            planner.buffer_line_kinematic(current_position, planner.max_feedrate_mm_s[Z_AXIS], active_extruder);
+          }
+        #else
+          constexpr bool safe_to_move = true;
+        #endif
+
         #if ENABLED(SWITCHING_NOZZLE)
           destination[Z_AXIS] += z_diff;  // Include the Z restore with the "move back"
         #endif
-        //if (!no_move && IsRunning()) {
-        if (move && IsRunning()) {
+
+        // Move to the "old position" (move the extruder into place)
+        //if (safe_to_move && !no_move && IsRunning()) {
+        if (safe_to_move && !move && IsRunning()) {
           #if ENABLED(DEBUG_LEVELING_FEATURE)
             if (DEBUGGING(LEVELING)) DEBUG_POS("Move back", destination);
           #endif
@@ -12262,18 +12299,29 @@ void ok_to_send() {
    *   (see above)
    */
 
-  #define DELTA_DEBUG() do { \
-      SERIAL_ECHOPAIR("cartesian X:", raw[X_AXIS]); \
-      SERIAL_ECHOPAIR(" Y:", raw[Y_AXIS]);          \
-      SERIAL_ECHOLNPAIR(" Z:", raw[Z_AXIS]);        \
+  #define DELTA_DEBUG(VAR) do { \
+      SERIAL_ECHOPAIR("cartesian X:", VAR[X_AXIS]); \
+      SERIAL_ECHOPAIR(" Y:", VAR[Y_AXIS]);          \
+      SERIAL_ECHOLNPAIR(" Z:", VAR[Z_AXIS]);        \
       SERIAL_ECHOPAIR("delta A:", delta[A_AXIS]);   \
       SERIAL_ECHOPAIR(" B:", delta[B_AXIS]);        \
       SERIAL_ECHOLNPAIR(" C:", delta[C_AXIS]);      \
     }while(0)
 
   void inverse_kinematics(const float raw[XYZ]) {
-    DELTA_IK(raw);
-    // DELTA_DEBUG();
+    #if HOTENDS > 1
+      // Delta hotend offsets must be applied in Cartesian space with no "spoofing"
+      const float pos[XYZ] = {
+        raw[X_AXIS] - hotend_offset[X_AXIS][active_extruder],
+        raw[Y_AXIS] - hotend_offset[Y_AXIS][active_extruder],
+        raw[Z_AXIS]
+      };
+      DELTA_IK(pos);
+      //DELTA_DEBUG(pos);
+    #else
+      DELTA_IK(raw);
+      //DELTA_DEBUG(raw);
+    #endif
   }
 
   /**
@@ -12283,10 +12331,10 @@ void ok_to_send() {
   float delta_safe_distance_from_top() {
     float cartesian[XYZ] = { 0, 0, 0 };
     inverse_kinematics(cartesian);
-    float distance = delta[A_AXIS];
+    const float centered_extent = delta[A_AXIS];
     cartesian[Y_AXIS] = DELTA_PRINTABLE_RADIUS;
     inverse_kinematics(cartesian);
-    return FABS(distance - delta[A_AXIS]);
+    return FABS(centered_extent - delta[A_AXIS]);
   }
 
   /**
@@ -12725,7 +12773,7 @@ void set_current_from_steppers_for_axis(const AxisEnum axis) {
       }
 
       LOOP_XYZE(i) raw[i] += segment_distance[i];
-      #if ENABLED(DELTA)
+      #if ENABLED(DELTA) && HOTENDS < 2
         DELTA_IK(raw); // Delta can inline its kinematics
       #else
         inverse_kinematics(raw);
