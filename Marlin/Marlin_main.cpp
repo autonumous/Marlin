@@ -4534,9 +4534,9 @@ void home_all_axes() { gcode_G28(true); }
 
       // Probe at 3 arbitrary points
       ABL_VAR vector_3 points[3] = {
-        vector_3(ABL_PROBE_PT_1_X, ABL_PROBE_PT_1_Y, 0),
-        vector_3(ABL_PROBE_PT_2_X, ABL_PROBE_PT_2_Y, 0),
-        vector_3(ABL_PROBE_PT_3_X, ABL_PROBE_PT_3_Y, 0)
+        vector_3(PROBE_PT_1_X, PROBE_PT_1_Y, 0),
+        vector_3(PROBE_PT_2_X, PROBE_PT_2_Y, 0),
+        vector_3(PROBE_PT_3_X, PROBE_PT_3_Y, 0)
       };
 
     #endif // AUTO_BED_LEVELING_3POINT
@@ -13598,7 +13598,7 @@ void kill(const char* lcd_msg) {
   #endif
 
   #if HAS_POWER_SWITCH
-    SET_INPUT(PS_ON_PIN);
+    PSU_OFF();
   #endif
 
   suicide();
