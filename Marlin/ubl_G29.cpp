@@ -51,7 +51,6 @@
 
   extern float meshedit_done;
   extern long babysteps_done;
-  float probe_pt(const float &rx, const float &ry, const bool, const uint8_t, const bool=true);
 
   #define SIZE_OF_LITTLE_RAISE 1
   #define BIG_RAISE_NOT_NEEDED 0
@@ -508,7 +507,7 @@
           }
           else {
             const float cvf = parser.value_float();
-            switch((int)truncf(cvf * 10.0) - 30) {   // 3.1 -> 1
+            switch ((int)truncf(cvf * 10.0) - 30) {   // 3.1 -> 1
               #if ENABLED(UBL_G29_P31)
                 case 1: {
 
@@ -595,8 +594,8 @@
     if (parser.seen('S')) {     // Store (or Save) Current Mesh Data
       g29_storage_slot = parser.has_value() ? parser.value_int() : storage_slot;
 
-      if (g29_storage_slot == -1)                     // Special case, we are going to 'Export' the mesh to the
-        return report_current_mesh();
+      if (g29_storage_slot == -1)                     // Special case, the user wants to 'Export' the mesh to the
+        return report_current_mesh();                 // host program to be saved on the user's computer
 
       int16_t a = settings.calc_num_meshes();
 
@@ -708,7 +707,7 @@
      * Probe all invalidated locations of the mesh that can be reached by the probe.
      * This attempts to fill in locations closest to the nozzle's start location first.
      */
-    void unified_bed_leveling::probe_entire_mesh(const float &rx, const float &ry, const bool do_ubl_mesh_map, const bool stow_probe, bool close_or_far) {
+    void unified_bed_leveling::probe_entire_mesh(const float &rx, const float &ry, const bool do_ubl_mesh_map, const bool stow_probe, const bool do_furthest) {
       mesh_index_pair location;
 
       #if ENABLED(NEWPANEL)
@@ -718,7 +717,7 @@
       save_ubl_active_state_and_disable();   // we don't do bed level correction because we want the raw data when we probe
       DEPLOY_PROBE();
 
-      uint16_t max_iterations = GRID_MAX_POINTS;
+      uint16_t count = GRID_MAX_POINTS;
 
       do {
         if (do_ubl_mesh_map) display_map(g29_map_type);
@@ -737,7 +736,7 @@
           }
         #endif
 
-        if (close_or_far)
+        if (do_furthest)
           location = find_furthest_invalid_mesh_point();
         else
           location = find_closest_mesh_point_of_type(INVALID, rx, ry, USE_PROBE_AS_REFERENCE, NULL);
@@ -746,14 +745,17 @@
           const float rawx = mesh_index_to_xpos(location.x_index),
                       rawy = mesh_index_to_ypos(location.y_index);
 
-          const float measured_z = probe_pt(rawx, rawy, stow_probe, g29_verbose_level); // TODO: Needs error handling
+          const float measured_z = probe_pt(rawx, rawy, stow_probe ? PROBE_PT_STOW : PROBE_PT_RAISE, g29_verbose_level); // TODO: Needs error handling
           z_values[location.x_index][location.y_index] = measured_z;
         }
         SERIAL_FLUSH(); // Prevent host M105 buffer overrun.
-      } while (location.x_index >= 0 && --max_iterations);
+      } while (location.x_index >= 0 && --count);
 
       STOW_PROBE();
-      move_z_after_probing();
+
+      #if Z_AFTER_PROBING
+        move_z_after_probing();
+      #endif
 
       restore_ubl_active_state_and_leave();
 
@@ -772,7 +774,7 @@
       wait_for_release();
       while (!is_lcd_clicked()) {
         idle();
-        refresh_cmd_timeout();
+        reset_stepper_timeout(); // Keep steppers powered
         if (encoder_diff) {
           do_blocking_move_to_z(current_position[Z_AXIS] + float(encoder_diff) * multiplier);
           encoder_diff = 0;
@@ -1515,7 +1517,7 @@
       incremental_LSF_reset(&lsf_results);
 
       if (do_3_pt_leveling) {
-        measured_z = probe_pt(PROBE_PT_1_X, PROBE_PT_1_Y, false, g29_verbose_level);
+        measured_z = probe_pt(PROBE_PT_1_X, PROBE_PT_1_Y, PROBE_PT_RAISE, g29_verbose_level);
         if (isnan(measured_z))
           abort_flag = true;
         else {
@@ -1529,7 +1531,7 @@
         }
 
         if (!abort_flag) {
-          measured_z = probe_pt(PROBE_PT_2_X, PROBE_PT_2_Y, false, g29_verbose_level);
+          measured_z = probe_pt(PROBE_PT_2_X, PROBE_PT_2_Y, PROBE_PT_RAISE, g29_verbose_level);
           //z2 = measured_z;
           if (isnan(measured_z))
             abort_flag = true;
@@ -1544,7 +1546,7 @@
         }
 
         if (!abort_flag) {
-          measured_z = probe_pt(PROBE_PT_3_X, PROBE_PT_3_Y, true, g29_verbose_level);
+          measured_z = probe_pt(PROBE_PT_3_X, PROBE_PT_3_Y, PROBE_PT_STOW, g29_verbose_level);
           //z3 = measured_z;
           if (isnan(measured_z))
             abort_flag = true;
@@ -1572,7 +1574,7 @@
             const float ry = float(y_min) + dy * (zig_zag ? g29_grid_size - 1 - iy : iy);
 
             if (!abort_flag) {
-              measured_z = probe_pt(rx, ry, parser.seen('E'), g29_verbose_level); // TODO: Needs error handling
+              measured_z = probe_pt(rx, ry, parser.seen('E') ? PROBE_PT_STOW : PROBE_PT_RAISE, g29_verbose_level); // TODO: Needs error handling
 
               abort_flag = isnan(measured_z);
 
