@@ -11652,7 +11652,7 @@ void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool m
 
       UNUSED(fr_mm_s);
       //UNUSED(no_move);
-      NUSED(move);
+      UNUSED(move);
 
       #if ENABLED(MK2_MULTIPLEXER)
         if (tmp_extruder >= E_STEPPERS)
