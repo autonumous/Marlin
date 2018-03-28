@@ -1071,6 +1071,12 @@ inline void get_serial_commands() {
 
         gcode_LastN = gcode_N;
       }
+      #if ENABLED(SDSUPPORT)
+        else if (card.saving) {
+          gcode_line_error(PSTR(MSG_ERR_NO_CHECKSUM));
+          return;
+        }
+      #endif
 
       // Movement commands alert when stopped
       if (IsStopped()) {
@@ -3259,7 +3265,7 @@ inline void gcode_G0_G1(
 
     #if ENABLED(NANODLP_Z_SYNC)
       #if ENABLED(NANODLP_ALL_AXIS)
-        #define _MOVE_SYNC true                 // For any move wait and output sync message
+        #define _MOVE_SYNC parser.seenval('X') || parser.seenval('Y') || parser.seenval('Z') // For any move wait and output sync message
       #else
         #define _MOVE_SYNC parser.seenval('Z')  // Only for Z move
       #endif
@@ -4477,7 +4483,7 @@ void home_all_axes() { gcode_G28(true); }
     ABL_VAR bool dryrun, abl_should_enable;
 
     #if ENABLED(PROBE_MANUALLY) || ENABLED(AUTO_BED_LEVELING_LINEAR)
-      ABL_VAR int abl_probe_index;
+      ABL_VAR int16_t abl_probe_index;
     #endif
 
     #if HAS_SOFTWARE_ENDSTOPS && ENABLED(PROBE_MANUALLY)
@@ -4504,9 +4510,9 @@ void home_all_axes() { gcode_G28(true); }
       #endif
 
       #if ENABLED(AUTO_BED_LEVELING_LINEAR)
-        ABL_VAR int abl2;
+        ABL_VAR int16_t abl_points;
       #elif ENABLED(PROBE_MANUALLY) // Bilinear
-        int constexpr abl2 = GRID_MAX_POINTS;
+        int16_t constexpr abl_points = GRID_MAX_POINTS;
       #endif
 
       #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
@@ -4525,7 +4531,7 @@ void home_all_axes() { gcode_G28(true); }
     #elif ENABLED(AUTO_BED_LEVELING_3POINT)
 
       #if ENABLED(PROBE_MANUALLY)
-        int constexpr abl2 = 3; // used to show total points
+        int8_t constexpr abl_points = 3; // used to show total points
       #endif
 
       // Probe at 3 arbitrary points
@@ -4637,7 +4643,7 @@ void home_all_axes() { gcode_G28(true); }
           return;
         }
 
-        abl2 = abl_grid_points_x * abl_grid_points_y;
+        abl_points = abl_grid_points_x * abl_grid_points_y;
         mean = 0;
 
       #elif ENABLED(AUTO_BED_LEVELING_BILINEAR)
@@ -4753,8 +4759,8 @@ void home_all_axes() { gcode_G28(true); }
       if (verbose_level || seenQ) {
         SERIAL_PROTOCOLPGM("Manual G29 ");
         if (g29_in_progress) {
-          SERIAL_PROTOCOLPAIR("point ", min(abl_probe_index + 1, abl2));
-          SERIAL_PROTOCOLLNPAIR(" of ", abl2);
+          SERIAL_PROTOCOLPAIR("point ", min(abl_probe_index + 1, abl_points));
+          SERIAL_PROTOCOLLNPAIR(" of ", abl_points);
         }
         else
           SERIAL_PROTOCOLLNPGM("idle");
@@ -4777,9 +4783,9 @@ void home_all_axes() { gcode_G28(true); }
 
           mean += measured_z;
           eqnBVector[abl_probe_index] = measured_z;
-          eqnAMatrix[abl_probe_index + 0 * abl2] = xProbe;
-          eqnAMatrix[abl_probe_index + 1 * abl2] = yProbe;
-          eqnAMatrix[abl_probe_index + 2 * abl2] = 1;
+          eqnAMatrix[abl_probe_index + 0 * abl_points] = xProbe;
+          eqnAMatrix[abl_probe_index + 1 * abl_points] = yProbe;
+          eqnAMatrix[abl_probe_index + 2 * abl_points] = 1;
 
           incremental_LSF(&lsf_results, xProbe, yProbe, measured_z);
 
@@ -4809,7 +4815,7 @@ void home_all_axes() { gcode_G28(true); }
       #if ABL_GRID
 
         // Skip any unreachable points
-        while (abl_probe_index < abl2) {
+        while (abl_probe_index < abl_points) {
 
           // Set xCount, yCount based on abl_probe_index, with zig-zag
           PR_OUTER_VAR = abl_probe_index / PR_INNER_END;
@@ -4836,7 +4842,7 @@ void home_all_axes() { gcode_G28(true); }
         }
 
         // Is there a next point to move to?
-        if (abl_probe_index < abl2) {
+        if (abl_probe_index < abl_points) {
           _manual_goto_xy(xProbe, yProbe); // Can be used here too!
           #if HAS_SOFTWARE_ENDSTOPS
             // Disable software endstops to allow manual adjustment
@@ -4860,7 +4866,7 @@ void home_all_axes() { gcode_G28(true); }
       #elif ENABLED(AUTO_BED_LEVELING_3POINT)
 
         // Probe at 3 arbitrary points
-        if (abl_probe_index < abl2) {
+        if (abl_probe_index < abl_points) {
           xProbe = points[abl_probe_index].x;
           yProbe = points[abl_probe_index].y;
           _manual_goto_xy(xProbe, yProbe);
@@ -4956,9 +4962,9 @@ void home_all_axes() { gcode_G28(true); }
 
               mean += measured_z;
               eqnBVector[abl_probe_index] = measured_z;
-              eqnAMatrix[abl_probe_index + 0 * abl2] = xProbe;
-              eqnAMatrix[abl_probe_index + 1 * abl2] = yProbe;
-              eqnAMatrix[abl_probe_index + 2 * abl2] = 1;
+              eqnAMatrix[abl_probe_index + 0 * abl_points] = xProbe;
+              eqnAMatrix[abl_probe_index + 1 * abl_points] = yProbe;
+              eqnAMatrix[abl_probe_index + 2 * abl_points] = 1;
 
               incremental_LSF(&lsf_results, xProbe, yProbe, measured_z);
 
@@ -5066,7 +5072,7 @@ void home_all_axes() { gcode_G28(true); }
         plane_equation_coefficients[1] = -lsf_results.B;  // but that is not yet tested.
         plane_equation_coefficients[2] = -lsf_results.D;
 
-        mean /= abl2;
+        mean /= abl_points;
 
         if (verbose_level) {
           SERIAL_PROTOCOLPGM("Eqn coefficients: a: ");
@@ -5110,8 +5116,8 @@ void home_all_axes() { gcode_G28(true); }
             for (uint8_t xx = 0; xx < abl_grid_points_x; xx++) {
               int ind = indexIntoAB[xx][yy];
               float diff = eqnBVector[ind] - mean,
-                    x_tmp = eqnAMatrix[ind + 0 * abl2],
-                    y_tmp = eqnAMatrix[ind + 1 * abl2],
+                    x_tmp = eqnAMatrix[ind + 0 * abl_points],
+                    y_tmp = eqnAMatrix[ind + 1 * abl_points],
                     z_tmp = 0;
 
               apply_rotation_xyz(planner.bed_level_matrix, x_tmp, y_tmp, z_tmp);
@@ -5134,8 +5140,8 @@ void home_all_axes() { gcode_G28(true); }
             for (int8_t yy = abl_grid_points_y - 1; yy >= 0; yy--) {
               for (uint8_t xx = 0; xx < abl_grid_points_x; xx++) {
                 int ind = indexIntoAB[xx][yy];
-                float x_tmp = eqnAMatrix[ind + 0 * abl2],
-                      y_tmp = eqnAMatrix[ind + 1 * abl2],
+                float x_tmp = eqnAMatrix[ind + 0 * abl_points],
+                      y_tmp = eqnAMatrix[ind + 1 * abl_points],
                       z_tmp = 0;
 
                 apply_rotation_xyz(planner.bed_level_matrix, x_tmp, y_tmp, z_tmp);
