@@ -1133,6 +1133,10 @@ inline void get_serial_commands() {
 
 #if ENABLED(SDSUPPORT)
 
+  #if ENABLED(PRINTER_EVENT_LEDS) && HAS_RESUME_CONTINUE
+    static bool lights_off_after_print; // = false
+  #endif
+
   /**
    * Get commands from the SD Card until the command buffer is full
    * or until the end of the file is reached. The special character '#'
@@ -1175,12 +1179,19 @@ inline void get_serial_commands() {
               LCD_MESSAGEPGM(MSG_INFO_COMPLETED_PRINTS);
               leds.set_green();
               #if HAS_RESUME_CONTINUE
-                enqueue_and_echo_commands_P(PSTR("M0")); // end of the queue!
+                lights_off_after_print = true;
+                enqueue_and_echo_commands_P(PSTR("M0 S"
+                  #if ENABLED(NEWPANEL)
+                    "1800"
+                  #else
+                    "60"
+                  #endif
+                ));
               #else
-                safe_delay(1000);
+                safe_delay(2000);
+                leds.set_off();
               #endif
-              leds.set_off();
-            #endif
+            #endif // PRINTER_EVENT_LEDS
             card.checkautostart(true);
           }
         }
@@ -2881,19 +2892,32 @@ static void do_homing_move(const AxisEnum axis, const float distance, const floa
     }
   #endif
 
-  #if HOMING_Z_WITH_PROBE && ENABLED(BLTOUCH)
-    const bool deploy_bltouch = (axis == Z_AXIS && distance < 0);
-    if (deploy_bltouch) set_bltouch_deployed(true);
-  #endif
+  // Only do some things when moving towards an endstop
+  const int8_t axis_home_dir =
+    #if ENABLED(DUAL_X_CARRIAGE)
+      (axis == X_AXIS) ? x_home_dir(active_extruder) :
+    #endif
+    home_dir(axis);
+  const bool is_home_dir = (axis_home_dir > 0) == (distance > 0);
 
-  #if QUIET_PROBING
-    if (axis == Z_AXIS) probing_pause(true);
-  #endif
+  if (is_home_dir) {
 
-  // Disable stealthChop if used. Enable diag1 pin on driver.
-  #if ENABLED(SENSORLESS_HOMING)
-    sensorless_homing_per_axis(axis);
-  #endif
+    if (axis == Z_AXIS) {
+      #if HOMING_Z_WITH_PROBE
+        #if ENABLED(BLTOUCH)
+          set_bltouch_deployed(true);
+        #endif
+        #if QUIET_PROBING
+          probing_pause(true);
+        #endif
+      #endif
+    }
+
+    // Disable stealthChop if used. Enable diag1 pin on driver.
+    #if ENABLED(SENSORLESS_HOMING)
+      sensorless_homing_per_axis(axis);
+    #endif
+  }
 
   // Tell the planner the axis is at 0
   current_position[axis] = 0;
@@ -2911,20 +2935,26 @@ static void do_homing_move(const AxisEnum axis, const float distance, const floa
 
   stepper.synchronize();
 
-  #if QUIET_PROBING
-    if (axis == Z_AXIS) probing_pause(false);
-  #endif
+  if (is_home_dir) {
 
-  #if HOMING_Z_WITH_PROBE && ENABLED(BLTOUCH)
-    if (deploy_bltouch) set_bltouch_deployed(false);
-  #endif
+    if (axis == Z_AXIS) {
+      #if HOMING_Z_WITH_PROBE
+        #if QUIET_PROBING
+          probing_pause(false);
+        #endif
+        #if ENABLED(BLTOUCH)
+          set_bltouch_deployed(false);
+        #endif
+      #endif
+    }
 
-  endstops.hit_on_purpose();
+    endstops.hit_on_purpose();
 
-  // Re-enable stealthChop if used. Disable diag1 pin on driver.
-  #if ENABLED(SENSORLESS_HOMING)
-    sensorless_homing_per_axis(axis, false);
-  #endif
+    // Re-enable stealthChop if used. Disable diag1 pin on driver.
+    #if ENABLED(SENSORLESS_HOMING)
+      sensorless_homing_per_axis(axis, false);
+    #endif
+  }
 
   #if ENABLED(DEBUG_LEVELING_FEATURE)
     if (DEBUGGING(LEVELING)) {
@@ -3628,7 +3658,6 @@ inline void gcode_G4() {
     #if ENABLED(SENSORLESS_HOMING)
       sensorless_homing_per_axis(X_AXIS, false);
       sensorless_homing_per_axis(Y_AXIS, false);
-      safe_delay(500); // Short delay needed to settle
     #endif
   }
 
@@ -3810,15 +3839,17 @@ inline void gcode_G4() {
     buffer_line_to_current_position();
     stepper.synchronize();
 
+    // Re-enable stealthChop if used. Disable diag1 pin on driver.
+    #if ENABLED(SENSORLESS_HOMING)
+      delta_sensorless_homing(false);
+    #endif
+
     // If an endstop was not hit, then damage can occur if homing is continued.
     // This can occur if the delta height not set correctly.
     if (!(Endstops::endstop_hit_bits & (_BV(X_MAX) | _BV(Y_MAX) | _BV(Z_MAX)))) {
       LCD_MESSAGEPGM(MSG_ERR_HOMING_FAILED);
       SERIAL_ERROR_START();
       SERIAL_ERRORLNPGM(MSG_ERR_HOMING_FAILED);
-      #if ENABLED(SENSORLESS_HOMING)
-        delta_sensorless_homing(false);
-      #endif
       return false;
     }
 
@@ -3829,11 +3860,6 @@ inline void gcode_G4() {
     HOMEAXIS(A);
     HOMEAXIS(B);
     HOMEAXIS(C);
-
-    // Re-enable stealthChop if used. Disable diag1 pin on driver.
-    #if ENABLED(SENSORLESS_HOMING)
-      delta_sensorless_homing(false);
-    #endif
 
     // Set all carriages to their home positions
     // Do this here all at once for Delta, because
@@ -4775,6 +4801,11 @@ void home_all_axes() { gcode_G28(true); }
         #endif
       }
       else {
+
+        #if ENABLED(AUTO_BED_LEVELING_LINEAR) || ENABLED(AUTO_BED_LEVELING_3POINT)
+          const uint16_t index = abl_probe_index - 1;
+        #endif
+
         // For G29 after adjusting Z.
         // Save the previous Z before going to the next point
         measured_z = current_position[Z_AXIS];
@@ -4782,12 +4813,16 @@ void home_all_axes() { gcode_G28(true); }
         #if ENABLED(AUTO_BED_LEVELING_LINEAR)
 
           mean += measured_z;
-          eqnBVector[abl_probe_index] = measured_z;
-          eqnAMatrix[abl_probe_index + 0 * abl_points] = xProbe;
-          eqnAMatrix[abl_probe_index + 1 * abl_points] = yProbe;
-          eqnAMatrix[abl_probe_index + 2 * abl_points] = 1;
+          eqnBVector[index] = measured_z;
+          eqnAMatrix[index + 0 * abl_points] = xProbe;
+          eqnAMatrix[index + 1 * abl_points] = yProbe;
+          eqnAMatrix[index + 2 * abl_points] = 1;
 
           incremental_LSF(&lsf_results, xProbe, yProbe, measured_z);
+
+        #elif ENABLED(AUTO_BED_LEVELING_3POINT)
+
+          points[index].z = measured_z;
 
         #elif ENABLED(AUTO_BED_LEVELING_BILINEAR)
 
@@ -4800,10 +4835,6 @@ void home_all_axes() { gcode_G28(true); }
               SERIAL_PROTOCOLLNPAIR(" Z", measured_z + zoffset);
             }
           #endif
-
-        #elif ENABLED(AUTO_BED_LEVELING_3POINT)
-
-          points[abl_probe_index].z = measured_z;
 
         #endif
       }
@@ -6210,9 +6241,11 @@ inline void gcode_G92() {
       hasS = ms > 0;
     }
 
+    const bool has_message = !hasP && !hasS && args && *args;
+
     #if ENABLED(ULTIPANEL)
 
-      if (!hasP && !hasS && args && *args)
+      if (has_message)
         lcd_setstatus(args, true);
       else {
         LCD_MESSAGEPGM(MSG_USERWAIT);
@@ -6223,7 +6256,7 @@ inline void gcode_G92() {
 
     #else
 
-      if (!hasP && !hasS && args && *args) {
+      if (has_message) {
         SERIAL_ECHO_START();
         SERIAL_ECHOLN(args);
       }
@@ -6241,14 +6274,23 @@ inline void gcode_G92() {
     }
     else {
       #if ENABLED(ULTIPANEL)
-        if (lcd_detected()) {
-          while (wait_for_user) idle();
-          print_job_timer.isPaused() ? LCD_MESSAGEPGM(WELCOME_MSG) : LCD_MESSAGEPGM(MSG_RESUMING);
-        }
-      #else
-        while (wait_for_user) idle();
+        if (lcd_detected())
       #endif
+          while (wait_for_user) idle();
     }
+
+    #if ENABLED(PRINTER_EVENT_LEDS) && ENABLED(SDSUPPORT)
+      if (lights_off_after_print) {
+        leds.set_off();
+        lights_off_after_print = false;
+      }
+    #endif
+
+    #if ENABLED(ULTIPANEL)
+      if (lcd_detected()) {
+        print_job_timer.isPaused() ? LCD_MESSAGEPGM(WELCOME_MSG) : LCD_MESSAGEPGM(MSG_RESUMING);
+      }
+    #endif
 
     wait_for_user = false;
     KEEPALIVE_STATE(IN_HANDLER);
@@ -8891,7 +8933,13 @@ inline void gcode_M205() {
   if (parser.seen('B')) planner.min_segment_time_us = parser.value_ulong();
   if (parser.seen('X')) planner.max_jerk[X_AXIS] = parser.value_linear_units();
   if (parser.seen('Y')) planner.max_jerk[Y_AXIS] = parser.value_linear_units();
-  if (parser.seen('Z')) planner.max_jerk[Z_AXIS] = parser.value_linear_units();
+  if (parser.seen('Z')) {
+    planner.max_jerk[Z_AXIS] = parser.value_linear_units();
+    #if HAS_MESH
+      if (planner.max_jerk[Z_AXIS] <= 0.1)
+        SERIAL_ECHOLNPGM("WARNING! Low Z Jerk may lead to unwanted pauses.");
+    #endif
+  }
   if (parser.seen('E')) planner.max_jerk[E_AXIS] = parser.value_linear_units();
 }
 
@@ -11568,7 +11616,8 @@ void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool m
 
             // backing out https://github.com/MarlinFirmware/Marlin/pull/10198
             //#if HAS_MESH
-            #if ENABLED(MESH_BED_LEVELING)
+            //#if ENABLED(MESH_BED_LEVELING)
+            #if HAS_MESH && PLANNER_LEVELING
 
               if (planner.leveling_active) {
                 #if ENABLED(DEBUG_LEVELING_FEATURE)
@@ -11586,7 +11635,8 @@ void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool m
                 #endif
               }
 
-            #endif // HAS_MESH // MESH_BED_LEVELING
+            //#endif // HAS_MESH // MESH_BED_LEVELING
+            #endif // HAS_MESH && PLANNER_LEVELING
 
           #endif // !HAS_ABL
 
