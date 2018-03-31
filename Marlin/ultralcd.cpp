@@ -2592,6 +2592,8 @@ void kill_screen(const char* lcd_msg) {
       MENU_ITEM(gcode, MSG_AUTO_HOME_Z, PSTR("G28 Z"));
     #endif
 
+      
+    #if ENABLED(BIGBOX_CUSTOMISED_MENUS)
     //
     // Dock Extruder to waste box // 20170106 PB 
     //
@@ -2622,7 +2624,8 @@ void kill_screen(const char* lcd_msg) {
     }
     else{
         MENU_ITEM(gcode, "XY Loop", PSTR("G28\nG91\nT0\nG1 Z1 F1000\nG90\nT0\nG1 X5 Y5 F3000\nG1 Y195 F3000\nG1 X295 F3000\nG1 Y5 F3000\nG1 X5 F3000\nG91\nG1 Z-1 F1000\n"));
-    }    
+    }
+# endif //BIGBOX_CUSTOMISED_MENUS
  
 
 
@@ -3221,6 +3224,8 @@ void kill_screen(const char* lcd_msg) {
       #endif // E_MANUAL > 2
     #endif // E_MANUAL > 1
 
+      
+    #if ENABLED(BIGBOX_CUSTOMISED_MENUS)
     //20170108 PB added menu option to drop bed to lower position.
     if (axis_homed[Z_AXIS]) {
       MENU_ITEM(gcode, "Move Z to 295", PSTR("G90\nG1 Z295 F3000"));
@@ -3228,6 +3233,9 @@ void kill_screen(const char* lcd_msg) {
     else {
       MENU_ITEM(gcode, "Move Z to 295", PSTR("G90\nG28\nG1 Z295 F3000"));
     }
+    #endif //BIGBOX_CUSTOMISED_MENUS
+      
+      
     END_MENU();
   }
 
