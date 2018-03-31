@@ -1021,12 +1021,12 @@
  * Override if the automatically selected points are inadequate.
  */
 #if ENABLED(AUTO_BED_LEVELING_3POINT) || ENABLED(AUTO_BED_LEVELING_UBL)
-    //#define ABL_PROBE_PT_1_X 15
-    //#define ABL_PROBE_PT_1_Y (200-ABL_PROBE_PT_1_X) //180
-    //#define ABL_PROBE_PT_2_X  ABL_PROBE_PT_1_X //15
-    //#define ABL_PROBE_PT_2_Y ABL_PROBE_PT_2_X //20
-    //#define ABL_PROBE_PT_3_X (X_MAX_POS-ABL_PROBE_PT_1_X) //170
-    //#define ABL_PROBE_PT_3_Y ABL_PROBE_PT_2_Y //20
+    //#define PROBE_PT_1_X 15
+    //#define PROBE_PT_1_Y (200-PROBE_PT_1_X) //180
+    //#define PROBE_PT_2_X  PROBE_PT_1_X //15
+    //#define PROBE_PT_2_Y PROBE_PT_2_X //20
+    //#define PROBE_PT_3_X (X_MAX_POS-PROBE_PT_1_X) //170
+    //#define PROBE_PT_3_Y PROBE_PT_2_Y //20
 #endif
 
 /**
