@@ -132,7 +132,7 @@
 // Displayed in the LCD "Ready" message
 #define CUSTOM_MACHINE_NAME "BigBox V1.1 Dual Hybrid Titan 3D Printer"
 
-//#define BIGBOX_CUSTOMISED_MENUS
+#define BIGBOX_CUSTOMISED_MENUS
 #if ENABLED(BIGBOX_CUSTOMISED_MENUS)
 #include "BigBoxCustomStrings.h"
 #endif
@@ -716,7 +716,7 @@
  */
 #define X_PROBE_OFFSET_FROM_EXTRUDER -25  // X offset: -left  +right  [of the nozzle]
 #define Y_PROBE_OFFSET_FROM_EXTRUDER 0  // Y offset: -front +behind [the nozzle]
-#define Z_PROBE_OFFSET_FROM_EXTRUDER -1.1 //1.4 //-2.58  // Z offset: -below +above  [the nozzle]
+#define Z_PROBE_OFFSET_FROM_EXTRUDER -1.3 //1.4 //-2.58  // Z offset: -below +above  [the nozzle]
 
 // Certain types of probes need to stay away from edges
 #define MIN_PROBE_EDGE 10
@@ -958,7 +958,6 @@
   #define GRID_MAX_POINTS_Y 10
 
   // Set the boundaries for probing (where the probe can reach).
-<<<<<<< HEAD
   #define LEFT_PROBE_BED_POSITION 10 //MIN_PROBE_EDGE
   #define RIGHT_PROBE_BED_POSITION (X_MAX_POS + X_PROBE_OFFSET_FROM_EXTRUDER - LEFT_PROBE_BED_POSITION) //(X_BED_SIZE - MIN_PROBE_EDGE)
   #define FRONT_PROBE_BED_POSITION 10  //MIN_PROBE_EDGE
@@ -984,22 +983,6 @@
     #endif
 
   #endif
-/*  /2018/03/19
-<<<<<<< HEAD
-#elif ENABLED(AUTO_BED_LEVELING_3POINT)
-
-  // 3 arbitrary points to probe.
-  // A simple cross-product is used to estimate the plane of the bed.
-  #define ABL_PROBE_PT_1_X 15
-  #define ABL_PROBE_PT_1_Y (200-ABL_PROBE_PT_1_X) //180
-  #define ABL_PROBE_PT_2_X  ABL_PROBE_PT_1_X //15
-  #define ABL_PROBE_PT_2_Y ABL_PROBE_PT_2_X //20
-  #define ABL_PROBE_PT_3_X (X_MAX_POS-ABL_PROBE_PT_1_X) //170
-  #define ABL_PROBE_PT_3_Y ABL_PROBE_PT_2_Y //20
-
-=======
->>>>>>> bugfix-1.1.x
-*/
 
 #elif ENABLED(AUTO_BED_LEVELING_UBL)
 
@@ -1027,7 +1010,7 @@
 
   #define MESH_INSET 10          // Set Mesh bounds as an inset region of the bed
   #define GRID_MAX_POINTS_X 3    // Don't use more than 7 points per axis, implementation limited.
-  #define GRID_MAX_POINTS_Y 3
+  #define GRID_MAX_POINTS_Y GRID_MAX_POINTS_X
 
   //#define MESH_G28_REST_ORIGIN // After homing all axes ('G28' or 'G28 XYZ') rest Z at Z_MIN_POS
 
@@ -1038,12 +1021,12 @@
  * Override if the automatically selected points are inadequate.
  */
 #if ENABLED(AUTO_BED_LEVELING_3POINT) || ENABLED(AUTO_BED_LEVELING_UBL)
-  //#define PROBE_PT_1_X 15
-  //#define PROBE_PT_1_Y 180
-  //#define PROBE_PT_2_X 15
-  //#define PROBE_PT_2_Y 20
-  //#define PROBE_PT_3_X 170
-  //#define PROBE_PT_3_Y 20
+    //#define ABL_PROBE_PT_1_X 15
+    //#define ABL_PROBE_PT_1_Y (200-ABL_PROBE_PT_1_X) //180
+    //#define ABL_PROBE_PT_2_X  ABL_PROBE_PT_1_X //15
+    //#define ABL_PROBE_PT_2_Y ABL_PROBE_PT_2_X //20
+    //#define ABL_PROBE_PT_3_X (X_MAX_POS-ABL_PROBE_PT_1_X) //170
+    //#define ABL_PROBE_PT_3_Y ABL_PROBE_PT_2_Y //20
 #endif
 
 /**
