@@ -130,7 +130,8 @@
 
 // Optional custom name for your RepStrap or other custom machine
 // Displayed in the LCD "Ready" message
-#define CUSTOM_MACHINE_NAME "BigBox V1.1 Dual Hybrid Titan 3D Printer" 
+#define CUSTOM_MACHINE_NAME "BigBox V1.1 Dual Hybrid Titan 3D Printer"
+#include "BigBoxCustomStrings.h"
 
 // Define this to set a unique identifier for this printer, (Used by some programs to differentiate between machines)
 // You can use an online service to generate a random UUID. (eg http://www.uuidgenerator.net/version4)

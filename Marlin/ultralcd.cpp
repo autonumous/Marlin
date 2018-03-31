@@ -2599,31 +2599,33 @@ void kill_screen(const char* lcd_msg) {
     //
     if (axis_homed[Z_AXIS]){
         //MENU_ITEM(gcode, "Dock Head", PSTR("G90\nT0\nG1 X70 Y200 F3000\nG1 Y240 F2000\nG1 E-4 F4500"));
-      MENU_ITEM(gcode, "Dock Head", PSTR("G91\nT0\nG1 Z1 F1000\nG90\nT0\nG1 X70 Y200 F3000\nG1 Y240 F2000\nG91\nG1 Z-1 F1000\n"));
+      //MENU_ITEM(gcode, "Dock Head", PSTR("G91\nT0\nG1 Z1 F1000\nG90\nT0\nG1 X70 Y200 F3000\nG1 Y240 F2000\nG91\nG1 Z-1 F1000\n"));
+      MENU_ITEM(gcode, CUSTOM_MENU_DOCK_MENU, PSTR(CUSTOM_MENU_DOCK_HOMED));
     }
     else{
         //MENU_ITEM(gcode, "Dock Head", PSTR("G28\nG90\nG1 X70 Y200 F3000\nG1 Y240 F2000\nG1 E-4 F4500"));
-      MENU_ITEM(gcode, "Dock Head", PSTR("G28\nG91\nT0\nG1 Z1 F1000\nG90\nG1 X70 Y200 F3000\nG1 Y240 F2000\nG1 Z-1 F1000\n"));
+      //MENU_ITEM(gcode, "Dock Head", PSTR("G28\nG91\nT0\nG1 Z1 F1000\nG90\nG1 X70 Y200 F3000\nG1 Y240 F2000\nG1 Z-1 F1000\n"));
+      MENU_ITEM(gcode, CUSTOM_MENU_DOCK_MENU, PSTR(CUSTOM_MENU_DOCK_NOTHOMED));
     }
 
     //
     // Wipe/Clean nozzle in dock
     // 
     if (axis_homed[Z_AXIS]){
-        MENU_ITEM(gcode, "Clean Nozzles", PSTR("G91\nT0\nG1 Z1 F1000\nG90\nT0\nG1 X60 Y200 F3000\nG1 Y240 F2000\nG1 X90 F2000\nG1  Y200 F2000\nG91\nG1 Z-1 F1000\n"));
+        MENU_ITEM(gcode, CUSTOM_MENU_NOZZLECLEAN_MENU, PSTR(CUSTOM_MENU_NOZZLECLEAN_HOMED));
     }
     else{
-        MENU_ITEM(gcode, "Clean Nozzles", PSTR("G28\nG91\nT0\nG1 Z1 F1000\nG90\nT0\nG1 X60 Y200 F3000\nG1 Y240 F2000\nG1 X90 F2000\nG1  Y200 F2000\nG91\nG1 Z-1 F1000\n"));
+        MENU_ITEM(gcode, CUSTOM_MENU_NOZZLECLEAN_MENU, PSTR(CUSTOM_MENU_NOZZLECLEAN_NOTHOMED));
     }
 
     //
     // XY Loop  useful for testing full coverage of XY plane
     //
     if (axis_homed[Z_AXIS]){
-        MENU_ITEM(gcode, "XY Loop", PSTR("G91\nT0\nG1 Z1 F1000\nG90\nT0\nG1 X5 Y5 F3000\nG1 Y195 F3000\nG1 X295 F3000\nG1 Y5 F3000\nG1 X5 F3000\nG91\nG1 Z-1 F1000\n")); 
+        MENU_ITEM(gcode, CUSTOM_MENU_XYLOOP_MENU, PSTR(CUSTOM_MENU_XYLOOP_HOMED));
     }
     else{
-        MENU_ITEM(gcode, "XY Loop", PSTR("G28\nG91\nT0\nG1 Z1 F1000\nG90\nT0\nG1 X5 Y5 F3000\nG1 Y195 F3000\nG1 X295 F3000\nG1 Y5 F3000\nG1 X5 F3000\nG91\nG1 Z-1 F1000\n"));
+        MENU_ITEM(gcode, CUSTOM_MENU_XYLOOP_MENU , PSTR(CUSTOM_MENU_XYLOOP_NOTHOMED));
     }
 # endif //BIGBOX_CUSTOMISED_MENUS
  
@@ -3228,10 +3230,10 @@ void kill_screen(const char* lcd_msg) {
     #if ENABLED(BIGBOX_CUSTOMISED_MENUS)
     //20170108 PB added menu option to drop bed to lower position.
     if (axis_homed[Z_AXIS]) {
-      MENU_ITEM(gcode, "Move Z to 295", PSTR("G90\nG1 Z295 F3000"));
+      MENU_ITEM(gcode, CUSTOM_MENU_DROPBED_MENU , PSTR(CUSTOM_MENU_DROPBED_HOMED));
     }
     else {
-      MENU_ITEM(gcode, "Move Z to 295", PSTR("G90\nG28\nG1 Z295 F3000"));
+      MENU_ITEM(gcode, CUSTOM_MENU_DROPBED_MENU , PSTR(CUSTOM_MENU_DROPBED_NOTHOMED));
     }
     #endif //BIGBOX_CUSTOMISED_MENUS
       
