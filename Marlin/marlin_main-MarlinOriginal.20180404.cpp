@@ -749,8 +749,7 @@ void set_current_from_steppers_for_axis(const AxisEnum axis);
   void plan_cubic_move(const float (&offset)[4]);
 #endif
 
-//void tool_change(const uint8_t tmp_extruder, const float fr_mm_s=0.0, bool no_move=false);
-void tool_change(const uint8_t tmp_extruder, const float fr_mm_s=0.0, bool move=false);
+void tool_change(const uint8_t tmp_extruder, const float fr_mm_s=0.0, bool no_move=false);
 void report_current_position();
 void report_current_position_detail();
 
@@ -11295,11 +11294,9 @@ inline void invalid_extruder_error(const uint8_t e) {
 
 #endif // MIXING_EXTRUDER && MIXING_VIRTUAL_TOOLS > 1
 
-    if (tmp_extruder >= EXTRUDERS)
 #if ENABLED(DUAL_X_CARRIAGE)
 
-  //inline void dualx_tool_change(const uint8_t tmp_extruder, bool &no_move) {
-  inline void dualx_tool_change(const uint8_t tmp_extruder, bool &move) {
+  inline void dualx_tool_change(const uint8_t tmp_extruder, bool &no_move) {
     #if ENABLED(DEBUG_LEVELING_FEATURE)
       if (DEBUGGING(LEVELING)) {
         SERIAL_ECHOPGM("Dual X Carriage Mode ");
@@ -11355,8 +11352,7 @@ inline void invalid_extruder_error(const uint8_t e) {
     #endif
 
     // Only when auto-parking are carriages safe to move
-    //if (dual_x_carriage_mode != DXC_AUTO_PARK_MODE) no_move = true;
-    if (dual_x_carriage_mode != DXC_AUTO_PARK_MODE) move = true;
+    if (dual_x_carriage_mode != DXC_AUTO_PARK_MODE) no_move = true;
 
     switch (dual_x_carriage_mode) {
       case DXC_FULL_CONTROL_MODE:
@@ -11405,11 +11401,10 @@ inline void invalid_extruder_error(const uint8_t e) {
 
 #if ENABLED(PARKING_EXTRUDER)
 
-  //inline void parking_extruder_tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool no_move/*=false*/) {
-  inline void parking_extruder_tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool move/*=false*/) {
+  inline void parking_extruder_tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool no_move/*=false*/) {
     constexpr float z_raise = PARKING_EXTRUDER_SECURITY_RAISE;
 
-    if (!move) {
+    if (!no_move) {
 
       const float parkingposx[] = PARKING_EXTRUDER_PARKING_X,
                   midpos = (parkingposx[0] + parkingposx[1]) * 0.5 + hotend_offset[X_AXIS][active_extruder],
@@ -11519,8 +11514,7 @@ inline void invalid_extruder_error(const uint8_t e) {
  * Perform a tool-change, which may result in moving the
  * previous tool out of the way and the new tool into place.
  */
-//void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool no_move/*=false*/) {
-void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool move/*=false*/) {
+void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool no_move/*=false*/) {
   #if ENABLED(MIXING_EXTRUDER) && MIXING_VIRTUAL_TOOLS > 1
 
     mixing_tool_change(tmp_extruder);
@@ -11537,10 +11531,8 @@ void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool m
       feedrate_mm_s = fr_mm_s > 0.0 ? fr_mm_s : XY_PROBE_FEEDRATE_MM_S;
 
       if (tmp_extruder != active_extruder) {
-        //if (!no_move && axis_unhomed_error()) {
-        if (!move && axis_unhomed_error()) {
-          //no_move = true;
-          move = true;
+        if (!no_move && axis_unhomed_error()) {
+          no_move = true;
           #if ENABLED(DEBUG_LEVELING_FEATURE)
             if (DEBUGGING(LEVELING)) SERIAL_ECHOLNPGM("No move on toolchange");
           #endif
@@ -11557,14 +11549,12 @@ void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool m
 
         #if ENABLED(DUAL_X_CARRIAGE)
 
-          //dualx_tool_change(tmp_extruder, no_move); // Can modify no_move
-          dualx_tool_change(tmp_extruder, move); // Can modify no_move
+          dualx_tool_change(tmp_extruder, no_move); // Can modify no_move
 
         #else // !DUAL_X_CARRIAGE
 
           #if ENABLED(PARKING_EXTRUDER) // Dual Parking extruder
-            //parking_extruder_tool_change(tmp_extruder, no_move);
-            parking_extruder_tool_change(tmp_extruder, move);
+            parking_extruder_tool_change(tmp_extruder, no_move);
           #endif
 
           #if ENABLED(SWITCHING_NOZZLE)
@@ -11615,8 +11605,7 @@ void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool m
         #endif
 
         // Raise, move, and lower again
-        //if (safe_to_move && !no_move && IsRunning()) {
-        if (safe_to_move && !move && IsRunning()) {
+        if (safe_to_move && !no_move && IsRunning()) {
           // Do a small lift to avoid the workpiece in the move back (below)
           current_position[Z_AXIS] += 1.0;
           planner.buffer_line_kinematic(current_position, planner.max_feedrate_mm_s[Z_AXIS], active_extruder);
@@ -11646,8 +11635,7 @@ void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool m
     #else // HOTENDS <= 1
 
       UNUSED(fr_mm_s);
-      //UNUSED(no_move);
-      UNUSED(move);
+      UNUSED(no_move);
 
       #if ENABLED(MK2_MULTIPLEXER)
         if (tmp_extruder >= E_STEPPERS)
@@ -11680,8 +11668,7 @@ void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool m
  * T0-T3: Switch tool, usually switching extruders
  *
  *   F[units/min] Set the movement feedrate
- *   //S1           Don't move the tool in XY after change
- *   S1             Move the tool in XY after change
+ *   S1           Don't move the tool in XY after change
  */
 inline void gcode_T(const uint8_t tmp_extruder) {
 

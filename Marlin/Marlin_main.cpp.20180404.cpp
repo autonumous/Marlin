@@ -11281,6 +11281,12 @@ inline void invalid_extruder_error(const uint8_t e) {
 /**
  * Tool Change functions
  */
+<<<<<<< HEAD
+//void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool no_move/*=false*/) {
+void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool move/*=false*/) {
+  #if ENABLED(MIXING_EXTRUDER) && MIXING_VIRTUAL_TOOLS > 1
+=======
+>>>>>>> bugfix-1.1.x
 
 #if ENABLED(MIXING_EXTRUDER) && MIXING_VIRTUAL_TOOLS > 1
 
@@ -11295,11 +11301,9 @@ inline void invalid_extruder_error(const uint8_t e) {
 
 #endif // MIXING_EXTRUDER && MIXING_VIRTUAL_TOOLS > 1
 
-    if (tmp_extruder >= EXTRUDERS)
 #if ENABLED(DUAL_X_CARRIAGE)
 
-  //inline void dualx_tool_change(const uint8_t tmp_extruder, bool &no_move) {
-  inline void dualx_tool_change(const uint8_t tmp_extruder, bool &move) {
+  inline void dualx_tool_change(const uint8_t tmp_extruder, bool &no_move) {
     #if ENABLED(DEBUG_LEVELING_FEATURE)
       if (DEBUGGING(LEVELING)) {
         SERIAL_ECHOPGM("Dual X Carriage Mode ");
@@ -11344,8 +11348,22 @@ inline void invalid_extruder_error(const uint8_t e) {
     current_position[Y_AXIS] -= hotend_offset[Y_AXIS][active_extruder] - hotend_offset[Y_AXIS][tmp_extruder];
     current_position[Z_AXIS] -= hotend_offset[Z_AXIS][active_extruder] - hotend_offset[Z_AXIS][tmp_extruder];
 
+<<<<<<< HEAD
+      if (tmp_extruder != active_extruder) {
+        //if (!no_move && axis_unhomed_error(true, true, true)) {
+        //if (move && axis_unhomed_error(true, true, true)) {
+        //if (!no_move && axis_unhomed_error()) {
+        if (move && axis_unhomed_error()) {
+            #if ENABLED(DEBUG_LEVELING_FEATURE)
+                if (DEBUGGING(LEVELING)) SERIAL_ECHOLNPGM("No move on toolchange");
+            #endif
+          //no_move = true;
+          move=false;
+        }
+=======
     // Activate the new extruder ahead of calling set_axis_is_at_home!
     active_extruder = tmp_extruder;
+>>>>>>> bugfix-1.1.x
 
     // This function resets the max/min values - the current position may be overwritten below.
     set_axis_is_at_home(X_AXIS);
@@ -11355,8 +11373,7 @@ inline void invalid_extruder_error(const uint8_t e) {
     #endif
 
     // Only when auto-parking are carriages safe to move
-    //if (dual_x_carriage_mode != DXC_AUTO_PARK_MODE) no_move = true;
-    if (dual_x_carriage_mode != DXC_AUTO_PARK_MODE) move = true;
+    if (dual_x_carriage_mode != DXC_AUTO_PARK_MODE) no_move = true;
 
     switch (dual_x_carriage_mode) {
       case DXC_FULL_CONTROL_MODE:
@@ -11405,11 +11422,10 @@ inline void invalid_extruder_error(const uint8_t e) {
 
 #if ENABLED(PARKING_EXTRUDER)
 
-  //inline void parking_extruder_tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool no_move/*=false*/) {
-  inline void parking_extruder_tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool move/*=false*/) {
+  inline void parking_extruder_tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool no_move/*=false*/) {
     constexpr float z_raise = PARKING_EXTRUDER_SECURITY_RAISE;
 
-    if (!move) {
+    if (!no_move) {
 
       const float parkingposx[] = PARKING_EXTRUDER_PARKING_X,
                   midpos = (parkingposx[0] + parkingposx[1]) * 0.5 + hotend_offset[X_AXIS][active_extruder],
@@ -11519,8 +11535,7 @@ inline void invalid_extruder_error(const uint8_t e) {
  * Perform a tool-change, which may result in moving the
  * previous tool out of the way and the new tool into place.
  */
-//void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool no_move/*=false*/) {
-void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool move/*=false*/) {
+void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool no_move/*=false*/) {
   #if ENABLED(MIXING_EXTRUDER) && MIXING_VIRTUAL_TOOLS > 1
 
     mixing_tool_change(tmp_extruder);
@@ -11537,10 +11552,8 @@ void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool m
       feedrate_mm_s = fr_mm_s > 0.0 ? fr_mm_s : XY_PROBE_FEEDRATE_MM_S;
 
       if (tmp_extruder != active_extruder) {
-        //if (!no_move && axis_unhomed_error()) {
-        if (!move && axis_unhomed_error()) {
-          //no_move = true;
-          move = true;
+        if (!no_move && axis_unhomed_error()) {
+          no_move = true;
           #if ENABLED(DEBUG_LEVELING_FEATURE)
             if (DEBUGGING(LEVELING)) SERIAL_ECHOLNPGM("No move on toolchange");
           #endif
@@ -11557,14 +11570,48 @@ void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool m
 
         #if ENABLED(DUAL_X_CARRIAGE)
 
-          //dualx_tool_change(tmp_extruder, no_move); // Can modify no_move
-          dualx_tool_change(tmp_extruder, move); // Can modify no_move
+          dualx_tool_change(tmp_extruder, no_move); // Can modify no_move
 
+<<<<<<< HEAD
+            // Adjustments to the current position
+            const float xydiff[2] = { offset_vec.x, offset_vec.y };
+            current_position[Z_AXIS] += offset_vec.z;
+
+          #else // !ABL_PLANAR
+
+            const float xydiff[2] = {
+              hotend_offset[X_AXIS][tmp_extruder] - hotend_offset[X_AXIS][active_extruder],
+              hotend_offset[Y_AXIS][tmp_extruder] - hotend_offset[Y_AXIS][active_extruder]
+            };
+
+            // backing out https://github.com/MarlinFirmware/Marlin/pull/10198
+            //#if HAS_MESH
+            //#if ENABLED(MESH_BED_LEVELING)
+            #if HAS_MESH && PLANNER_LEVELING
+
+              if (planner.leveling_active) {
+                #if ENABLED(DEBUG_LEVELING_FEATURE)
+                  if (DEBUGGING(LEVELING)) SERIAL_ECHOPAIR("Z before: ", current_position[Z_AXIS]);
+                #endif
+                float x2 = current_position[X_AXIS] + xydiff[X_AXIS],
+                      y2 = current_position[Y_AXIS] + xydiff[Y_AXIS],
+                      z1 = current_position[Z_AXIS], z2 = z1;
+                planner.apply_leveling(current_position[X_AXIS], current_position[Y_AXIS], z1);
+                planner.apply_leveling(x2, y2, z2);
+                current_position[Z_AXIS] += z2 - z1;
+                #if ENABLED(DEBUG_LEVELING_FEATURE)
+                  if (DEBUGGING(LEVELING))
+                    SERIAL_ECHOLNPAIR(" after: ", current_position[Z_AXIS]);
+                #endif
+              }
+
+            //#endif // HAS_MESH // MESH_BED_LEVELING
+            #endif // HAS_MESH && PLANNER_LEVELING
+=======
         #else // !DUAL_X_CARRIAGE
 
           #if ENABLED(PARKING_EXTRUDER) // Dual Parking extruder
-            //parking_extruder_tool_change(tmp_extruder, no_move);
-            parking_extruder_tool_change(tmp_extruder, move);
+            parking_extruder_tool_change(tmp_extruder, no_move);
           #endif
 
           #if ENABLED(SWITCHING_NOZZLE)
@@ -11574,6 +11621,7 @@ void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool m
             planner.buffer_line_kinematic(current_position, planner.max_feedrate_mm_s[Z_AXIS], active_extruder);
             move_nozzle_servo(tmp_extruder);
           #endif
+>>>>>>> bugfix-1.1.x
 
           const float xdiff = hotend_offset[X_AXIS][tmp_extruder] - hotend_offset[X_AXIS][active_extruder],
                       ydiff = hotend_offset[Y_AXIS][tmp_extruder] - hotend_offset[Y_AXIS][active_extruder];
@@ -11614,12 +11662,17 @@ void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool m
           destination[Z_AXIS] += z_diff;  // Include the Z restore with the "move back"
         #endif
 
-        // Raise, move, and lower again
+<<<<<<< HEAD
+        // Move to the "old position" (move the extruder into place)
         //if (safe_to_move && !no_move && IsRunning()) {
         if (safe_to_move && !move && IsRunning()) {
+=======
+        // Raise, move, and lower again
+        if (safe_to_move && !no_move && IsRunning()) {
           // Do a small lift to avoid the workpiece in the move back (below)
           current_position[Z_AXIS] += 1.0;
           planner.buffer_line_kinematic(current_position, planner.max_feedrate_mm_s[Z_AXIS], active_extruder);
+>>>>>>> bugfix-1.1.x
           #if ENABLED(DEBUG_LEVELING_FEATURE)
             if (DEBUGGING(LEVELING)) DEBUG_POS("Move back", destination);
           #endif
