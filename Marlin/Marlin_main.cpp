@@ -11295,7 +11295,6 @@ inline void invalid_extruder_error(const uint8_t e) {
 
 #endif // MIXING_EXTRUDER && MIXING_VIRTUAL_TOOLS > 1
 
-    if (tmp_extruder >= EXTRUDERS)
 #if ENABLED(DUAL_X_CARRIAGE)
 
   //inline void dualx_tool_change(const uint8_t tmp_extruder, bool &no_move) {
