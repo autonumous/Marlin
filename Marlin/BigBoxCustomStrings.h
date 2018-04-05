@@ -42,6 +42,12 @@
 #define BB_CUSTOM_LEVEL_BED_CORNERS_Y_MIN 10
 #define BB_CUSTOM_LEVEL_BED_CORNERS_Y_MAX (Y_BED_SIZE-10)
 
+//
+// Tool Change Behaviour
+//
+// By default, Issuing t1,T0 etc will keep current co-ordinate active by repositioning the head
+//#define BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE
+
 
 
 #endif //BIGBOX_CUSTOMISED_MENUS
