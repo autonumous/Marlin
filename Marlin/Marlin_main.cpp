@@ -13318,8 +13318,8 @@ void prepare_move_to_destination() {
       // SCARA needs to scale the feed rate from mm/s to degrees/s
       const float inv_segment_length = 1.0 / (MM_PER_ARC_SEGMENT),
                   inverse_secs = inv_segment_length * fr_mm_s;
-      float oldA = stepper.get_axis_position_degrees(A_AXIS),
-            oldB = stepper.get_axis_position_degrees(B_AXIS);
+      float oldA = planner.position_float[A_AXIS],
+            oldB = planner.position_float[B_AXIS];
     #endif
 
     #if N_ARC_CORRECTION > 1

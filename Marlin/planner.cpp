@@ -767,7 +767,7 @@ void Planner::_buffer_steps(const int32_t (&target)[XYZE]
       #if ENABLED(PREVENT_COLD_EXTRUSION)
         if (thermalManager.tooColdToExtrude(extruder)) {
           position[E_AXIS] = target[E_AXIS]; // Behave as if the move really took place, but ignore E part
-          #if ENABLED(LIN_ADVANCE)
+          #if HAS_POSITION_FLOAT
             position_float[E_AXIS] = target_float[E_AXIS];
           #endif
           de = 0; // no difference
