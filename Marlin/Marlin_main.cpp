@@ -3993,8 +3993,8 @@ inline void gcode_G28(const bool always_home_all) {
     #if DISABLED(DELTA) || ENABLED(DELTA_HOME_TO_SAFE_ZONE)
       const uint8_t old_tool_index = active_extruder;
     #endif
-    tool_change(0, 0, true);
-    //tool_change(0, 0, false);
+    //tool_change(0, 0, true);
+    tool_change(0, 0, false);
   #endif
 
   #if ENABLED(DUAL_X_CARRIAGE) || ENABLED(DUAL_NOZZLE_DUPLICATION_MODE)
