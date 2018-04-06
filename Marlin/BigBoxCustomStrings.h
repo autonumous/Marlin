@@ -46,7 +46,7 @@
 // Tool Change Behaviour
 //
 // By default, Issuing t1,T0 etc will keep current co-ordinate active by repositioning the head
-//#define BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE
+#define BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE
 
 
 
