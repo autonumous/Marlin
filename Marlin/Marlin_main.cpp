@@ -11813,7 +11813,7 @@ inline void gcode_T(const uint8_t tmp_extruder) {
       tmp_extruder,
       MMM_TO_MMS(parser.linearval('F')),
       #if ENABLED(BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE)
-       false //(tmp_extruder == active_extruder) || !parser.boolval('S')
+       (tmp_extruder == active_extruder) || parser.boolval('S')
       #else
        (tmp_extruder == active_extruder) || parser.boolval('S')
       #endif  //BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE
