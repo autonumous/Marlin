@@ -3616,7 +3616,15 @@ inline void gcode_G4() {
   inline void gcode_G27() {
     // Don't allow nozzle parking without homing first
     if (axis_unhomed_error()) return;
+      
+   #if ENABLED(BB_CUSTOM_NOZZLE_PARK_BEHAVIOUR_T0)
+    const uint8_t old_tool_index = active_extruder;
+    tool_change(0, 0, false);
     Nozzle::park(parser.ushortval('P'));
+    tool_change(old_tool_index, 0, false);
+   #else
+    Nozzle::park(parser.ushortval('P'));
+   #endif  //BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE
   }
 #endif // NOZZLE_PARK_FEATURE
 

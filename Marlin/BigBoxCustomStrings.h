@@ -48,7 +48,10 @@
 // By default, Issuing t1,T0 etc will keep current co-ordinate active by repositioning the head
 #define BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE
 
-
+//
+// Nozzel Park behaviour, change head to t0.  Based location on head 0 postition
+//
+#define BB_CUSTOM_NOZZLE_PARK_BEHAVIOUR_T0
 
 #endif //BIGBOX_CUSTOMISED_MENUS
 
