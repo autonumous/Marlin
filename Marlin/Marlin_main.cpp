@@ -2244,17 +2244,34 @@ static void clean_up_after_endstop_or_probe_move() {
    *
    * @return The raw Z position where the probe was triggered
    */
-  static float run_z_probe() {
+  #define HAS_CALIBRATION_PROBE (ENABLED(DELTA_AUTO_CALIBRATION) && Z_PROBE_LOW_POINT < 0)
+  static float run_z_probe(
+    #if HAS_CALIBRATION_PROBE
+      const bool is_calibration
+    #endif
+  ) {
 
     #if ENABLED(DEBUG_LEVELING_FEATURE)
       if (DEBUGGING(LEVELING)) DEBUG_POS(">>> run_z_probe", current_position);
+    #endif
+
+    #if Z_PROBE_LOW_POINT < 0
+      // Stop the probe before it goes too low to prevent damage.
+      // If Z isn't known or this is a "calibration probe" then probe to -10mm.
+      #if !HAS_CALIBRATION_PROBE
+        constexpr bool is_calibration = false;
+      #endif
+      const float z_probe_low_point = !is_calibration && axis_known_position[Z_AXIS] ? -zprobe_zoffset + Z_PROBE_LOW_POINT : -10.0;
+    #else
+      // Assertively move down in all cases
+      constexpr float z_probe_low_point = -10.0;
     #endif
 
     // Double-probing does a fast probe followed by a slow probe
     #if MULTIPLE_PROBING == 2
 
       // Do a first probe at the fast speed
-      if (do_probe_move(-10, Z_PROBE_SPEED_FAST)) return NAN;
+      if (do_probe_move(z_probe_low_point, Z_PROBE_SPEED_FAST)) return NAN;
 
       float first_probe_z = current_position[Z_AXIS];
 
@@ -2285,7 +2302,7 @@ static void clean_up_after_endstop_or_probe_move() {
     #endif
 
         // move down slowly to find bed
-        if (do_probe_move(-10, Z_PROBE_SPEED_SLOW)) return NAN;
+        if (do_probe_move(z_probe_low_point, Z_PROBE_SPEED_SLOW)) return NAN;
 
     #if MULTIPLE_PROBING > 2
         probes_total += current_position[Z_AXIS];
@@ -2333,14 +2350,14 @@ static void clean_up_after_endstop_or_probe_move() {
    *   - Raise to the BETWEEN height
    * - Return the probed Z position
    */
-  float probe_pt(const float &rx, const float &ry, const ProbePtRaise raise_after/*=PROBE_PT_NONE*/, const uint8_t verbose_level/*=0*/, const bool probe_relative/*=true*/) {
+  float probe_pt(const float &rx, const float &ry, const ProbePtRaise raise_after/*=PROBE_PT_NONE*/, const uint8_t verbose_level/*=0*/, const bool is_calibration/*=false*/) {
     #if ENABLED(DEBUG_LEVELING_FEATURE)
       if (DEBUGGING(LEVELING)) {
         SERIAL_ECHOPAIR(">>> probe_pt(", LOGICAL_X_POSITION(rx));
         SERIAL_ECHOPAIR(", ", LOGICAL_Y_POSITION(ry));
         SERIAL_ECHOPAIR(", ", raise_after == PROBE_PT_RAISE ? "raise" : raise_after == PROBE_PT_STOW ? "stow" : "none");
         SERIAL_ECHOPAIR(", ", int(verbose_level));
-        SERIAL_ECHOPAIR(", ", probe_relative ? "probe" : "nozzle");
+        SERIAL_ECHOPAIR(", ", is_calibration ? "nozzle" : "probe");
         SERIAL_ECHOLNPGM("_relative)");
         DEBUG_POS("", current_position);
       }
@@ -2348,7 +2365,7 @@ static void clean_up_after_endstop_or_probe_move() {
 
     // TODO: Adapt for SCARA, where the offset rotates
     float nx = rx, ny = ry;
-    if (probe_relative) {
+    if (!is_calibration) {
       if (!position_is_reachable_by_probe(rx, ry)) return NAN;  // The given position is in terms of the probe
       nx -= (X_PROBE_OFFSET_FROM_EXTRUDER);                     // Get the nozzle position
       ny -= (Y_PROBE_OFFSET_FROM_EXTRUDER);
@@ -2372,7 +2389,11 @@ static void clean_up_after_endstop_or_probe_move() {
 
     float measured_z = NAN;
     if (!DEPLOY_PROBE()) {
-      measured_z = run_z_probe() + zprobe_zoffset;
+      measured_z = run_z_probe(
+        #if HAS_CALIBRATION_PROBE
+          is_calibration
+        #endif
+      ) + zprobe_zoffset;
 
       if (raise_after == PROBE_PT_RAISE)
         do_blocking_move_to_z(current_position[Z_AXIS] + Z_CLEARANCE_BETWEEN_PROBES, MMM_TO_MMS(Z_PROBE_SPEED_FAST));
@@ -5464,7 +5485,7 @@ void home_all_axes() { gcode_G28(true); }
 
   inline float calibration_probe(const float nx, const float ny, const bool stow) {
     #if HAS_BED_PROBE
-      return probe_pt(nx, ny, stow ? PROBE_PT_STOW : PROBE_PT_RAISE, 0, false);
+      return probe_pt(nx, ny, stow ? PROBE_PT_STOW : PROBE_PT_RAISE, 0, true);
     #else
       UNUSED(stow);
       return lcd_probe_pt(nx, ny);
@@ -6516,7 +6537,7 @@ inline void gcode_M17() {
    *
    * Returns 'true' if load was completed, 'false' for abort
    */
-  static bool load_filament(const float &load_length=0, const float &purge_length=0, const int8_t max_beep_count=0,
+  static bool load_filament(const float &slow_load_length=0, const float &fast_load_length=0, const float &purge_length=0, const int8_t max_beep_count=0,
                             const bool show_lcd=false, const bool pause_for_user=false,
                             const AdvancedPauseMode mode=ADVANCED_PAUSE_MODE_PAUSE_PRINT
   ) {
@@ -6563,8 +6584,22 @@ inline void gcode_M17() {
         lcd_advanced_pause_show_message(ADVANCED_PAUSE_MESSAGE_LOAD, mode);
     #endif
 
-    // Load filament
-    if (load_length) do_pause_e_move(load_length, FILAMENT_CHANGE_LOAD_FEEDRATE);
+    // Slow Load filament
+    if (slow_load_length) do_pause_e_move(slow_load_length, FILAMENT_CHANGE_SLOW_LOAD_FEEDRATE);
+
+    // Fast Load Filament
+    if (fast_load_length) {
+      #if FILAMENT_CHANGE_FAST_LOAD_ACCEL > 0
+        const float saved_acceleration = planner.retract_acceleration;
+        planner.retract_acceleration = FILAMENT_CHANGE_FAST_LOAD_ACCEL;
+      #endif
+
+      do_pause_e_move(fast_load_length, FILAMENT_CHANGE_FAST_LOAD_FEEDRATE);
+
+      #if FILAMENT_CHANGE_FAST_LOAD_ACCEL > 0
+        planner.retract_acceleration = saved_acceleration;
+      #endif
+    }
 
     #if ENABLED(ADVANCED_PAUSE_CONTINUOUS_PURGE)
 
@@ -6575,7 +6610,7 @@ inline void gcode_M17() {
 
       wait_for_user = true;
       for (float purge_count = purge_length; purge_count > 0 && wait_for_user; --purge_count)
-        do_pause_e_move(1, ADVANCED_PAUSE_EXTRUDE_FEEDRATE);
+        do_pause_e_move(1, ADVANCED_PAUSE_PURGE_FEEDRATE);
       wait_for_user = false;
 
     #else
@@ -6589,7 +6624,7 @@ inline void gcode_M17() {
           #endif
 
           // Extrude filament to get into hotend
-          do_pause_e_move(purge_length, ADVANCED_PAUSE_EXTRUDE_FEEDRATE);
+          do_pause_e_move(purge_length, ADVANCED_PAUSE_PURGE_FEEDRATE);
         }
 
         // Show "Purge More" / "Resume" menu and wait for reply
@@ -6656,7 +6691,16 @@ inline void gcode_M17() {
     do_pause_e_move(FILAMENT_UNLOAD_RETRACT_LENGTH + FILAMENT_UNLOAD_PURGE_LENGTH, planner.max_feedrate_mm_s[E_AXIS]);
 
     // Unload filament
+    #if FILAMENT_CHANGE_FAST_LOAD_ACCEL > 0
+      const float saved_acceleration = planner.retract_acceleration;
+      planner.retract_acceleration = FILAMENT_CHANGE_UNLOAD_ACCEL;
+    #endif
+
     do_pause_e_move(unload_length, FILAMENT_CHANGE_UNLOAD_FEEDRATE);
+
+    #if FILAMENT_CHANGE_FAST_LOAD_ACCEL > 0
+      planner.retract_acceleration = saved_acceleration;
+    #endif
 
     // Disable extruders steppers for manual filament changing (only on boards that have separate ENABLE_PINS)
     #if E0_ENABLE_PIN != X_ENABLE_PIN && E1_ENABLE_PIN != Y_ENABLE_PIN
@@ -6694,7 +6738,7 @@ inline void gcode_M17() {
       #if ENABLED(ULTIPANEL)
         if (show_lcd) // Show status screen
           lcd_advanced_pause_show_message(ADVANCED_PAUSE_MESSAGE_STATUS);
-          LCD_MESSAGEPGM(MSG_M600_TOO_COLD);
+        LCD_MESSAGEPGM(MSG_M600_TOO_COLD);
       #endif
 
       return false; // unable to reach safe temperature
@@ -6846,7 +6890,7 @@ inline void gcode_M17() {
    * - Send host action for resume, if configured
    * - Resume the current SD print job, if any
    */
-  static void resume_print(const float &load_length=0, const float &purge_length=ADVANCED_PAUSE_EXTRUDE_LENGTH, const int8_t max_beep_count=0) {
+  static void resume_print(const float &slow_load_length=0, const float &fast_load_length=0, const float &purge_length=ADVANCED_PAUSE_PURGE_LENGTH, const int8_t max_beep_count=0) {
     if (!did_pause_print) return;
 
     // Re-enable the heaters if they timed out
@@ -6858,7 +6902,7 @@ inline void gcode_M17() {
 
     if (nozzle_timed_out || thermalManager.hotEnoughToExtrude(active_extruder)) {
       // Load the new filament
-      load_filament(load_length, purge_length, max_beep_count, true, nozzle_timed_out);
+      load_filament(slow_load_length, fast_load_length, purge_length, max_beep_count, true, nozzle_timed_out);
     }
 
     #if ENABLED(ULTIPANEL)
@@ -10263,6 +10307,10 @@ inline void gcode_M502() {
 
 #if ENABLED(ADVANCED_PAUSE_FEATURE)
 
+  #ifndef FILAMENT_CHANGE_SLOW_LOAD_LENGTH
+    #define FILAMENT_CHANGE_SLOW_LOAD_LENGTH 0
+  #endif
+
   /**
    * M600: Pause for filament change
    *
@@ -10326,8 +10374,11 @@ inline void gcode_M502() {
     const float unload_length = -FABS(parser.seen('U') ? parser.value_axis_units(E_AXIS) :
                                                          filament_change_unload_length[active_extruder]);
 
-    // Load filament
-    const float load_length = FABS(parser.seen('L') ? parser.value_axis_units(E_AXIS) :
+    // Slow load filament
+    constexpr float slow_load_length = FILAMENT_CHANGE_SLOW_LOAD_LENGTH;
+
+    // Fast load filament
+    const float fast_load_length = FABS(parser.seen('L') ? parser.value_axis_units(E_AXIS) :
                                                       filament_change_load_length[active_extruder]);
 
     const int beep_count = parser.intval('B',
@@ -10342,7 +10393,7 @@ inline void gcode_M502() {
 
     if (pause_print(retract, park_point, unload_length, true)) {
       wait_for_filament_reload(beep_count);
-      resume_print(load_length, ADVANCED_PAUSE_EXTRUDE_LENGTH, beep_count);
+      resume_print(slow_load_length, fast_load_length, ADVANCED_PAUSE_PURGE_LENGTH, beep_count);
     }
 
     #if EXTRUDERS > 1
@@ -10482,10 +10533,6 @@ inline void gcode_M502() {
     // Z axis lift
     if (parser.seenval('Z')) park_point.z = parser.linearval('Z');
 
-    // Load filament
-    const float load_length = FABS(parser.seen('L') ? parser.value_axis_units(E_AXIS) :
-                                                      filament_change_load_length[target_extruder]);
-
     // Show initial "wait for load" message
     #if ENABLED(ULTIPANEL)
       lcd_advanced_pause_show_message(ADVANCED_PAUSE_MESSAGE_LOAD, ADVANCED_PAUSE_MODE_LOAD_FILAMENT, target_extruder);
@@ -10506,8 +10553,10 @@ inline void gcode_M502() {
     if (park_point.z > 0)
       do_blocking_move_to_z(min(current_position[Z_AXIS] + park_point.z, Z_MAX_POS), NOZZLE_PARK_Z_FEEDRATE);
 
-    load_filament(load_length, ADVANCED_PAUSE_EXTRUDE_LENGTH, FILAMENT_CHANGE_ALERT_BEEPS, true,
-                  thermalManager.wait_for_heating(target_extruder), ADVANCED_PAUSE_MODE_LOAD_FILAMENT);
+    constexpr float slow_load_length = FILAMENT_CHANGE_SLOW_LOAD_LENGTH;
+    const float fast_load_length = FABS(parser.seen('L') ? parser.value_axis_units(E_AXIS) : filament_change_load_length[active_extruder]);
+    load_filament(slow_load_length, fast_load_length, ADVANCED_PAUSE_PURGE_LENGTH, FILAMENT_CHANGE_ALERT_BEEPS,
+                  true, thermalManager.wait_for_heating(target_extruder), ADVANCED_PAUSE_MODE_LOAD_FILAMENT);
 
     // Restore Z axis
     if (park_point.z > 0)
@@ -13705,7 +13754,7 @@ void disable_all_steppers() {
  *  - Check if cooling fan needs to be switched on
  *  - Check if an idle but hot extruder needs filament extruded (EXTRUDER_RUNOUT_PREVENT)
  */
-void manage_inactivity(bool ignore_stepper_queue/*=false*/) {
+void manage_inactivity(const bool ignore_stepper_queue/*=false*/) {
 
   #if ENABLED(FILAMENT_RUNOUT_SENSOR)
     runout.run();
