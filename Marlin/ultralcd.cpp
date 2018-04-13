@@ -1875,10 +1875,10 @@ void kill_screen(const char* lcd_msg) {
           //
           lcd_wait_for_move = true;
           lcd_goto_screen(_lcd_level_bed_done);
-          #if ENABLED(PROBE_MANUALLY)
-            enqueue_and_echo_commands_P(PSTR("G29 V1"));
-          #elif ENABLED(MESH_BED_LEVELING)
+          #if ENABLED(MESH_BED_LEVELING)
             enqueue_and_echo_commands_P(PSTR("G29 S2"));
+          #elif ENABLED(PROBE_MANUALLY)
+            enqueue_and_echo_commands_P(PSTR("G29 V1"));
           #endif
         }
         else
@@ -1927,10 +1927,10 @@ void kill_screen(const char* lcd_msg) {
 
       // G29 Records Z, moves, and signals when it pauses
       lcd_wait_for_move = true;
-      #if ENABLED(PROBE_MANUALLY)
-        enqueue_and_echo_commands_P(PSTR("G29 V1"));
-      #elif ENABLED(MESH_BED_LEVELING)
+      #if ENABLED(MESH_BED_LEVELING)
         enqueue_and_echo_commands_P(manual_probe_index ? PSTR("G29 S2") : PSTR("G29 S1"));
+      #elif ENABLED(PROBE_MANUALLY)
+        enqueue_and_echo_commands_P(PSTR("G29 V1"));
       #endif
     }
 
@@ -2775,7 +2775,7 @@ void kill_screen(const char* lcd_msg) {
       do_blocking_move_to_xy(rx, ry);
 
       lcd_synchronize();
-      move_menu_scale = PROBE_MANUALLY_STEP;
+      move_menu_scale = max(PROBE_MANUALLY_STEP, MIN_STEPS_PER_SEGMENT / float(DEFAULT_XYZ_STEPS_PER_UNIT));
       lcd_goto_screen(lcd_move_z);
     }
 
@@ -3171,6 +3171,10 @@ void kill_screen(const char* lcd_msg) {
   void lcd_move_menu() {
     START_MENU();
     MENU_BACK(MSG_PREPARE);
+
+    #if HAS_SOFTWARE_ENDSTOPS && ENABLED(SOFT_ENDSTOPS_MENU_ITEM)
+      MENU_ITEM_EDIT(bool, MSG_LCD_SOFT_ENDSTOPS, &soft_endstops_enabled);
+    #endif
 
     if (_MOVE_XYZ_ALLOWED) {
       if (_MOVE_XY_ALLOWED) {
