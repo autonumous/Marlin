@@ -53,6 +53,15 @@
 //
 #define BB_CUSTOM_NOZZLE_PARK_BEHAVIOUR_T0
 
+
+
+//
+// trouble shooting - https://github.com/MarlinFirmware/Marlin/issues/10446
+//
+#define BB_CUSTOM_DEBUG_LAYERSHIFT_20180424
+
+
+
 #endif //BIGBOX_CUSTOMISED_MENUS
 
 #endif // BIGBOX_CUSTOMISATIONS_STINGS_H

@@ -9084,6 +9084,10 @@ inline void gcode_M203() {
  *    T = Travel (non printing) moves
  */
 inline void gcode_M204() {
+  #if ENABLED(BB_CUSTOM_DEBUG_LAYERSHIFT_20180424)
+  stepper.synchronize();
+  #endif //BB_CUSTOM_DEBUG_LAYERSHIFT_20180424
+
   bool report = true;
   if (parser.seenval('S')) { // Kept for legacy compatibility. Should NOT BE USED for new developments.
     planner.travel_acceleration = planner.acceleration = parser.value_linear_units();
@@ -9120,6 +9124,9 @@ inline void gcode_M204() {
  *    E = Max E Jerk (units/sec^2)
  */
 inline void gcode_M205() {
+  #if ENABLED(BB_CUSTOM_DEBUG_LAYERSHIFT_20180424)
+  stepper.synchronize();
+  #endif //BB_CUSTOM_DEBUG_LAYERSHIFT_20180424	
   if (parser.seen('S')) planner.min_feedrate_mm_s = parser.value_linear_units();
   if (parser.seen('T')) planner.min_travel_feedrate_mm_s = parser.value_linear_units();
   if (parser.seen('B')) planner.min_segment_time_us = parser.value_ulong();
