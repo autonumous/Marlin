@@ -99,7 +99,7 @@
 
 // Macros for bit masks
 #undef _BV
-#define _BV(b) (1<<(b))
+#define _BV(b) (1 << (b))
 #define TEST(n,b) !!((n)&_BV(b))
 #define SBI(n,b) (n |= _BV(b))
 #define CBI(n,b) (n &= ~_BV(b))
@@ -208,7 +208,7 @@
 #define NEAR(x,y) NEAR_ZERO((x)-(y))
 
 #define RECIPROCAL(x) (NEAR_ZERO(x) ? 0.0 : 1.0 / (x))
-#define FIXFLOAT(f) (f + 0.00001)
+#define FIXFLOAT(f) (f + (f < 0.0 ? -0.00001 : 0.00001))
 
 //
 // Maths macros that can be overridden by HAL

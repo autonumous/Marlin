@@ -96,7 +96,7 @@
 #endif
 
 #if ENABLED(ENDSTOP_INTERRUPTS_FEATURE)
-  #include "HAL/HAL_endstop_interrupts.h"
+  #include HAL_PATH(HAL, endstop_interrupts.h)
 #endif
 
 #if HAS_TRINAMIC
@@ -124,6 +124,10 @@
 
 #if ENABLED(ADVANCED_PAUSE_FEATURE) && ENABLED(PAUSE_PARK_NO_STEPPER_TIMEOUT)
   #include "feature/pause.h"
+#endif
+
+#if ENABLED(POWER_LOSS_RECOVERY)
+  #include "feature/power_loss_recovery.h"
 #endif
 
 #if ENABLED(FILAMENT_RUNOUT_SENSOR)
@@ -876,6 +880,10 @@ void setup() {
     pe_magnet_init();
   #endif
 
+  #if ENABLED(POWER_LOSS_RECOVERY)
+    do_print_job_recovery();
+  #endif
+
   #if ENABLED(USE_WATCHDOG) // Reinit watchdog after HAL_get_reset_source call
     watchdog_init();
   #endif
@@ -898,6 +906,26 @@ void loop() {
   #endif
 
   for (;;) {
+
+    #if ENABLED(SDSUPPORT) && ENABLED(ULTIPANEL)
+      if (abort_sd_printing) {
+        abort_sd_printing = false;
+        card.stopSDPrint(
+          #if SD_RESORT
+            true
+          #endif
+        );
+        clear_command_queue();
+        quickstop_stepper();
+        print_job_timer.stop();
+        thermalManager.disable_all_heaters();
+        #if FAN_COUNT > 0
+          for (uint8_t i = 0; i < FAN_COUNT; i++) fanSpeeds[i] = 0;
+        #endif
+        wait_for_heatup = false;
+      }
+    #endif // SDSUPPORT && ULTIPANEL
+
     if (commands_in_queue < BUFSIZE) get_available_commands();
     advance_command_queue();
     endstops.report_state();

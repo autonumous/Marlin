@@ -64,7 +64,7 @@
 static uint8_t LEDs[8] = { 0 };
 
 #ifdef CPU_32_BIT
-  #define MS_DELAY() delayMicroseconds(7)  // 32-bit processors need a delay to stabilize the signal
+void MS_DELAY() { DELAY_1US; }  // 32-bit processors need a delay to stabilize the signal
 #else
   #define MS_DELAY() DELAY_3_NOP
 #endif
@@ -287,8 +287,8 @@ void Max7219_idle_tasks() {
     #endif
     CRITICAL_SECTION_END
   #endif
-      
-  static uint16_t refresh_cnt = 0;  // The Max7219 circuit boards available for several dollars on eBay 
+
+  static uint16_t refresh_cnt = 0;  // The Max7219 circuit boards available for several dollars on eBay
   if (refresh_cnt++ > 50000) {      // are vulnerable to electrical noise, especially with long wires
     Max7219_register_setup();       // next to high current wires. If the display becomes corrupted due
     Max7219_LED_Toggle(7, 0);       // to electrical noise, this will fix it within a couple of seconds.

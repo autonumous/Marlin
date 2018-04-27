@@ -96,8 +96,10 @@ typedef struct {
 
   #if ENABLED(BEZIER_JERK_CONTROL)
     uint32_t cruise_rate;                   // The actual cruise rate to use, between end of the acceleration phase and start of deceleration phase
-    int32_t acceleration_time,              // Acceleration time and deceleration time in STEP timer counts
-            deceleration_time;
+    uint32_t acceleration_time,             // Acceleration time and deceleration time in STEP timer counts
+             deceleration_time;
+    uint32_t acceleration_time_inverse,     // Inverse of acceleration and deceleration periods, expressed as integer. Scale depends on CPU being used
+             deceleration_time_inverse;
   #else
     int32_t acceleration_rate;              // The acceleration rate used for acceleration calculation
   #endif
@@ -306,6 +308,8 @@ class Planner {
      * Number of moves currently in the planner
      */
     FORCE_INLINE static uint8_t movesplanned() { return BLOCK_MOD(block_buffer_head - block_buffer_tail + BLOCK_BUFFER_SIZE); }
+
+    FORCE_INLINE static void clear_block_buffer() { block_buffer_head = block_buffer_tail = 0; }
 
     FORCE_INLINE static bool is_full() { return block_buffer_tail == next_block_index(block_buffer_head); }
 
@@ -592,7 +596,7 @@ class Planner {
         return bbru;
       }
 
-      static void clear_block_buffer_runtime(){
+      static void clear_block_buffer_runtime() {
         CRITICAL_SECTION_START
           block_buffer_runtime_us = 0;
         CRITICAL_SECTION_END
