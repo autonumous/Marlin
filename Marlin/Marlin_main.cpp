@@ -196,7 +196,7 @@
  * M407 - Display measured filament diameter in millimeters. (Requires FILAMENT_WIDTH_SENSOR)
  * M410 - Quickstop. Abort all planned moves.
  * M420 - Enable/Disable Leveling (with current values) S1=enable S0=disable (Requires MESH_BED_LEVELING or ABL)
- * M421 - Set a single Z coordinate in the Mesh Leveling grid. X<units> Y<units> Z<units> (Requires MESH_BED_LEVELING or AUTO_BED_LEVELING_UBL)
+ * M421 - Set a single Z coordinate in the Mesh Leveling grid. X<units> Y<units> Z<units> (Requires MESH_BED_LEVELING, AUTO_BED_LEVELING_BILINEAR, or AUTO_BED_LEVELING_UBL)
  * M428 - Set the home_offset based on the current_position. Nearest edge applies. (Disabled by NO_WORKSPACE_OFFSETS or DELTA)
  * M500 - Store parameters in EEPROM. (Requires EEPROM_SETTINGS)
  * M501 - Restore parameters from EEPROM. (Requires EEPROM_SETTINGS)
@@ -1558,6 +1558,9 @@ static void set_axis_is_at_home(const AxisEnum axis) {
  * Some planner shorthand inline functions
  */
 inline float get_homing_bump_feedrate(const AxisEnum axis) {
+  #if HOMING_Z_WITH_PROBE
+    if (axis == Z_AXIS) return Z_PROBE_SPEED_SLOW;
+  #endif
   static const uint8_t homing_bump_divisor[] PROGMEM = HOMING_BUMP_DIVISOR;
   uint8_t hbd = pgm_read_byte(&homing_bump_divisor[axis]);
   if (hbd < 1) {
@@ -2227,8 +2230,8 @@ void clean_up_after_endstop_or_probe_move() {
         while (thermalManager.isHeatingBed()) safe_delay(200);
         lcd_reset_status();
       }
-    #endif	
-	
+    #endif
+
     // Deploy BLTouch at the start of any probe
     #if ENABLED(BLTOUCH)
       if (set_bltouch_deployed(true)) return true;
@@ -2942,7 +2945,7 @@ static void do_homing_move(const AxisEnum axis, const float distance, const floa
       SERIAL_EOL();
     }
   #endif
-  
+
   #if HOMING_Z_WITH_PROBE && HAS_HEATED_BED && ENABLED(WAIT_FOR_BED_HEATER)
     // Wait for bed to heat back up between probing points
     if (axis == Z_AXIS && distance < 0 && thermalManager.isHeatingBed()) {
@@ -3089,7 +3092,7 @@ static void homeaxis(const AxisEnum axis) {
   // When homing Z with probe respect probe clearance
   const float bump = axis_home_dir * (
     #if HOMING_Z_WITH_PROBE
-      (axis == Z_AXIS) ? max(Z_CLEARANCE_BETWEEN_PROBES, home_bump_mm(Z_AXIS)) :
+      (axis == Z_AXIS && (Z_HOME_BUMP_MM)) ? max(Z_CLEARANCE_BETWEEN_PROBES, home_bump_mm(Z_AXIS)) :
     #endif
     home_bump_mm(axis)
   );
@@ -5414,9 +5417,9 @@ void home_all_axes() { gcode_G28(true); }
     const float measured_z = probe_pt(xpos, ypos, raise_after, parser.intval('V', 1));
 
     if (!isnan(measured_z)) {
-      SERIAL_PROTOCOLPAIR("Bed X: ", FIXFLOAT(xpos));
-      SERIAL_PROTOCOLPAIR(" Y: ", FIXFLOAT(ypos));
-      SERIAL_PROTOCOLLNPAIR(" Z: ", FIXFLOAT(measured_z));
+      SERIAL_PROTOCOLPAIR_F("Bed X: ", xpos);
+      SERIAL_PROTOCOLPAIR_F(" Y: ", ypos);
+      SERIAL_PROTOCOLLNPAIR_F(" Z: ", measured_z);
     }
 
     clean_up_after_endstop_or_probe_move();
@@ -5707,7 +5710,7 @@ void home_all_axes() { gcode_G28(true); }
 
   /**
    * kinematics routines and auto tune matrix scaling parameters:
-   * see https://github.com/LVD-AC/Marlin-AC/tree/1.1.x-AC/documentation for  
+   * see https://github.com/LVD-AC/Marlin-AC/tree/1.1.x-AC/documentation for
    *  - formulae for approximative forward kinematics in the end-stop displacement matrix
    *  - definition of the matrix scaling parameters
    */
@@ -5721,7 +5724,7 @@ void home_all_axes() { gcode_G28(true); }
       pos[Y_AXIS] = sin(a) * r;
       pos[Z_AXIS] = z_pt[rad];
       inverse_kinematics(pos);
-      LOOP_XYZ(axis) mm_at_pt_axis[rad][axis] = delta[axis];           
+      LOOP_XYZ(axis) mm_at_pt_axis[rad][axis] = delta[axis];
     }
   }
 
@@ -5785,7 +5788,7 @@ void home_all_axes() { gcode_G28(true); }
           delta_t[ABC] = {0.0};
 
     delta_r = diff;
-    calc_kinematics_diff_probe_points(z_pt, delta_e, delta_r, delta_t);     
+    calc_kinematics_diff_probe_points(z_pt, delta_e, delta_r, delta_t);
     r_fac = -(z_pt[__A] + z_pt[__B] + z_pt[__C] + z_pt[_BC] + z_pt[_CA] + z_pt[_AB]) / 6.0;
     r_fac = diff / r_fac / 3.0; // 1/(3*delta_Z)
     return r_fac;
@@ -5802,7 +5805,7 @@ void home_all_axes() { gcode_G28(true); }
     LOOP_XYZ(axis) {
       LOOP_XYZ(axis_2) delta_t[axis_2] = 0.0;
       delta_t[axis] = diff;
-      calc_kinematics_diff_probe_points(z_pt, delta_e, delta_r, delta_t);     
+      calc_kinematics_diff_probe_points(z_pt, delta_e, delta_r, delta_t);
       a_fac += z_pt[uint8_t((axis * _4P_STEP) - _7P_STEP + NPP) % NPP + 1] / 6.0;
       a_fac -= z_pt[uint8_t((axis * _4P_STEP) + 1 + _7P_STEP)] / 6.0;
     }
@@ -5984,7 +5987,7 @@ void home_all_axes() { gcode_G28(true); }
 
         /**
          * convergence matrices:
-         * see https://github.com/LVD-AC/Marlin-AC/tree/1.1.x-AC/documentation for  
+         * see https://github.com/LVD-AC/Marlin-AC/tree/1.1.x-AC/documentation for
          *  - definition of the matrix scaling parameters
          *  - matrices for 4 and 7 point calibration
          */
@@ -6050,7 +6053,7 @@ void home_all_axes() { gcode_G28(true); }
         delta_radius += r_delta;
         LOOP_XYZ(axis) delta_tower_angle_trim[axis] += t_delta[axis];
       }
-      else if (zero_std_dev >= test_precision) {   
+      else if (zero_std_dev >= test_precision) {
         // roll back
         COPY(delta_endstop_adj, e_old);
         delta_radius = r_old;
@@ -6076,7 +6079,7 @@ void home_all_axes() { gcode_G28(true); }
       NOMORE(zero_std_dev_min, zero_std_dev);
 
       // print report
-  
+
       if (verbose_level == 3)
         print_calibration_results(z_at_pt, _tower_results, _opposite_results);
 
@@ -10111,7 +10114,7 @@ void quickstop_stepper() {
         #if ENABLED(AUTO_BED_LEVELING_UBL)
 
           set_bed_leveling_enabled(false);
-          ubl.adjust_mesh_to_mean(cval);
+          ubl.adjust_mesh_to_mean(true, cval);
 
         #else
 
@@ -12532,7 +12535,7 @@ void process_parsed_command() {
       #endif
 
       case 999: gcode_M999(); break;                              // M999: Restart after being Stopped
-      
+
       default: parser.unknown_command_error();
     }
     break;
