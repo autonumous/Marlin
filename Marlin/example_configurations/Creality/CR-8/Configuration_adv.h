@@ -182,10 +182,12 @@
 
 // @section temperature
 
-//These defines help to calibrate the AD595 sensor in case you get wrong temperature measurements.
-//The measured temperature is defined as "actualTemp = (measuredTemp * TEMP_SENSOR_AD595_GAIN) + TEMP_SENSOR_AD595_OFFSET"
-#define TEMP_SENSOR_AD595_OFFSET 0.0
-#define TEMP_SENSOR_AD595_GAIN   1.0
+// Calibration for AD595 / AD8495 sensor to adjust temperature measurements.
+// The final temperature is calculated as (measuredTemp * GAIN) + OFFSET.
+#define TEMP_SENSOR_AD595_OFFSET  0.0
+#define TEMP_SENSOR_AD595_GAIN    1.0
+#define TEMP_SENSOR_AD8495_OFFSET 0.0
+#define TEMP_SENSOR_AD8495_GAIN   1.0
 
 /**
  * Controller Fan
@@ -491,9 +493,6 @@
 
 // Include a page of printer information in the LCD Main Menu
 //#define LCD_INFO_MENU
-
-// Leave out seldom-used LCD menu items to recover some Program Memory
-//#define SLIM_LCD_MENUS
 
 // Scroll a longer status message into view
 #define STATUS_MESSAGE_SCROLLING
