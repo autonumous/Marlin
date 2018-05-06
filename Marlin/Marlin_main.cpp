@@ -2990,7 +2990,7 @@ static void do_homing_move(const AxisEnum axis, const float distance, const floa
     planner.buffer_line(delta[A_AXIS], delta[B_AXIS], delta[C_AXIS], current_position[E_AXIS], fr_mm_s ? fr_mm_s : homing_feedrate(axis), active_extruder);
   #else
     sync_plan_position();
-    current_position[axis] = distance;
+    current_position[axis] = distance; // Set delta/cartesian axes directly
     planner.buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], fr_mm_s ? fr_mm_s : homing_feedrate(axis), active_extruder);
   #endif
 
@@ -5361,8 +5361,8 @@ void home_all_axes() { gcode_G28(true); }
         #if ENABLED(DEBUG_LEVELING_FEATURE)
           if (DEBUGGING(LEVELING)) SERIAL_ECHOLNPAIR("Z Probe End Script: ", Z_PROBE_END_SCRIPT);
         #endif
-        enqueue_and_echo_commands_P(PSTR(Z_PROBE_END_SCRIPT));
         stepper.synchronize();
+        enqueue_and_echo_commands_P(PSTR(Z_PROBE_END_SCRIPT));
       #endif
 
       // Auto Bed Leveling is complete! Enable if possible.
@@ -6166,9 +6166,8 @@ void home_all_axes() { gcode_G28(true); }
       }
     #endif
 
-    stepper.synchronize();  // wait until the machine is idle
-
     // Move until destination reached or target hit
+    stepper.synchronize();
     endstops.enable(true);
     G38_move = true;
     G38_endstop_hit = false;
@@ -6190,13 +6189,13 @@ void home_all_axes() { gcode_G28(true); }
         LOOP_XYZ(i) destination[i] += retract_mm[i];
         endstops.enable(false);
         prepare_move_to_destination();
-        stepper.synchronize();
 
         feedrate_mm_s /= 4;
 
         // Bump the target more slowly
         LOOP_XYZ(i) destination[i] -= retract_mm[i] * 2;
 
+        stepper.synchronize();
         endstops.enable(true);
         G38_move = true;
         prepare_move_to_destination();
@@ -6290,8 +6289,6 @@ void home_all_axes() { gcode_G28(true); }
  */
 inline void gcode_G92() {
 
-  stepper.synchronize();
-
   #if ENABLED(CNC_COORDINATE_SYSTEMS)
     switch (parser.subcode) {
       case 1:
@@ -6351,10 +6348,9 @@ inline void gcode_G92() {
       COPY(coordinate_system[active_coordinate_system], position_shift);
   #endif
 
-  if (didXYZ)
-    SYNC_PLAN_POSITION_KINEMATIC();
-  else if (didE)
-    sync_plan_position_e();
+  // Update planner/steppers only if the native coordinates changed
+  if    (didXYZ) SYNC_PLAN_POSITION_KINEMATIC();
+  else if (didE) sync_plan_position_e();
 
   report_current_position();
 }
@@ -6381,6 +6377,8 @@ inline void gcode_G92() {
 
     const bool has_message = !hasP && !hasS && args && *args;
 
+    stepper.synchronize();
+
     #if ENABLED(ULTIPANEL)
 
       if (has_message)
@@ -6403,8 +6401,6 @@ inline void gcode_G92() {
 
     KEEPALIVE_STATE(PAUSED_FOR_USER);
     wait_for_user = true;
-
-    stepper.synchronize();
 
     if (ms > 0) {
       ms += millis();  // wait until this time for a click
@@ -6556,8 +6552,8 @@ inline void gcode_M17() {
     set_destination_from_current();
     destination[E_AXIS] += length / planner.e_factor[active_extruder];
     planner.buffer_line_kinematic(destination, fr, active_extruder);
-    stepper.synchronize();
     set_current_from_destination();
+    stepper.synchronize();
   }
 
   static float resume_position[XYZE];
@@ -6845,11 +6841,11 @@ inline void gcode_M17() {
     #endif
     print_job_timer.pause();
 
-    // Wait for synchronize steppers
-    stepper.synchronize();
-
     // Save current position
     COPY(resume_position, current_position);
+
+    // Wait for synchronize steppers
+    stepper.synchronize();
 
     // Initial retract before move to filament change position
     if (retract && thermalManager.hotEnoughToExtrude(active_extruder))
@@ -8540,7 +8536,6 @@ inline void gcode_M81() {
   safe_delay(1000); // Wait 1 second before switching off
 
   #if HAS_SUICIDE
-    stepper.synchronize();
     suicide();
   #elif HAS_POWER_SWITCH
     PSU_OFF();
@@ -8676,8 +8671,6 @@ void report_current_position() {
 
   void report_current_position_detail() {
 
-    stepper.synchronize();
-
     SERIAL_PROTOCOLPGM("\nLogical:");
     const float logical[XYZ] = {
       LOGICAL_X_POSITION(current_position[X_AXIS]),
@@ -8711,6 +8704,8 @@ void report_current_position() {
       inverse_kinematics(leveled);  // writes delta[]
       report_xyz(delta);
     #endif
+
+    stepper.synchronize();
 
     SERIAL_PROTOCOLPGM("Stepper:");
     LOOP_XYZE(i) {
@@ -13481,8 +13476,8 @@ void set_current_from_steppers_for_axis(const AxisEnum axis) {
               current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS],
               planner.max_feedrate_mm_s[X_AXIS], 1
             );
-            SYNC_PLAN_POSITION_KINEMATIC();
             stepper.synchronize();
+            SYNC_PLAN_POSITION_KINEMATIC();
             extruder_duplication_enabled = true;
             active_extruder_parked = false;
             #if ENABLED(DEBUG_LEVELING_FEATURE)
@@ -14090,6 +14085,7 @@ void manage_inactivity(const bool ignore_stepper_queue/*=false*/) {
       planner.buffer_line_kinematic(current_position, MMM_TO_MMS(EXTRUDER_RUNOUT_SPEED), active_extruder);
       current_position[E_AXIS] = olde;
       planner.set_e_position_mm(olde);
+
       stepper.synchronize();
       #if ENABLED(SWITCHING_EXTRUDER)
         E0_ENABLE_WRITE(oldstatus);
