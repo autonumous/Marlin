@@ -751,7 +751,7 @@ void set_current_from_steppers_for_axis(const AxisEnum axis);
 #endif
 
 #if ENABLED(BEZIER_CURVE_SUPPORT)
-  void plan_cubic_move(const float (&offset)[4]);
+  void plan_cubic_move(const float (&cart)[XYZE], const float (&offset)[4]);
 #endif
 
 
@@ -3526,7 +3526,7 @@ inline void gcode_G4() {
         parser.linearval('Q')
       };
 
-      plan_cubic_move(offset);
+      plan_cubic_move(destination, offset);
     }
   }
 
@@ -13805,23 +13805,16 @@ void prepare_move_to_destination() {
       planner.buffer_line_kinematic(cart, fr_mm_s, active_extruder);
     #endif
 
-    // As far as the parser is concerned, the position is now == target. In reality the
-    // motion control system might still be processing the action and the real tool position
-    // in any intermediate location.
-    set_current_from_destination();
+    COPY(current_position, cart);
   } // plan_arc
 
 #endif // ARC_SUPPORT
 
 #if ENABLED(BEZIER_CURVE_SUPPORT)
 
-  void plan_cubic_move(const float (&offset)[4]) {
-    cubic_b_spline(current_position, destination, offset, MMS_SCALED(feedrate_mm_s), active_extruder);
-
-    // As far as the parser is concerned, the position is now == destination. In reality the
-    // motion control system might still be processing the action and the real tool position
-    // in any intermediate location.
-    set_current_from_destination();
+  void plan_cubic_move(const float (&cart)[XYZE], const float (&offset)[4]) {
+    cubic_b_spline(current_position, cart, offset, MMS_SCALED(feedrate_mm_s), active_extruder);
+    COPY(current_position, cart);
   }
 
 #endif // BEZIER_CURVE_SUPPORT
