@@ -167,20 +167,20 @@ volatile int32_t Stepper::endstops_trigsteps[XYZ];
   #define LOCKED_X2_MOTOR locked_x2_motor
   #define LOCKED_Y2_MOTOR locked_y2_motor
   #define LOCKED_Z2_MOTOR locked_z2_motor
-  #define DUAL_ENDSTOP_APPLY_STEP(AXIS,v)                                                                                                           \
-    if (performing_homing) {                                                                                                                        \
-      if (AXIS##_HOME_DIR < 0) {                                                                                                                    \
-        if (!(TEST(endstops.old_endstop_bits, AXIS##_MIN) && count_direction[AXIS##_AXIS] < 0) && !LOCKED_##AXIS##_MOTOR) AXIS##_STEP_WRITE(v);     \
-        if (!(TEST(endstops.old_endstop_bits, AXIS##2_MIN) && count_direction[AXIS##_AXIS] < 0) && !LOCKED_##AXIS##2_MOTOR) AXIS##2_STEP_WRITE(v);  \
-      }                                                                                                                                             \
-      else {                                                                                                                                        \
-        if (!(TEST(endstops.old_endstop_bits, AXIS##_MAX) && count_direction[AXIS##_AXIS] > 0) && !LOCKED_##AXIS##_MOTOR) AXIS##_STEP_WRITE(v);     \
-        if (!(TEST(endstops.old_endstop_bits, AXIS##2_MAX) && count_direction[AXIS##_AXIS] > 0) && !LOCKED_##AXIS##2_MOTOR) AXIS##2_STEP_WRITE(v);  \
-      }                                                                                                                                             \
-    }                                                                                                                                               \
-    else {                                                                                                                                          \
-      AXIS##_STEP_WRITE(v);                                                                                                                         \
-      AXIS##2_STEP_WRITE(v);                                                                                                                        \
+  #define DUAL_ENDSTOP_APPLY_STEP(A,V)                                                                                                  \
+    if (performing_homing) {                                                                                                            \
+      if (A##_HOME_DIR < 0) {                                                                                                           \
+        if (!(TEST(endstops.old_endstop_bits, A##_MIN) && count_direction[_AXIS(A)] < 0) && !LOCKED_##A##_MOTOR) A##_STEP_WRITE(V);     \
+        if (!(TEST(endstops.old_endstop_bits, A##2_MIN) && count_direction[_AXIS(A)] < 0) && !LOCKED_##A##2_MOTOR) A##2_STEP_WRITE(V);  \
+      }                                                                                                                                 \
+      else {                                                                                                                            \
+        if (!(TEST(endstops.old_endstop_bits, A##_MAX) && count_direction[_AXIS(A)] > 0) && !LOCKED_##A##_MOTOR) A##_STEP_WRITE(V);     \
+        if (!(TEST(endstops.old_endstop_bits, A##2_MAX) && count_direction[_AXIS(A)] > 0) && !LOCKED_##A##2_MOTOR) A##2_STEP_WRITE(V);  \
+      }                                                                                                                                 \
+    }                                                                                                                                   \
+    else {                                                                                                                              \
+      A##_STEP_WRITE(V);                                                                                                                \
+      A##2_STEP_WRITE(V);                                                                                                               \
     }
 #endif
 
@@ -243,59 +243,63 @@ volatile int32_t Stepper::endstops_trigsteps[XYZ];
 
 // intRes = longIn1 * longIn2 >> 24
 // uses:
-// r26 to store 0
-// r27 to store bits 16-23 of the 48bit result. The top bit is used to round the two byte result.
+// A[tmp] to store 0
+// B[tmp] to store bits 16-23 of the 48bit result. The top bit is used to round the two byte result.
 // note that the lower two bytes and the upper byte of the 48bit result are not calculated.
 // this can cause the result to be out by one as the lower bytes may cause carries into the upper ones.
-// B0 A0 are bits 24-39 and are the returned value
-// C1 B1 A1 is longIn1
-// D2 C2 B2 A2 is longIn2
+// B A are bits 24-39 and are the returned value
+// C B A is longIn1
+// D C B A is longIn2
 //
-#define MultiU24X32toH16(intRes, longIn1, longIn2) \
-  asm volatile ( \
-                 A("clr r26") \
-                 A("mul %A1, %B2") \
-                 A("mov r27, r1") \
-                 A("mul %B1, %C2") \
-                 A("movw %A0, r0") \
-                 A("mul %C1, %C2") \
-                 A("add %B0, r0") \
-                 A("mul %C1, %B2") \
-                 A("add %A0, r0") \
-                 A("adc %B0, r1") \
-                 A("mul %A1, %C2") \
-                 A("add r27, r0") \
-                 A("adc %A0, r1") \
-                 A("adc %B0, r26") \
-                 A("mul %B1, %B2") \
-                 A("add r27, r0") \
-                 A("adc %A0, r1") \
-                 A("adc %B0, r26") \
-                 A("mul %C1, %A2") \
-                 A("add r27, r0") \
-                 A("adc %A0, r1") \
-                 A("adc %B0, r26") \
-                 A("mul %B1, %A2") \
-                 A("add r27, r1") \
-                 A("adc %A0, r26") \
-                 A("adc %B0, r26") \
-                 A("lsr r27") \
-                 A("adc %A0, r26") \
-                 A("adc %B0, r26") \
-                 A("mul %D2, %A1") \
-                 A("add %A0, r0") \
-                 A("adc %B0, r1") \
-                 A("mul %D2, %B1") \
-                 A("add %B0, r0") \
-                 A("clr r1") \
-                 : \
-                 "=&r" (intRes) \
-                 : \
-                 "d" (longIn1), \
-                 "d" (longIn2) \
-                 : \
-                 "r26" , "r27" \
-               )
+static FORCE_INLINE uint16_t MultiU24X32toH16(uint32_t longIn1, uint32_t longIn2) {
+  register uint8_t tmp1;
+  register uint8_t tmp2;
+  register uint16_t intRes;
+  __asm__ __volatile__(
+    A("clr %[tmp1]")
+    A("mul %A[longIn1], %B[longIn2]")
+    A("mov %[tmp2], r1")
+    A("mul %B[longIn1], %C[longIn2]")
+    A("movw %A[intRes], r0")
+    A("mul %C[longIn1], %C[longIn2]")
+    A("add %B[intRes], r0")
+    A("mul %C[longIn1], %B[longIn2]")
+    A("add %A[intRes], r0")
+    A("adc %B[intRes], r1")
+    A("mul %A[longIn1], %C[longIn2]")
+    A("add %[tmp2], r0")
+    A("adc %A[intRes], r1")
+    A("adc %B[intRes], %[tmp1]")
+    A("mul %B[longIn1], %B[longIn2]")
+    A("add %[tmp2], r0")
+    A("adc %A[intRes], r1")
+    A("adc %B[intRes], %[tmp1]")
+    A("mul %C[longIn1], %A[longIn2]")
+    A("add %[tmp2], r0")
+    A("adc %A[intRes], r1")
+    A("adc %B[intRes], %[tmp1]")
+    A("mul %B[longIn1], %A[longIn2]")
+    A("add %[tmp2], r1")
+    A("adc %A[intRes], %[tmp1]")
+    A("adc %B[intRes], %[tmp1]")
+    A("lsr %[tmp2]")
+    A("adc %A[intRes], %[tmp1]")
+    A("adc %B[intRes], %[tmp1]")
+    A("mul %D[longIn2], %A[longIn1]")
+    A("add %A[intRes], r0")
+    A("adc %B[intRes], r1")
+    A("mul %D[longIn2], %B[longIn1]")
+    A("add %B[intRes], r0")
+    A("clr r1")
+      : [intRes] "=&r" (intRes),
+        [tmp1] "=&r" (tmp1),
+        [tmp2] "=&r" (tmp2)
+      : [longIn1] "d" (longIn1),
+        [longIn2] "d" (longIn2)
+      : "cc"
+  );
+  return intRes;
+}
 
 // Some useful constants
 
@@ -330,14 +334,14 @@ void Stepper::wake_up() {
  */
 void Stepper::set_directions() {
 
-  #define SET_STEP_DIR(AXIS) \
-    if (motor_direction(AXIS ##_AXIS)) { \
-      AXIS ##_APPLY_DIR(INVERT_## AXIS ##_DIR, false); \
-      count_direction[AXIS ##_AXIS] = -1; \
+  #define SET_STEP_DIR(A) \
+    if (motor_direction(_AXIS(A))) { \
+      A##_APPLY_DIR(INVERT_## A##_DIR, false); \
+      count_direction[_AXIS(A)] = -1; \
     } \
     else { \
-      AXIS ##_APPLY_DIR(!INVERT_## AXIS ##_DIR, false); \
-      count_direction[AXIS ##_AXIS] = 1; \
+      A##_APPLY_DIR(!INVERT_## A##_DIR, false); \
+      count_direction[_AXIS(A)] = 1; \
     }
 
   #if HAS_X_DIR
@@ -1506,10 +1510,7 @@ void Stepper::isr() {
           ? _eval_bezier_curve(acceleration_time)
           : current_block->cruise_rate;
     #else
-      MultiU24X32toH16(acc_step_rate, acceleration_time, current_block->acceleration_rate);
-      acc_step_rate += current_block->initial_rate;
-
-      // upper limit
+      acc_step_rate = MultiU24X32toH16(acceleration_time, current_block->acceleration_rate) + current_block->initial_rate;
       NOMORE(acc_step_rate, current_block->nominal_rate);
     #endif
 
@@ -1540,7 +1541,6 @@ void Stepper::isr() {
     #if ENABLED(BEZIER_JERK_CONTROL)
       // If this is the 1st time we process the 2nd half of the trapezoid...
       if (!bezier_2nd_half) {
-
         // Initialize the Bézier speed curve
         _calc_bezier_curve_coeffs(current_block->cruise_rate, current_block->final_rate, current_block->deceleration_time_inverse);
         bezier_2nd_half = true;
@@ -1553,14 +1553,14 @@ void Stepper::isr() {
     #else
 
       // Using the old trapezoidal control
-      MultiU24X32toH16(step_rate, deceleration_time, current_block->acceleration_rate);
-
+      step_rate = MultiU24X32toH16(deceleration_time, current_block->acceleration_rate);
       if (step_rate < acc_step_rate) { // Still decelerating?
         step_rate = acc_step_rate - step_rate;
         NOLESS(step_rate, current_block->final_rate);
       }
       else
         step_rate = current_block->final_rate;
+
     #endif
 
     // step_rate to timer interval
@@ -1950,12 +1950,6 @@ void Stepper::init() {
   set_directions(); // Init directions to last_direction_bits = 0
 }
 
-
-/**
- * Block until all buffered steps are executed / cleaned
- */
-void Stepper::synchronize() { while (planner.has_blocks_queued() || cleaning_buffer_counter) idle(); }
-
 /**
  * Set the stepper positions directly in steps
  *
@@ -2001,34 +1995,8 @@ int32_t Stepper::position(const AxisEnum axis) {
   return count_pos;
 }
 
-/**
- * Get an axis position according to stepper position(s)
- * For CORE machines apply translation from ABC to XYZ.
- */
-float Stepper::get_axis_position_mm(const AxisEnum axis) {
-  float axis_steps;
-  #if IS_CORE
-    // Requesting one of the "core" axes?
-    if (axis == CORE_AXIS_1 || axis == CORE_AXIS_2) {
-      CRITICAL_SECTION_START;
-      // ((a1+a2)+(a1-a2))/2 -> (a1+a2+a1-a2)/2 -> (a1+a1)/2 -> a1
-      // ((a1+a2)-(a1-a2))/2 -> (a1+a2-a1+a2)/2 -> (a2+a2)/2 -> a2
-      axis_steps = 0.5f * (
-        axis == CORE_AXIS_2 ? CORESIGN(count_position[CORE_AXIS_1] - count_position[CORE_AXIS_2])
-                            : count_position[CORE_AXIS_1] + count_position[CORE_AXIS_2]
-      );
-      CRITICAL_SECTION_END;
-    }
-    else
-      axis_steps = position(axis);
-  #else
-    axis_steps = position(axis);
-  #endif
-  return axis_steps * planner.steps_to_mm[axis];
-}
-
 void Stepper::finish_and_disable() {
-  synchronize();
+  planner.synchronize();
   disable_all_steppers();
 }
 

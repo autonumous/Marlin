@@ -492,12 +492,12 @@ void lcd_printPGM_utf(const char *str, uint8_t n=LCD_WIDTH) {
   // Scroll the PSTR 'text' in a 'len' wide field for 'time' milliseconds at position col,line
   void lcd_scroll(const int16_t col, const int16_t line, const char* const text, const int16_t len, const int16_t time) {
     char tmp[LCD_WIDTH + 1] = {0};
-    int16_t n = max(lcd_strlen_P(text) - len, 0);
+    const int16_t n = MAX(lcd_strlen_P(text) - len, 0);
     for (int16_t i = 0; i <= n; i++) {
-      strncpy_P(tmp, text + i, min(len, LCD_WIDTH));
+      strncpy_P(tmp, text + i, MIN(len, LCD_WIDTH));
       lcd.setCursor(col, line);
       lcd_print(tmp);
-      delay(time / max(n, 1));
+      delay(time / MAX(n, 1));
     }
   }
 
@@ -723,7 +723,7 @@ static void lcd_implementation_status_screen() {
     //
     // Hotend 1 or Bed Temperature
     //
-    #if HOTENDS > 1 || TEMP_SENSOR_BED
+    #if HOTENDS > 1 || HAS_HEATED_BED
 
       lcd.setCursor(8, 0);
       #if HOTENDS > 1
@@ -734,7 +734,7 @@ static void lcd_implementation_status_screen() {
         _draw_heater_status(-1, -1, blink);
       #endif
 
-    #endif // HOTENDS > 1 || TEMP_SENSOR_BED
+    #endif // HOTENDS > 1 || HAS_HEATED_BED
 
   #else // LCD_WIDTH >= 20
 
@@ -746,7 +746,7 @@ static void lcd_implementation_status_screen() {
     //
     // Hotend 1 or Bed Temperature
     //
-    #if HOTENDS > 1 || TEMP_SENSOR_BED
+    #if HOTENDS > 1 || HAS_HEATED_BED
       lcd.setCursor(10, 0);
       #if HOTENDS > 1
         _draw_heater_status(1, LCD_STR_THERMOMETER[0], blink);
@@ -759,7 +759,7 @@ static void lcd_implementation_status_screen() {
         ), blink);
       #endif
 
-    #endif // HOTENDS > 1 || TEMP_SENSOR_BED != 0
+    #endif // HOTENDS > 1 || HAS_HEATED_BED
 
   #endif // LCD_WIDTH >= 20
 
@@ -788,7 +788,7 @@ static void lcd_implementation_status_screen() {
       // If the first line has two extruder temps,
       // show more temperatures on the next line
 
-      #if HOTENDS > 2 || (HOTENDS > 1 && TEMP_SENSOR_BED)
+      #if HOTENDS > 2 || (HOTENDS > 1 && HAS_HEATED_BED)
 
         #if HOTENDS > 2
           _draw_heater_status(2, LCD_STR_THERMOMETER[0], blink);
@@ -802,7 +802,7 @@ static void lcd_implementation_status_screen() {
           LCD_BEDTEMP_CHAR
         ), blink);
 
-      #else // HOTENDS <= 2 && (HOTENDS <= 1 || !TEMP_SENSOR_BED)
+      #else // HOTENDS <= 2 && (HOTENDS <= 1 || !HAS_HEATED_BED)
 
         _draw_axis_value(X_AXIS, ftostr4sign(LOGICAL_X_POSITION(current_position[X_AXIS])), blink);
 
@@ -810,14 +810,14 @@ static void lcd_implementation_status_screen() {
 
         _draw_axis_value(Y_AXIS, ftostr4sign(LOGICAL_Y_POSITION(current_position[Y_AXIS])), blink);
 
-      #endif // HOTENDS <= 2 && (HOTENDS <= 1 || !TEMP_SENSOR_BED)
+      #endif // HOTENDS <= 2 && (HOTENDS <= 1 || !HAS_HEATED_BED)
 
     #endif // LCD_WIDTH >= 20
 
     lcd.setCursor(LCD_WIDTH - 8, 1);
     _draw_axis_value(Z_AXIS, ftostr52sp(LOGICAL_Z_POSITION(current_position[Z_AXIS])), blink);
 
-    #if HAS_LEVELING && !TEMP_SENSOR_BED
+    #if HAS_LEVELING && !HAS_HEATED_BED
       lcd.write(planner.leveling_active || blink ? '_' : ' ');
     #endif
 
@@ -1032,7 +1032,7 @@ static void lcd_implementation_status_screen() {
               name_hash = ((name_hash << 1) | (name_hash >> 7)) ^ filename[l];  // rotate, xor
             if (filename_scroll_hash != name_hash) {                            // If the hash changed...
               filename_scroll_hash = name_hash;                                 // Save the new hash
-              filename_scroll_max = max(0, lcd_strlen(longFilename) - n);  // Update the scroll limit
+              filename_scroll_max = MAX(0, lcd_strlen(longFilename) - n);  // Update the scroll limit
               filename_scroll_pos = 0;                                          // Reset scroll to the start
               lcd_status_update_delay = 8;                                      // Don't scroll right away
             }
@@ -1345,7 +1345,7 @@ static void lcd_implementation_status_screen() {
         //dump_custom_char("at entry:", &new_char);
 
         clear_custom_char(&new_char);
-        const uint8_t ypix = min(upper_left.y_pixel_offset + pixels_per_y_mesh_pnt, ULTRA_Y_PIXELS_PER_CHAR);
+        const uint8_t ypix = MIN(upper_left.y_pixel_offset + pixels_per_y_mesh_pnt, ULTRA_Y_PIXELS_PER_CHAR);
         for (j = upper_left.y_pixel_offset; j < ypix; j++) {
           i = upper_left.x_pixel_mask;
           for (k = 0; k < pixels_per_x_mesh_pnt; k++) {
