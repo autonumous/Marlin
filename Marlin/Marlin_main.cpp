@@ -537,10 +537,6 @@ static millis_t stepper_inactive_time = (DEFAULT_STEPPER_DEACTIVE_TIME) * 1000UL
   #define BUZZ(d,f) NOOP
 #endif
 
-#if ENABLED(SWITCHING_NOZZLE)
-  #define DO_SWITCH_EXTRUDER (SWITCHING_EXTRUDER_SERVO_NR != SWITCHING_NOZZLE_SERVO_NR)
-#endif
-
 uint8_t target_extruder;
 
 #if HAS_BED_PROBE
@@ -7976,7 +7972,7 @@ inline void gcode_M105() {
         }
       #endif // EXTRA_FAN_SPEED
       const uint16_t s = parser.ushortval('S', 255);
-      fanSpeeds[p] = MIN(s, 255);
+      fanSpeeds[p] = MIN(s, 255U);
     }
   }
 
@@ -9375,7 +9371,7 @@ inline void gcode_M211() {
    *   T<tool>
    *   X<xoffset>
    *   Y<yoffset>
-   *   Z<zoffset> - Available with DUAL_X_CARRIAGE and SWITCHING_NOZZLE
+   *   Z<zoffset> - Available with DUAL_X_CARRIAGE, SWITCHING_NOZZLE, and PARKING_EXTRUDER
    */
   inline void gcode_M218() {
     if (get_target_extruder_from_command(218) || target_extruder == 0) return;
@@ -9390,7 +9386,7 @@ inline void gcode_M211() {
       report = false;
     }
 
-    #if ENABLED(DUAL_X_CARRIAGE) || ENABLED(SWITCHING_NOZZLE) || ENABLED(PARKING_EXTRUDER)
+    #if HAS_HOTEND_OFFSET_Z
       if (parser.seenval('Z')) {
         hotend_offset[Z_AXIS][target_extruder] = parser.value_linear_units();
         report = false;
@@ -9405,7 +9401,7 @@ inline void gcode_M211() {
         SERIAL_ECHO(hotend_offset[X_AXIS][e]);
         SERIAL_CHAR(',');
         SERIAL_ECHO(hotend_offset[Y_AXIS][e]);
-        #if ENABLED(DUAL_X_CARRIAGE) || ENABLED(SWITCHING_NOZZLE) || ENABLED(PARKING_EXTRUDER)
+        #if HAS_HOTEND_OFFSET_Z
           SERIAL_CHAR(',');
           SERIAL_ECHO(hotend_offset[Z_AXIS][e]);
         #endif
@@ -11580,7 +11576,7 @@ inline void gcode_M999() {
   flush_and_request_resend();
 }
 
-#if ENABLED(SWITCHING_EXTRUDER)
+#if DO_SWITCH_EXTRUDER
   #if EXTRUDERS > 3
     #define REQ_ANGLES 4
     #define _SERVO_NR (e < 2 ? SWITCHING_EXTRUDER_SERVO_NR : SWITCHING_EXTRUDER_E23_SERVO_NR)
@@ -11600,7 +11596,7 @@ inline void gcode_M999() {
       safe_delay(500);
     }
   }
-#endif // SWITCHING_EXTRUDER
+#endif // DO_SWITCH_EXTRUDER
 
 #if ENABLED(SWITCHING_NOZZLE)
   inline void move_nozzle_servo(const uint8_t e) {
