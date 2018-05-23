@@ -132,9 +132,11 @@
 // Displayed in the LCD "Ready" message
 #define CUSTOM_MACHINE_NAME "BigBox V1.1 Dual Hybrid Titan 3D Printer"
 
-#define BIGBOX_CUSTOMISED_MENUS
-#if defined(BIGBOX_CUSTOMISED_MENUS)
-#include "BigBoxCustomStrings.h"
+// BigBox Customisations - Enable the below to turn on all the  BB customisations as defined in BigBoxCustomisations.s
+// see BigBoxCustomisations.h for more details and granular details.
+#define BIGBOX_CUSTOMISATIONS
+#if defined(BIGBOX_CUSTOMISATIONS)
+#include "BigBoxCustomisations.h"
 #endif
 
 // Define this to set a unique identifier for this printer, (Used by some programs to differentiate between machines)
