@@ -133,7 +133,7 @@
 #define CUSTOM_MACHINE_NAME "BigBox V1.1 Dual Hybrid Titan 3D Printer"
 
 #define BIGBOX_CUSTOMISED_MENUS
-#if ENABLED(BIGBOX_CUSTOMISED_MENUS)
+#if defined(BIGBOX_CUSTOMISED_MENUS)
 #include "BigBoxCustomStrings.h"
 #endif
 
