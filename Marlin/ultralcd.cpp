@@ -1818,8 +1818,6 @@ void lcd_quick_feedback(const bool clear_buttons) {
 
   #if ENABLED(LEVEL_BED_CORNERS)
 
-    //#if ENABLED(BIGBOX_CUSTOMISED_MENUS)
-
     /**
      * Level corners, starting in the front-left corner.
      */
