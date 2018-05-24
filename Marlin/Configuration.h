@@ -134,7 +134,7 @@
 
 // BigBox Customisations - Enable the below to turn on all the  BB customisations as defined in BigBoxCustomisations.s
 // see BigBoxCustomisations.h for more details and granular details.
-//#define BIGBOX_CUSTOMISATIONS
+#define BIGBOX_CUSTOMISATIONS
 #if defined(BIGBOX_CUSTOMISATIONS)
 #include "BigBoxCustomisations.h"
 #endif
