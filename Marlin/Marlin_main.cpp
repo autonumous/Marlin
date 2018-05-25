@@ -8876,7 +8876,7 @@ inline void gcode_M117() {
 /**
  * M118: Display a message in the host console.
  *
- *  A1  Append '// ' for an action command, as in OctoPrint
+ *  A1  Prepend '// ' for an action command, as in OctoPrint
  *  E1  Have the host 'echo:' the text
  */
 inline void gcode_M118() {
@@ -14612,15 +14612,14 @@ void loop() {
           card.closefile();
           SERIAL_PROTOCOLLNPGM(MSG_FILE_SAVED);
 
-          #if !(defined(__AVR__) && defined(USBCON))
+          #if USE_MARLINSERIAL
             #if ENABLED(SERIAL_STATS_DROPPED_RX)
               SERIAL_ECHOLNPAIR("Dropped bytes: ", customizedSerial.dropped());
             #endif
-
             #if ENABLED(SERIAL_STATS_MAX_RX_QUEUED)
               SERIAL_ECHOLNPAIR("Max RX Queue Size: ", customizedSerial.rxMaxEnqueued());
             #endif
-          #endif // !(__AVR__ && USBCON)
+          #endif
 
           ok_to_send();
         }
