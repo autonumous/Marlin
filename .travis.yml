@@ -118,7 +118,7 @@ script:
   # Add a Sled Z Probe, use UBL Cartesian moves, use Japanese language
   #
   - opt_set LANGUAGE kana_utf8
-  - opt_enable Z_PROBE_SLED SKEW_CORRECTION SKEW_CORRECTION_FOR_Z SKEW_CORRECTION_GCODE BEZIER_JERK_CONTROL
+  - opt_enable Z_PROBE_SLED SKEW_CORRECTION SKEW_CORRECTION_FOR_Z SKEW_CORRECTION_GCODE S_CURVE_ACCELERATION
   - opt_disable SEGMENT_LEVELED_MOVES
   - opt_enable_adv BABYSTEP_ZPROBE_OFFSET DOUBLECLICK_FOR_Z_BABYSTEPPING
   - build_marlin
@@ -206,7 +206,6 @@ script:
   - opt_set EXTRUDERS 2
   - opt_enable NUM_SERVOS
   - opt_set NUM_SERVOS 1
-  - opt_set TEMP_SENSOR_1 1
   - opt_enable SWITCHING_EXTRUDER ULTIMAKERCONTROLLER
   - build_marlin
   #
