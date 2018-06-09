@@ -129,7 +129,9 @@
 #define HEATER_3_PIN        8     // EXTRUDER 4
 #define HEATER_BED_PIN      9     // BED
 
-#define FAN_PIN             7
+#ifndef FAN_PIN
+  #define FAN_PIN           7
+#endif
 #define FAN1_PIN            8
 
 //
