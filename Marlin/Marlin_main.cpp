@@ -8403,19 +8403,19 @@ inline void gcode_M111() {
     SERIAL_ECHOPGM(MSG_DEBUG_OFF);
     #if !defined(__AVR__) || !defined(USBCON)
       #if ENABLED(SERIAL_STATS_RX_BUFFER_OVERRUNS)
-        SERIAL_ECHOLNPAIR("Buffer Overruns: ", customizedSerial.buffer_overruns());
+        SERIAL_ECHOPAIR("\nBuffer Overruns: ", customizedSerial.buffer_overruns());
       #endif
 
       #if ENABLED(SERIAL_STATS_RX_FRAMING_ERRORS)
-        SERIAL_ECHOLNPAIR("Framing Errors: ", customizedSerial.framing_errors());
+        SERIAL_ECHOPAIR("\nFraming Errors: ", customizedSerial.framing_errors());
       #endif
 
       #if ENABLED(SERIAL_STATS_DROPPED_RX)
-        SERIAL_ECHOLNPAIR("Dropped bytes: ", customizedSerial.dropped());
+        SERIAL_ECHOPAIR("\nDropped bytes: ", customizedSerial.dropped());
       #endif
 
       #if ENABLED(SERIAL_STATS_MAX_RX_QUEUED)
-        SERIAL_ECHOLNPAIR("Max RX Queue Size: ", customizedSerial.rxMaxEnqueued());
+        SERIAL_ECHOPAIR("\nMax RX Queue Size: ", customizedSerial.rxMaxEnqueued());
       #endif
     #endif // !__AVR__ || !USBCON
   }
@@ -9160,31 +9160,46 @@ inline void gcode_M204() {
 /**
  * M205: Set Advanced Settings
  *
+ *    B = Min Segment Time (µs)
  *    S = Min Feed Rate (units/s)
  *    T = Min Travel Feed Rate (units/s)
- *    B = Min Segment Time (µs)
  *    X = Max X Jerk (units/sec^2)
  *    Y = Max Y Jerk (units/sec^2)
  *    Z = Max Z Jerk (units/sec^2)
  *    E = Max E Jerk (units/sec^2)
+ *    J = Junction Deviation (mm) (Requires JUNCTION_DEVIATION)
  */
 inline void gcode_M205() {
   #if ENABLED(BB_CUSTOM_DEBUG_LAYERSHIFT_20180424)
   planner.synchronize();
   #endif //BB_CUSTOM_DEBUG_LAYERSHIFT_20180424	
+  if (parser.seen('B')) planner.min_segment_time_us = parser.value_ulong();
   if (parser.seen('S')) planner.min_feedrate_mm_s = parser.value_linear_units();
   if (parser.seen('T')) planner.min_travel_feedrate_mm_s = parser.value_linear_units();
-  if (parser.seen('B')) planner.min_segment_time_us = parser.value_ulong();
-  if (parser.seen('X')) planner.max_jerk[X_AXIS] = parser.value_linear_units();
-  if (parser.seen('Y')) planner.max_jerk[Y_AXIS] = parser.value_linear_units();
-  if (parser.seen('Z')) {
-    planner.max_jerk[Z_AXIS] = parser.value_linear_units();
-    #if HAS_MESH
-      if (planner.max_jerk[Z_AXIS] <= 0.1)
-        SERIAL_ECHOLNPGM("WARNING! Low Z Jerk may lead to unwanted pauses.");
-    #endif
-  }
-  if (parser.seen('E')) planner.max_jerk[E_AXIS] = parser.value_linear_units();
+  #if ENABLED(JUNCTION_DEVIATION)
+    if (parser.seen('J')) {
+      const float junc_dev = parser.value_linear_units();
+      if (WITHIN(junc_dev, 0.01, 0.3))
+        planner.junction_deviation_mm = junc_dev;
+      else {
+        SERIAL_ERROR_START();
+        SERIAL_ERRORLNPGM("?J out of range (0.01 to 0.3)");
+      }
+    }
+  #else
+    if (parser.seen('X')) planner.max_jerk[X_AXIS] = parser.value_linear_units();
+    if (parser.seen('Y')) planner.max_jerk[Y_AXIS] = parser.value_linear_units();
+    if (parser.seen('Z')) {
+      planner.max_jerk[Z_AXIS] = parser.value_linear_units();
+      #if HAS_MESH
+        if (planner.max_jerk[Z_AXIS] <= 0.1)
+          SERIAL_ECHOLNPGM("WARNING! Low Z Jerk may lead to unwanted pauses.");
+      #endif
+    }
+  #endif
+  #if DISABLED(JUNCTION_DEVIATION) || ENABLED(LIN_ADVANCE)
+    if (parser.seen('E')) planner.max_jerk[E_AXIS] = parser.value_linear_units();
+  #endif
 }
 
 #if HAS_M206_COMMAND
