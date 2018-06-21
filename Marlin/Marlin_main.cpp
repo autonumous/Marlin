@@ -4725,6 +4725,10 @@ void home_all_axes() { gcode_G28(true); }
      */
     if (!g29_in_progress) {
 
+      #if ENABLED(DUAL_X_CARRIAGE)
+        if (active_extruder != 0) tool_change(0);
+      #endif
+
       #if ENABLED(PROBE_MANUALLY) || ENABLED(AUTO_BED_LEVELING_LINEAR)
         abl_probe_index = -1;
       #endif
@@ -12739,8 +12743,6 @@ void process_next_command() {
       M100_dump_routine("   Command Queue:", (const char*)command_queue, (const char*)(command_queue + sizeof(command_queue)));
     #endif
   }
-
-  reset_stepper_timeout(); // Keep steppers powered
 
   // Parse the next command in the queue
   parser.parse(current_command);
