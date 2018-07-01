@@ -2248,7 +2248,6 @@ void clean_up_after_endstop_or_probe_move() {
       if (probe_triggered && set_bltouch_deployed(false)) return true;
     #endif
 
-    // Clear endstop flags
     endstops.hit_on_purpose();
 
     // Get Z where the steppers were interrupted
@@ -2995,6 +2994,7 @@ static void do_homing_move(const AxisEnum axis, const float distance, const floa
   // Tell the planner the axis is at 0
   current_position[axis] = 0;
 
+  // Do the move, which is required to hit an endstop
   #if IS_SCARA
     SYNC_PLAN_POSITION_KINEMATIC();
     current_position[axis] = distance;
@@ -3021,7 +3021,7 @@ static void do_homing_move(const AxisEnum axis, const float distance, const floa
       #endif
     }
 
-    endstops.hit_on_purpose();
+    endstops.validate_homing_move();
 
     // Re-enable stealthChop if used. Disable diag1 pin on driver.
     #if ENABLED(SENSORLESS_HOMING)
@@ -3048,8 +3048,6 @@ static void do_homing_move(const AxisEnum axis, const float distance, const floa
  * Kinematic robots should wait till all axes are homed
  * before updating the current position.
  */
-
-#define HOMEAXIS(A) homeaxis(_AXIS(A))
 
 static void homeaxis(const AxisEnum axis) {
 
@@ -3741,7 +3739,9 @@ inline void gcode_G4() {
     #endif
 
     do_blocking_move_to_xy(1.5 * mlx * x_axis_home_dir, 1.5 * mly * home_dir(Y_AXIS), fr_mm_s);
-    endstops.hit_on_purpose(); // clear endstop hit flags
+
+    endstops.validate_homing_move();
+
     current_position[X_AXIS] = current_position[Y_AXIS] = 0.0;
 
     #if ENABLED(SENSORLESS_HOMING)
@@ -3921,7 +3921,7 @@ inline void gcode_G4() {
    * A delta can only safely home all axes at the same time
    * This is like quick_home_xy() but for 3 towers.
    */
-  inline bool home_delta() {
+  inline void home_delta() {
     #if ENABLED(DEBUG_LEVELING_FEATURE)
       if (DEBUGGING(LEVELING)) DEBUG_POS(">>> home_delta", current_position);
     #endif
@@ -3945,22 +3945,13 @@ inline void gcode_G4() {
       delta_sensorless_homing(false);
     #endif
 
-    // If an endstop was not hit, then damage can occur if homing is continued.
-    // This can occur if the delta height not set correctly.
-    if (!(endstops.trigger_state() & (_BV(X_MAX) | _BV(Y_MAX) | _BV(Z_MAX)))) {
-      LCD_MESSAGEPGM(MSG_ERR_HOMING_FAILED);
-      SERIAL_ERROR_START();
-      SERIAL_ERRORLNPGM(MSG_ERR_HOMING_FAILED);
-      return false;
-    }
-
-    endstops.hit_on_purpose(); // clear endstop hit flags
+    endstops.validate_homing_move();
 
     // At least one carriage has reached the top.
     // Now re-home each carriage separately.
-    HOMEAXIS(A);
-    HOMEAXIS(B);
-    HOMEAXIS(C);
+    homeaxis(A_AXIS);
+    homeaxis(B_AXIS);
+    homeaxis(C_AXIS);
 
     // Set all carriages to their home positions
     // Do this here all at once for Delta, because
@@ -3973,8 +3964,6 @@ inline void gcode_G4() {
     #if ENABLED(DEBUG_LEVELING_FEATURE)
       if (DEBUGGING(LEVELING)) DEBUG_POS("<<< home_delta", current_position);
     #endif
-
-    return true;
   }
 
 #endif // DELTA
@@ -4034,7 +4023,7 @@ inline void gcode_G4() {
       #endif
 
       do_blocking_move_to_xy(destination[X_AXIS], destination[Y_AXIS]);
-      HOMEAXIS(Z);
+      homeaxis(Z_AXIS);
     }
     else {
       LCD_MESSAGEPGM(MSG_ZPROBE_OUT);
@@ -4157,7 +4146,7 @@ inline void gcode_G28(const bool always_home_all) {
 
     #if Z_HOME_DIR > 0  // If homing away from BED do Z first
 
-      if (home_all || homeZ) HOMEAXIS(Z);
+      if (home_all || homeZ) homeaxis(Z_AXIS);
 
     #endif
 
@@ -4195,7 +4184,7 @@ inline void gcode_G28(const bool always_home_all) {
         #if ENABLED(CODEPENDENT_XY_HOMING)
           || homeX
         #endif
-      ) HOMEAXIS(Y);
+      ) homeaxis(Y_AXIS);
 
     #endif
 
@@ -4210,14 +4199,14 @@ inline void gcode_G28(const bool always_home_all) {
 
         // Always home the 2nd (right) extruder first
         active_extruder = 1;
-        HOMEAXIS(X);
+        homeaxis(X_AXIS);
 
         // Remember this extruder's position for later tool change
         inactive_extruder_x_pos = current_position[X_AXIS];
 
         // Home the 1st (left) extruder
         active_extruder = 0;
-        HOMEAXIS(X);
+        homeaxis(X_AXIS);
 
         // Consider the active extruder to be parked
         COPY(raised_parked_position, current_position);
@@ -4226,14 +4215,14 @@ inline void gcode_G28(const bool always_home_all) {
 
       #else
 
-        HOMEAXIS(X);
+        homeaxis(X_AXIS);
 
       #endif
     }
 
     // Home Y (after X)
     #if DISABLED(HOME_Y_BEFORE_X)
-      if (home_all || homeY) HOMEAXIS(Y);
+      if (home_all || homeY) homeaxis(Y_AXIS);
     #endif
 
     // Home Z last if homing towards the bed
@@ -4242,7 +4231,7 @@ inline void gcode_G28(const bool always_home_all) {
         #if ENABLED(Z_SAFE_HOMING)
           home_z_safely();
         #else
-          HOMEAXIS(Z);
+          homeaxis(Z_AXIS);
         #endif
 
         #if HOMING_Z_WITH_PROBE && defined(Z_AFTER_PROBING)
@@ -5540,12 +5529,10 @@ void home_all_axes() { gcode_G28(true); }
 
   float lcd_probe_pt(const float &rx, const float &ry);
 
-  bool ac_home() {
+  void ac_home() {
     endstops.enable(true);
-    if (!home_delta())
-      return false;
+    home_delta();
     endstops.not_homing();
-    return true;
   }
 
   void ac_setup(const bool reset_bed) {
@@ -6006,8 +5993,7 @@ void home_all_axes() { gcode_G28(true); }
 
     ac_setup(!_0p_calibration && !_1p_calibration);
 
-    if (!_0p_calibration)
-      if (!ac_home()) return;
+    if (!_0p_calibration) ac_home();
 
     do { // start iterations
 
@@ -6200,7 +6186,7 @@ void home_all_axes() { gcode_G28(true); }
           sprintf_P(&mess[15], PSTR("%03i.x"), (int)round(zero_std_dev));
         lcd_setstatus(mess);
       }
-      if (!ac_home()) return;
+      ac_home();
     }
     while (((zero_std_dev < test_precision && iterations < 31) || iterations <= force_iterations) && zero_std_dev > calibration_precision);
 
