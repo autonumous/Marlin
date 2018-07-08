@@ -378,7 +378,7 @@ uint8_t marlin_debug_flags = DEBUG_NONE;
  *   Used by 'buffer_line_to_current_position' to do a move after changing it.
  *   Used by 'SYNC_PLAN_POSITION_KINEMATIC' to update 'planner.position'.
  */
-float current_position[XYZE] = { 0.0 };
+float current_position[XYZE] = { 0 };
 
 /**
  * Cartesian Destination
@@ -386,7 +386,7 @@ float current_position[XYZE] = { 0.0 };
  *   and expected by functions like 'prepare_move_to_destination'.
  *   Set with 'gcode_get_destination' or 'set_destination_from_current'.
  */
-float destination[XYZE] = { 0.0 };
+float destination[XYZE] = { 0 };
 
 /**
  * axis_homed
@@ -446,7 +446,7 @@ static const float homing_feedrate_mm_s[] PROGMEM = {
 };
 FORCE_INLINE float homing_feedrate(const AxisEnum a) { return pgm_read_float(&homing_feedrate_mm_s[a]); }
 
-float feedrate_mm_s = MMM_TO_MMS(1500.0);
+float feedrate_mm_s = MMM_TO_MMS(1500.0f);
 static float saved_feedrate_mm_s;
 int16_t feedrate_percentage = 100, saved_feedrate_percentage;
 
@@ -1577,7 +1577,7 @@ inline void buffer_line_to_destination(const float &fr_mm_s) {
   /**
    * Calculate delta, start a line, and set current_position to destination
    */
-  void prepare_uninterpolated_move_to_destination(const float fr_mm_s=0.0) {
+  void prepare_uninterpolated_move_to_destination(const float fr_mm_s=0) {
     #if ENABLED(DEBUG_LEVELING_FEATURE)
       if (DEBUGGING(LEVELING)) DEBUG_POS("prepare_uninterpolated_move_to_destination", destination);
     #endif
@@ -2341,7 +2341,7 @@ void clean_up_after_endstop_or_probe_move() {
     #if MULTIPLE_PROBING > 2
 
       // Return the average value of all probes
-      const float measured_z = probes_total * (1.0 / (MULTIPLE_PROBING));
+      const float measured_z = probes_total * (1.0f / (MULTIPLE_PROBING));
 
     #elif MULTIPLE_PROBING == 2
 
@@ -2937,7 +2937,7 @@ void clean_up_after_endstop_or_probe_move() {
 /**
  * Home an individual linear axis
  */
-static void do_homing_move(const AxisEnum axis, const float distance, const float fr_mm_s=0.0) {
+static void do_homing_move(const AxisEnum axis, const float distance, const float fr_mm_s=0) {
 
   #if ENABLED(DEBUG_LEVELING_FEATURE)
     if (DEBUGGING(LEVELING)) {
@@ -3101,7 +3101,7 @@ static void homeaxis(const AxisEnum axis) {
   #if ENABLED(DEBUG_LEVELING_FEATURE)
     if (DEBUGGING(LEVELING)) SERIAL_ECHOLNPGM("Home 1 Fast:");
   #endif
-  do_homing_move(axis, 1.5 * max_length(axis) * axis_home_dir);
+  do_homing_move(axis, 1.5f * max_length(axis) * axis_home_dir);
 
   // When homing Z with probe respect probe clearance
   const float bump = axis_home_dir * (
@@ -3282,7 +3282,7 @@ void gcode_get_destination() {
       destination[i] = current_position[i];
   }
 
-  if (parser.linearval('F') > 0.0)
+  if (parser.linearval('F') > 0)
     feedrate_mm_s = MMM_TO_MMS(parser.value_feedrate());
 
   #if ENABLED(PRINTCOUNTER)
@@ -3432,19 +3432,19 @@ inline void gcode_G0_G1(
         relative_mode = relative_mode_backup;
       #endif
 
-      float arc_offset[2] = { 0.0, 0.0 };
+      float arc_offset[2] = { 0, 0 };
       if (parser.seenval('R')) {
         const float r = parser.value_linear_units(),
                     p1 = current_position[X_AXIS], q1 = current_position[Y_AXIS],
                     p2 = destination[X_AXIS], q2 = destination[Y_AXIS];
         if (r && (p2 != p1 || q2 != q1)) {
-          const float e = clockwise ^ (r < 0) ? -1 : 1,           // clockwise -1/1, counterclockwise 1/-1
-                      dx = p2 - p1, dy = q2 - q1,                 // X and Y differences
-                      d = HYPOT(dx, dy),                          // Linear distance between the points
-                      h = SQRT(sq(r) - sq(d * 0.5)),              // Distance to the arc pivot-point
-                      mx = (p1 + p2) * 0.5, my = (q1 + q2) * 0.5, // Point between the two points
-                      sx = -dy / d, sy = dx / d,                  // Slope of the perpendicular bisector
-                      cx = mx + e * h * sx, cy = my + e * h * sy; // Pivot-point of the arc
+          const float e = clockwise ^ (r < 0) ? -1 : 1,             // clockwise -1/1, counterclockwise 1/-1
+                      dx = p2 - p1, dy = q2 - q1,                   // X and Y differences
+                      d = HYPOT(dx, dy),                            // Linear distance between the points
+                      h = SQRT(sq(r) - sq(d * 0.5f)),               // Distance to the arc pivot-point
+                      mx = (p1 + p2) * 0.5f, my = (q1 + q2) * 0.5f, // Point between the two points
+                      sx = -dy / d, sy = dx / d,                    // Slope of the perpendicular bisector
+                      cx = mx + e * h * sx, cy = my + e * h * sy;   // Pivot-point of the arc
           arc_offset[0] = cx - p1;
           arc_offset[1] = cy - q1;
         }
@@ -4761,8 +4761,8 @@ void home_all_axes() { gcode_G28(true); }
 
           if (!isnan(rx) && !isnan(ry)) {
             // Get nearest i / j from rx / ry
-            i = (rx - bilinear_start[X_AXIS] + 0.5 * xGridSpacing) / xGridSpacing;
-            j = (ry - bilinear_start[Y_AXIS] + 0.5 * yGridSpacing) / yGridSpacing;
+            i = (rx - bilinear_start[X_AXIS] + 0.5f * xGridSpacing) / xGridSpacing;
+            j = (ry - bilinear_start[Y_AXIS] + 0.5f * yGridSpacing) / yGridSpacing;
             i = constrain(i, 0, GRID_MAX_POINTS_X - 1);
             j = constrain(j, 0, GRID_MAX_POINTS_Y - 1);
           }
@@ -5663,7 +5663,7 @@ void home_all_axes() { gcode_G28(true); }
           S2 += sq(z_pt[rad]);
           N++;
         }
-        return round(SQRT(S2 / N) * 1000.0) / 1000.0 + 0.00001;
+        return LROUND(SQRT(S2 / N) * 1000.0) / 1000.0 + 0.00001;
       }
     }
     return 0.00001;
@@ -5755,8 +5755,8 @@ void home_all_axes() { gcode_G28(true); }
             const float z_temp = calibration_probe(cos(a) * r, sin(a) * r, stow_after_each, set_up);
             if (isnan(z_temp)) return false;
             // split probe point to neighbouring calibration points
-            z_pt[uint8_t(round(rad - interpol + NPP - 1)) % NPP + 1] += z_temp * sq(cos(RADIANS(interpol * 90)));
-            z_pt[uint8_t(round(rad - interpol))           % NPP + 1] += z_temp * sq(sin(RADIANS(interpol * 90)));
+            z_pt[uint8_t(LROUND(rad - interpol + NPP - 1)) % NPP + 1] += z_temp * sq(cos(RADIANS(interpol * 90)));
+            z_pt[uint8_t(LROUND(rad - interpol))           % NPP + 1] += z_temp * sq(sin(RADIANS(interpol * 90)));
           }
           zig_zag = !zig_zag;
         }
@@ -5837,7 +5837,7 @@ void home_all_axes() { gcode_G28(true); }
     float h_fac = 0.0;
 
     h_fac = r_quot / (2.0 / 3.0);
-    h_fac = 1.0 / h_fac; // (2/3)/CR
+    h_fac = 1.0f / h_fac; // (2/3)/CR
     return h_fac;
   }
 
@@ -6158,9 +6158,9 @@ void home_all_axes() { gcode_G28(true); }
           char mess[21];
           strcpy_P(mess, PSTR("Calibration sd:"));
           if (zero_std_dev_min < 1)
-            sprintf_P(&mess[15], PSTR("0.%03i"), (int)round(zero_std_dev_min * 1000.0));
+            sprintf_P(&mess[15], PSTR("0.%03i"), (int)LROUND(zero_std_dev_min * 1000.0));
           else
-            sprintf_P(&mess[15], PSTR("%03i.x"), (int)round(zero_std_dev_min));
+            sprintf_P(&mess[15], PSTR("%03i.x"), (int)LROUND(zero_std_dev_min));
           lcd_setstatus(mess);
           print_calibration_settings(_endstop_results, _angle_results);
           serialprintPGM(save_message);
@@ -6194,9 +6194,9 @@ void home_all_axes() { gcode_G28(true); }
         strcpy_P(mess, enddryrun);
         strcpy_P(&mess[11], PSTR(" sd:"));
         if (zero_std_dev < 1)
-          sprintf_P(&mess[15], PSTR("0.%03i"), (int)round(zero_std_dev * 1000.0));
+          sprintf_P(&mess[15], PSTR("0.%03i"), (int)LROUND(zero_std_dev * 1000.0));
         else
-          sprintf_P(&mess[15], PSTR("%03i.x"), (int)round(zero_std_dev));
+          sprintf_P(&mess[15], PSTR("%03i.x"), (int)LROUND(zero_std_dev));
         lcd_setstatus(mess);
       }
       ac_home();
@@ -6563,12 +6563,12 @@ inline void gcode_G92() {
           delay_for_power_down();
         }
         else {
-          int16_t ocr_val = (spindle_laser_power - (SPEED_POWER_INTERCEPT)) * (1.0 / (SPEED_POWER_SLOPE));  // convert RPM to PWM duty cycle
+          int16_t ocr_val = (spindle_laser_power - (SPEED_POWER_INTERCEPT)) * (1.0f / (SPEED_POWER_SLOPE)); // convert RPM to PWM duty cycle
           NOMORE(ocr_val, 255);                                                                             // limit to max the Atmel PWM will support
           if (spindle_laser_power <= SPEED_POWER_MIN)
-            ocr_val = (SPEED_POWER_MIN - (SPEED_POWER_INTERCEPT)) * (1.0 / (SPEED_POWER_SLOPE));            // minimum setting
+            ocr_val = (SPEED_POWER_MIN - (SPEED_POWER_INTERCEPT)) * (1.0f / (SPEED_POWER_SLOPE));           // minimum setting
           if (spindle_laser_power >= SPEED_POWER_MAX)
-            ocr_val = (SPEED_POWER_MAX - (SPEED_POWER_INTERCEPT)) * (1.0 / (SPEED_POWER_SLOPE));            // limit to max RPM
+            ocr_val = (SPEED_POWER_MAX - (SPEED_POWER_INTERCEPT)) * (1.0f / (SPEED_POWER_SLOPE));           // limit to max RPM
           if (SPINDLE_LASER_PWM_INVERT) ocr_val = 255 - ocr_val;
           WRITE(SPINDLE_LASER_ENABLE_PIN, SPINDLE_LASER_ENABLE_INVERT);                                     // turn spindle on (active low)
           analogWrite(SPINDLE_LASER_PWM_PIN, ocr_val & 0xFF);                                               // only write low byte
@@ -7717,7 +7717,7 @@ inline void gcode_M42() {
 
     setup_for_endstop_or_probe_move();
 
-    double mean = 0.0, sigma = 0.0, min = 99999.9, max = -99999.9, sample_set[n_samples];
+    float mean = 0.0, sigma = 0.0, min = 99999.9, max = -99999.9, sample_set[n_samples];
 
     // Move to the first point, deploy, and probe
     const float t = probe_pt(X_probe_location, Y_probe_location, raise_after, verbose_level);
@@ -7748,7 +7748,7 @@ inline void gcode_M42() {
           }
 
           for (uint8_t l = 0; l < n_legs - 1; l++) {
-            double delta_angle;
+            float delta_angle;
 
             if (schizoid_flag)
               // The points of a 5 point star are 72 degrees apart.  We need to
@@ -7805,7 +7805,7 @@ inline void gcode_M42() {
         /**
          * Get the current mean for the data points we have so far
          */
-        double sum = 0.0;
+        float sum = 0.0;
         for (uint8_t j = 0; j <= n; j++) sum += sample_set[j];
         mean = sum / (n + 1);
 
@@ -8155,7 +8155,7 @@ inline void gcode_M109() {
     #define TEMP_CONDITIONS (wants_to_cool ? thermalManager.isCoolingHotend(target_extruder) : thermalManager.isHeatingHotend(target_extruder))
   #endif
 
-  float target_temp = -1.0, old_temp = 9999.0;
+  float target_temp = -1, old_temp = 9999;
   bool wants_to_cool = false;
   wait_for_heatup = true;
   millis_t now, next_temp_ms = 0, next_cool_check_ms = 0;
@@ -8234,7 +8234,7 @@ inline void gcode_M109() {
       // break after MIN_COOLING_SLOPE_TIME seconds
       // if the temperature did not drop at least MIN_COOLING_SLOPE_DEG
       if (!next_cool_check_ms || ELAPSED(now, next_cool_check_ms)) {
-        if (old_temp - temp < MIN_COOLING_SLOPE_DEG) break;
+        if (old_temp - temp < float(MIN_COOLING_SLOPE_DEG)) break;
         next_cool_check_ms = now + 1000UL * MIN_COOLING_SLOPE_TIME;
         old_temp = temp;
       }
@@ -8380,7 +8380,7 @@ inline void gcode_M109() {
         // Break after MIN_COOLING_SLOPE_TIME_BED seconds
         // if the temperature did not drop at least MIN_COOLING_SLOPE_DEG_BED
         if (!next_cool_check_ms || ELAPSED(now, next_cool_check_ms)) {
-          if (old_temp - temp < MIN_COOLING_SLOPE_DEG_BED) break;
+          if (old_temp - temp < float(MIN_COOLING_SLOPE_DEG_BED)) break;
           next_cool_check_ms = now + 1000UL * MIN_COOLING_SLOPE_TIME_BED;
           old_temp = temp;
         }
@@ -8691,7 +8691,7 @@ inline void gcode_M92() {
     if (parser.seen(axis_codes[i])) {
       if (i == E_AXIS) {
         const float value = parser.value_per_axis_unit((AxisEnum)(E_AXIS + TARGET_EXTRUDER));
-        if (value < 20.0) {
+        if (value < 20) {
           float factor = planner.axis_steps_per_mm[E_AXIS + TARGET_EXTRUDER] / value; // increase e constants if M92 E14 is given for netfab.
           #if DISABLED(JUNCTION_DEVIATION)
             planner.max_jerk[E_AXIS] *= factor;
@@ -9109,7 +9109,7 @@ inline void gcode_M121() { endstops.enable_globally(false); }
       // setting any extruder filament size disables volumetric on the assumption that
       // slicers either generate in extruder values as cubic mm or as as filament feeds
       // for all extruders
-      if ( (parser.volumetric_enabled = (parser.value_linear_units() != 0.0)) )
+      if ( (parser.volumetric_enabled = (parser.value_linear_units() != 0)) )
         planner.set_filament_size(target_extruder, parser.value_linear_units());
     }
     planner.calculate_volumetric_multipliers();
@@ -9219,7 +9219,7 @@ inline void gcode_M205() {
   #if ENABLED(JUNCTION_DEVIATION)
     if (parser.seen('J')) {
       const float junc_dev = parser.value_linear_units();
-      if (WITHIN(junc_dev, 0.01, 0.3)) {
+      if (WITHIN(junc_dev, 0.01f, 0.3f)) {
         planner.junction_deviation_mm = junc_dev;
         planner.recalculate_max_e_jerk();
       }
@@ -9234,7 +9234,7 @@ inline void gcode_M205() {
     if (parser.seen('Z')) {
       planner.max_jerk[Z_AXIS] = parser.value_linear_units();
       #if HAS_MESH
-        if (planner.max_jerk[Z_AXIS] <= 0.1)
+        if (planner.max_jerk[Z_AXIS] <= 0.1f)
           SERIAL_ECHOLNPGM("WARNING! Low Z Jerk may lead to unwanted pauses.");
       #endif
     }
@@ -12973,27 +12973,6 @@ void ok_to_send() {
     axis_homed = 0;
   }
 
-  #if ENABLED(DELTA_FAST_SQRT)
-    /**
-     * Fast inverse sqrt from Quake III Arena
-     * See: https://en.wikipedia.org/wiki/Fast_inverse_square_root
-     */
-    float Q_rsqrt(const float number) {
-      long i;
-      float x2, y;
-      const float threehalfs = 1.5f;
-      x2 = number * 0.5f;
-      y  = number;
-      i  = * ( long * ) &y;                       // evil floating point bit level hacking
-      i  = 0x5F3759DF - ( i >> 1 );               // what the f***?
-      y  = * ( float * ) &i;
-      y  = y * ( threehalfs - ( x2 * y * y ) );   // 1st iteration
-      // y  = y * ( threehalfs - ( x2 * y * y ) );   // 2nd iteration, this can be removed
-      return y;
-    }
-
-  #endif
-
   /**
    * Delta Inverse Kinematics
    *
@@ -13008,9 +12987,6 @@ void ok_to_send() {
    *
    * - Disable the home_offset (M206) and/or position_shift (G92)
    *   features to remove up to 12 float additions.
-   *
-   * - Use a fast-inverse-sqrt function and add the reciprocal.
-   *   (see above)
    */
 
   #define DELTA_DEBUG(VAR) do { \
@@ -13076,7 +13052,7 @@ void ok_to_send() {
    *
    * The result is stored in the cartes[] array.
    */
-  void forward_kinematics_DELTA(float z1, float z2, float z3) {
+  void forward_kinematics_DELTA(const float &z1, const float &z2, const float &z3) {
     // Create a vector in old coordinates along x axis of new coordinate
     const float p12[] = {
       delta_tower[B_AXIS][X_AXIS] - delta_tower[A_AXIS][X_AXIS],
@@ -13084,11 +13060,11 @@ void ok_to_send() {
       z2 - z1
     },
 
-    // Get the Magnitude of vector.
-    d = SQRT(sq(p12[0]) + sq(p12[1]) + sq(p12[2])),
+    // Get the reciprocal of Magnitude of vector.
+    d2 = sq(p12[0]) + sq(p12[1]) + sq(p12[2]), inv_d = RSQRT(d2),
 
-    // Create unit vector by dividing by magnitude.
-    ex[3] = { p12[0] / d, p12[1] / d, p12[2] / d },
+    // Create unit vector by multiplying by the inverse of the magnitude.
+    ex[3] = { p12[0] * inv_d, p12[1] * inv_d, p12[2] * inv_d },
 
     // Get the vector from the origin of the new system to the third point.
     p13[3] = {
@@ -13107,11 +13083,11 @@ void ok_to_send() {
     // variable that will be the unit vector after we scale it.
     float ey[3] = { p13[0] - iex[0], p13[1] - iex[1], p13[2] - iex[2] };
 
-    // The magnitude of Y component
-    const float j = SQRT(sq(ey[0]) + sq(ey[1]) + sq(ey[2]));
+    // The magnitude and the inverse of the magnitude of Y component
+    const float j2 = sq(ey[0]) + sq(ey[1]) + sq(ey[2]), inv_j = RSQRT(j2);
 
     // Convert to a unit vector
-    ey[0] /= j; ey[1] /= j;  ey[2] /= j;
+    ey[0] *= inv_j; ey[1] *= inv_j;  ey[2] *= inv_j;
 
     // The cross product of the unit x and y is the unit z
     // float[] ez = vectorCrossProd(ex, ey);
@@ -13122,8 +13098,8 @@ void ok_to_send() {
     },
     // We now have the d, i and j values defined in Wikipedia.
     // Plug them into the equations defined in Wikipedia for Xnew, Ynew and Znew
-    Xnew = (delta_diagonal_rod_2_tower[A_AXIS] - delta_diagonal_rod_2_tower[B_AXIS] + sq(d)) / (d * 2),
-    Ynew = ((delta_diagonal_rod_2_tower[A_AXIS] - delta_diagonal_rod_2_tower[C_AXIS] + HYPOT2(i, j)) / 2 - i * Xnew) / j,
+    Xnew = (delta_diagonal_rod_2_tower[A_AXIS] - delta_diagonal_rod_2_tower[B_AXIS] + d2) * inv_d * 0.5,
+    Ynew = ((delta_diagonal_rod_2_tower[A_AXIS] - delta_diagonal_rod_2_tower[C_AXIS] + sq(i) + j2) * 0.5 - i * Xnew) * inv_j,
     Znew = SQRT(delta_diagonal_rod_2_tower[A_AXIS] - HYPOT2(Xnew, Ynew));
 
     // Start from the origin of the old coordinates and add vectors in the
@@ -13131,10 +13107,10 @@ void ok_to_send() {
     // in the old system.
     cartes[X_AXIS] = delta_tower[A_AXIS][X_AXIS] + ex[0] * Xnew + ey[0] * Ynew - ez[0] * Znew;
     cartes[Y_AXIS] = delta_tower[A_AXIS][Y_AXIS] + ex[1] * Xnew + ey[1] * Ynew - ez[1] * Znew;
-    cartes[Z_AXIS] =             z1 + ex[2] * Xnew + ey[2] * Ynew - ez[2] * Znew;
+    cartes[Z_AXIS] =                          z1 + ex[2] * Xnew + ey[2] * Ynew - ez[2] * Znew;
   }
 
-  void forward_kinematics_DELTA(float point[ABC]) {
+  void forward_kinematics_DELTA(const float (&point)[ABC]) {
     forward_kinematics_DELTA(point[A_AXIS], point[B_AXIS], point[C_AXIS]);
   }
 
@@ -13230,7 +13206,7 @@ void set_current_from_steppers_for_axis(const AxisEnum axis) {
     NOLESS(segments, 1);
 
     // The approximate length of each segment
-    const float inv_segments = 1.0 / float(segments),
+    const float inv_segments = 1.0f / float(segments),
                 cartesian_segment_mm = cartesian_mm * inv_segments,
                 segment_distance[XYZE] = {
                   xdiff * inv_segments,
@@ -13416,7 +13392,7 @@ void set_current_from_steppers_for_axis(const AxisEnum axis) {
      * but may produce jagged lines. Try 0.5mm, 1.0mm, and 2.0mm
      * and compare the difference.
      */
-    #define SCARA_MIN_SEGMENT_LENGTH 0.5
+    #define SCARA_MIN_SEGMENT_LENGTH 0.5f
   #endif
 
   /**
@@ -13465,14 +13441,14 @@ void set_current_from_steppers_for_axis(const AxisEnum axis) {
 
     // For SCARA enforce a minimum segment size
     #if IS_SCARA
-      NOMORE(segments, cartesian_mm * (1.0 / SCARA_MIN_SEGMENT_LENGTH));
+      NOMORE(segments, cartesian_mm * (1.0f / float(SCARA_MIN_SEGMENT_LENGTH)));
     #endif
 
     // At least one segment is required
     NOLESS(segments, 1);
 
     // The approximate length of each segment
-    const float inv_segments = 1.0 / float(segments),
+    const float inv_segments = 1.0f / float(segments),
                 segment_distance[XYZE] = {
                   xdiff * inv_segments,
                   ydiff * inv_segments,
@@ -13498,7 +13474,7 @@ void set_current_from_steppers_for_axis(const AxisEnum axis) {
       // SCARA needs to scale the feed rate from mm/s to degrees/s
       // i.e., Complete the angular vector in the given time.
       const float segment_length = cartesian_mm * inv_segments,
-                  inv_segment_length = 1.0 / segment_length, // 1/mm/segs
+                  inv_segment_length = 1.0f / segment_length, // 1/mm/segs
                   inverse_secs = inv_segment_length * _feedrate_mm_s;
 
       float oldA = planner.position_float[A_AXIS],
@@ -13841,7 +13817,7 @@ void prepare_move_to_destination() {
 
     const float flat_mm = radius * angular_travel,
                 mm_of_travel = linear_travel ? HYPOT(flat_mm, linear_travel) : ABS(flat_mm);
-    if (mm_of_travel < 0.001) return;
+    if (mm_of_travel < 0.001f) return;
 
     uint16_t segments = FLOOR(mm_of_travel / (MM_PER_ARC_SEGMENT));
     NOLESS(segments, 1);
@@ -13878,7 +13854,7 @@ void prepare_move_to_destination() {
                 linear_per_segment = linear_travel / segments,
                 extruder_per_segment = extruder_travel / segments,
                 sin_T = theta_per_segment,
-                cos_T = 1 - 0.5 * sq(theta_per_segment); // Small angle approximation
+                cos_T = 1 - 0.5f * sq(theta_per_segment); // Small angle approximation
 
     // Initialize the linear axis
     raw[l_axis] = current_position[l_axis];
@@ -13892,7 +13868,7 @@ void prepare_move_to_destination() {
 
     #if HAS_FEEDRATE_SCALING
       // SCARA needs to scale the feed rate from mm/s to degrees/s
-      const float inv_segment_length = 1.0 / (MM_PER_ARC_SEGMENT),
+      const float inv_segment_length = 1.0f / (MM_PER_ARC_SEGMENT),
                   inverse_secs = inv_segment_length * fr_mm_s;
       float oldA = planner.position_float[A_AXIS],
             oldB = planner.position_float[B_AXIS]
