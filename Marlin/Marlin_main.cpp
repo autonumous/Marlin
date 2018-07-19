@@ -743,7 +743,6 @@ void set_current_from_steppers_for_axis(const AxisEnum axis);
 #endif
 
 
-
 #if ENABLED(BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE)
    void tool_change(const uint8_t tmp_extruder, const float fr_mm_s=0.0, bool  move=false );
 #else
@@ -12068,6 +12067,8 @@ void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool m
 #else
 void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool no_move/*=false*/) {
 #endif  //BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE
+  planner.synchronize();
+
   #if ENABLED(MIXING_EXTRUDER) && MIXING_VIRTUAL_TOOLS > 1
 
     mixing_tool_change(tmp_extruder);
