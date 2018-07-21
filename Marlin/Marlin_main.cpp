@@ -742,12 +742,13 @@ void set_current_from_steppers_for_axis(const AxisEnum axis);
   void plan_cubic_move(const float (&cart)[XYZE], const float (&offset)[4]);
 #endif
 
-
+/*
 #if ENABLED(BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE)
    void tool_change(const uint8_t tmp_extruder, const float fr_mm_s=0.0, bool  move=false );
 #else
    void tool_change(const uint8_t tmp_extruder, const float fr_mm_s=0.0, bool  no_move=false );
 #endif
+*/
 void report_current_position();
 void report_current_position_detail();
 
