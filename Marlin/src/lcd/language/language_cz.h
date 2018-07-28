@@ -52,6 +52,7 @@
 #define MSG_AUTO_HOME_X                     _UxGT("Domů osa X")
 #define MSG_AUTO_HOME_Y                     _UxGT("Domů osa Y")
 #define MSG_AUTO_HOME_Z                     _UxGT("Domů osa Z")
+#define MSG_TMC_Z_CALIBRATION               _UxGT("Kalibrovat Z")
 #define MSG_LEVEL_BED_HOMING                _UxGT("Měření podložky")
 #define MSG_LEVEL_BED_WAITING               _UxGT("Kliknutím spusťte")
 #define MSG_LEVEL_BED_NEXT_POINT            _UxGT("Další bod")
@@ -148,8 +149,7 @@
 #define MSG_UBL_STEP_BY_STEP_MENU           _UxGT("UBL Postupně")
 
 #define MSG_LED_CONTROL                     _UxGT("LED Nastavení")
-#define MSG_LEDS_ON                         _UxGT("Světla Zap")
-#define MSG_LEDS_OFF                        _UxGT("Světla Vyp")
+#define MSG_LEDS                            _UxGT("Světla")
 #define MSG_LED_PRESETS                     _UxGT("Světla Předvolby")
 #define MSG_SET_LEDS_RED                    _UxGT("Červená")
 #define MSG_SET_LEDS_ORANGE                 _UxGT("Oranžová")

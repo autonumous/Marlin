@@ -39,16 +39,14 @@ public:
 
   void initsd();
   void write_command(char *buf);
-  // Files auto[0-9].g on the sd card are performed in sequence.
-  // This is to delay autostart and hence the initialisation of
-  // the sd card to some seconds after the normal init, so the
-  // device is available soon after a reset.
 
-  void checkautostart(bool x);
-  void openFile(char* name, const bool read, const bool subcall=false);
-  void openLogFile(char* name);
+  void beginautostart();
+  void checkautostart();
+
+  void openFile(char * const path, const bool read, const bool subcall=false);
+  void openLogFile(char * const path);
   void removeFile(const char * const name);
-  void closefile(bool store_location=false);
+  void closefile(const bool store_location=false);
   void release();
   void openAndPrintFile(const char *name);
   void startFileprint();
@@ -91,6 +89,8 @@ public:
   int8_t updir();
   void setroot();
 
+  const char* diveToFile(SdFile*& curDir, const char * const path, const bool echo);
+
   uint16_t get_num_Files();
 
   #if ENABLED(SDCARD_SORT_ALPHA)
@@ -121,7 +121,12 @@ public:
   FORCE_INLINE uint8_t percentDone() { return (isFileOpen() && filesize) ? sdpos / ((filesize + 99) / 100) : 0; }
   FORCE_INLINE char* getWorkDirName() { workDir.getFilename(filename); return filename; }
 
-  Sd2Card& getSd2Card() { return card; }
+  #if defined(__STM32F1__) && ENABLED(EEPROM_SETTINGS) && DISABLED(FLASH_EEPROM_EMULATION)
+    FORCE_INLINE int16_t read(void* buf, uint16_t nbyte) { return file.isOpen() ? file.read(buf, nbyte) : -1; }
+    FORCE_INLINE int16_t write(void* buf, uint16_t nbyte) { return file.isOpen() ? file.write(buf, nbyte) : -1; }
+  #endif
+
+  Sd2Card& getSd2Card() { return sd2card; }
 
   #if ENABLED(AUTO_REPORT_SD_STATUS)
     void auto_report_sd_status(void);
@@ -139,12 +144,14 @@ public:
     }
   #endif
 
+  FORCE_INLINE char* longest_filename() { return longFilename[0] ? longFilename : filename; }
+
 public:
   bool saving, logging, sdprinting, cardOK, filenameIsDir;
   char filename[FILENAME_LENGTH], longFilename[LONG_FILENAME_LENGTH];
-  int autostart_index;
+  int8_t autostart_index;
 private:
-  SdFile root, *curDir, workDir, workDirParents[MAX_DIR_DEPTH];
+  SdFile root, workDir, workDirParents[MAX_DIR_DEPTH];
   uint8_t workDirDepth;
 
   // Sort files and folders alphabetically.
@@ -197,7 +204,7 @@ private:
 
   #endif // SDCARD_SORT_ALPHA
 
-  Sd2Card card;
+  Sd2Card sd2card;
   SdVolume volume;
   SdFile file;
 
@@ -211,9 +218,6 @@ private:
   uint32_t filespos[SD_PROCEDURE_DEPTH];
   char proc_filenames[SD_PROCEDURE_DEPTH][MAXPATHNAMELENGTH];
   uint32_t filesize, sdpos;
-
-  millis_t next_autostart_ms;
-  bool autostart_stilltocheck; //the sd start is delayed, because otherwise the serial cannot answer fast enought to make contact with the hostsoftware.
 
   LsAction lsAction; //stored for recursion.
   uint16_t nrFiles; //counter for the files in the current directory and recycled as position counter for getting the nrFiles'th name in the directory.

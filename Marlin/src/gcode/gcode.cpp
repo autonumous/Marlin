@@ -61,11 +61,6 @@ bool GcodeSuite::axis_relative_modes[] = AXIS_RELATIVE_MODES;
   float GcodeSuite::coordinate_system[MAX_COORDINATE_SYSTEMS][XYZ];
 #endif
 
-#if HAS_LEVELING && ENABLED(G29_RETRY_AND_RECOVER)
-  #include "../feature/bedlevel/bedlevel.h"
-  #include "../module/planner.h"
-#endif
-
 /**
  * Set target_extruder from the T parameter or the active_extruder
  *
@@ -108,7 +103,7 @@ void GcodeSuite::get_destination_from_command() {
       destination[i] = current_position[i];
   }
 
-  if (parser.linearval('F') > 0.0)
+  if (parser.linearval('F') > 0)
     feedrate_mm_s = MMM_TO_MMS(parser.value_feedrate());
 
   #if ENABLED(PRINTCOUNTER)
@@ -136,34 +131,37 @@ void GcodeSuite::dwell(millis_t time) {
  */
 #if HAS_LEVELING && ENABLED(G29_RETRY_AND_RECOVER)
 
+  #ifndef G29_MAX_RETRIES
+    #define G29_MAX_RETRIES 0
+  #endif
+
   void GcodeSuite::G29_with_retry() {
-    set_bed_leveling_enabled(false);
-    for (uint8_t i = G29_MAX_RETRIES; i--;) {
-      G29();
-      if (planner.leveling_active) break;
-      #ifdef G29_ACTION_ON_RECOVER
-        SERIAL_ECHOLNPGM("//action:" G29_ACTION_ON_RECOVER);
-      #endif
-      #ifdef G29_RECOVERY_COMMANDS
-        process_subcommands_now_P(PSTR(G29_RECOVER_COMMANDS));
-      #endif
+    uint8_t retries = G29_MAX_RETRIES;
+    while (G29()) { // G29 should return true for failed probes ONLY
+      if (retries--) {
+        #ifdef G29_ACTION_ON_RECOVER
+          SERIAL_ECHOLNPGM("//action:" G29_ACTION_ON_RECOVER);
+        #endif
+        #ifdef G29_RECOVER_COMMANDS
+          process_subcommands_now_P(PSTR(G29_RECOVER_COMMANDS));
+        #endif
+      }
+      else {
+        #ifdef G29_FAILURE_COMMANDS
+          process_subcommands_now_P(PSTR(G29_FAILURE_COMMANDS));
+        #endif
+        #ifdef G29_ACTION_ON_FAILURE
+          SERIAL_ECHOLNPGM("//action:" G29_ACTION_ON_FAILURE);
+        #endif
+        #if ENABLED(G29_HALT_ON_FAILURE)
+          kill(PSTR(MSG_ERR_PROBING_FAILED));
+        #endif
+        return;
+      }
     }
-    if (planner.leveling_active) {
-      #ifdef G29_SUCCESS_COMMANDS
-        process_subcommands_now_P(PSTR(G29_SUCCESS_COMMANDS));
-      #endif
-    }
-    else {
-      #ifdef G29_FAILURE_COMMANDS
-        process_subcommands_now_P(PSTR(G29_FAILURE_COMMANDS));
-      #endif
-      #ifdef G29_ACTION_ON_FAILURE
-        SERIAL_ECHOLNPGM("//action:" G29_ACTION_ON_FAILURE);
-      #endif
-      #if ENABLED(G29_HALT_ON_FAILURE)
-        kill(PSTR(MSG_ERR_PROBING_FAILED));
-      #endif
-    }
+    #ifdef G29_SUCCESS_COMMANDS
+      process_subcommands_now_P(PSTR(G29_SUCCESS_COMMANDS));
+    #endif
   }
 
 #endif // HAS_LEVELING && G29_RETRY_AND_RECOVER
@@ -277,6 +275,8 @@ void GcodeSuite::process_parsed_command(
       #if ENABLED(DEBUG_GCODE_PARSER)
         case 800: parser.debug(); break;                          // G800: GCode Parser Test for G
       #endif
+
+      default: parser.unknown_command_error(); break;
     }
     break;
 
@@ -597,6 +597,10 @@ void GcodeSuite::process_parsed_command(
         case 702: M702(); break;                                  // M702: Unload Filament
       #endif
 
+      #if ENABLED(MAX7219_GCODE)
+        case 7219: M7219(); break;                                // M7219: Set LEDs, columns, and rows
+      #endif
+
       #if ENABLED(LIN_ADVANCE)
         case 900: M900(); break;                                  // M900: Set advance K factor.
       #endif
@@ -655,6 +659,8 @@ void GcodeSuite::process_parsed_command(
       #endif
 
       case 999: M999(); break;                                    // M999: Restart after being Stopped
+
+      default: parser.unknown_command_error(); break;
     }
     break;
 
@@ -687,8 +693,6 @@ void GcodeSuite::process_next_command() {
     #endif
   }
 
-  reset_stepper_timeout(); // Keep steppers powered
-
   // Parse the next command in the queue
   parser.parse(current_command);
   process_parsed_command();
@@ -701,7 +705,7 @@ void GcodeSuite::process_next_command() {
    */
   void GcodeSuite::process_subcommands_now_P(const char *pgcode) {
     // Save the parser state
-    const char * const saved_cmd = parser.command_ptr;
+    char * const saved_cmd = parser.command_ptr;
 
     // Process individual commands in string
     while (pgm_read_byte_near(pgcode)) {

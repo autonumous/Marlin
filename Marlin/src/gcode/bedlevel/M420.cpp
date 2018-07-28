@@ -96,8 +96,9 @@ void GcodeSuite::M420() {
     // L or V display the map info
     if (parser.seen('L') || parser.seen('V')) {
       ubl.display_map(parser.byteval('T'));
-      SERIAL_ECHOLNPAIR("ubl.mesh_is_valid = ", ubl.mesh_is_valid());
-      SERIAL_ECHOLNPAIR("ubl.storage_slot = ", ubl.storage_slot);
+      SERIAL_ECHOPGM("Mesh is ");
+      if (!ubl.mesh_is_valid()) SERIAL_ECHOPGM("in");
+      SERIAL_ECHOLNPAIR("valid\nStorage slot: ", ubl.storage_slot);
     }
 
   #endif // AUTO_BED_LEVELING_UBL
@@ -116,7 +117,7 @@ void GcodeSuite::M420() {
       #if ENABLED(AUTO_BED_LEVELING_UBL)
 
         set_bed_leveling_enabled(false);
-        ubl.adjust_mesh_to_mean(cval);
+        ubl.adjust_mesh_to_mean(true, cval);
 
       #else
 

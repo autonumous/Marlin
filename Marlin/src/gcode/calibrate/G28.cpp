@@ -39,7 +39,7 @@
   #include "../../feature/tmc_util.h"
 #endif
 
-#if HOMING_Z_WITH_PROBE
+#if HOMING_Z_WITH_PROBE || ENABLED(BLTOUCH)
   #include "../../module/probe.h"
 #endif
 
@@ -64,7 +64,7 @@
     const float mlx = max_length(X_AXIS),
                 mly = max_length(Y_AXIS),
                 mlratio = mlx > mly ? mly / mlx : mlx / mly,
-                fr_mm_s = min(homing_feedrate(X_AXIS), homing_feedrate(Y_AXIS)) * SQRT(sq(mlratio) + 1.0);
+                fr_mm_s = MIN(homing_feedrate(X_AXIS), homing_feedrate(Y_AXIS)) * SQRT(sq(mlratio) + 1.0);
 
     #if ENABLED(SENSORLESS_HOMING)
       sensorless_homing_per_axis(X_AXIS);
@@ -72,7 +72,9 @@
     #endif
 
     do_blocking_move_to_xy(1.5 * mlx * x_axis_home_dir, 1.5 * mly * home_dir(Y_AXIS), fr_mm_s);
-    endstops.hit_on_purpose(); // clear endstop hit flags
+
+    endstops.validate_homing_move();
+
     current_position[X_AXIS] = current_position[Y_AXIS] = 0.0;
 
     #if ENABLED(SENSORLESS_HOMING)
@@ -88,7 +90,7 @@
   inline void home_z_safely() {
 
     // Disallow Z homing if X or Y are unknown
-    if (!axis_known_position[X_AXIS] || !axis_known_position[Y_AXIS]) {
+    if (!TEST(axis_known_position, X_AXIS) || !TEST(axis_known_position, Y_AXIS)) {
       LCD_MESSAGEPGM(MSG_ERR_Z_HOMING);
       SERIAL_ECHO_START();
       SERIAL_ECHOLNPGM(MSG_ERR_Z_HOMING);
@@ -129,7 +131,7 @@
       #endif
 
       do_blocking_move_to_xy(destination[X_AXIS], destination[Y_AXIS]);
-      HOMEAXIS(Z);
+      homeaxis(Z_AXIS);
     }
     else {
       LCD_MESSAGEPGM(MSG_ZPROBE_OUT);
@@ -152,6 +154,8 @@
  *  None  Home to all axes with no parameters.
  *        With QUICK_HOME enabled XY will home together, then Z.
  *
+ *  O   Home only if position is unknown
+ *
  *  Rn  Raise by n mm/inches before homing
  *
  * Cartesian/SCARA parameters
@@ -170,8 +174,31 @@ void GcodeSuite::G28(const bool always_home_all) {
     }
   #endif
 
+  #if ENABLED(MARLIN_DEV_MODE)
+    if (parser.seen('S')) {
+      LOOP_XYZ(a) set_axis_is_at_home((AxisEnum)a);
+      SYNC_PLAN_POSITION_KINEMATIC();
+      SERIAL_ECHOLNPGM("Simulated Homing");
+      report_current_position();
+      #if ENABLED(DEBUG_LEVELING_FEATURE)
+        if (DEBUGGING(LEVELING)) SERIAL_ECHOLNPGM("<<< G28");
+      #endif
+      return;
+    }
+  #endif
+
+  if (all_axes_known() && parser.boolval('O')) { // home only if needed
+    #if ENABLED(DEBUG_LEVELING_FEATURE)
+      if (DEBUGGING(LEVELING)) {
+        SERIAL_ECHOLNPGM("> homing not needed, skip");
+        SERIAL_ECHOLNPGM("<<< G28");
+      }
+    #endif
+    return;
+  }
+
   // Wait for planner moves to finish!
-  stepper.synchronize();
+  planner.synchronize();
 
   // Cancel the active G29 session
   #if ENABLED(PROBE_MANUALLY)
@@ -188,6 +215,10 @@ void GcodeSuite::G28(const bool always_home_all) {
 
   #if ENABLED(CNC_WORKSPACE_PLANES)
     workspace_plane = PLANE_XY;
+  #endif
+
+  #if ENABLED(BLTOUCH)
+    bltouch_init();
   #endif
 
   // Always home with tool 0 active
@@ -224,13 +255,13 @@ void GcodeSuite::G28(const bool always_home_all) {
 
     #if Z_HOME_DIR > 0  // If homing away from BED do Z first
 
-      if (home_all || homeZ) HOMEAXIS(Z);
+      if (home_all || homeZ) homeaxis(Z_AXIS);
 
     #endif
 
     const float z_homing_height = (
       #if ENABLED(UNKNOWN_Z_NO_RAISE)
-        !axis_known_position[Z_AXIS] ? 0 :
+        !TEST(axis_known_position, Z_AXIS) ? 0 :
       #endif
           (parser.seenval('R') ? parser.value_linear_units() : Z_HOMING_HEIGHT)
     );
@@ -262,7 +293,7 @@ void GcodeSuite::G28(const bool always_home_all) {
         #if ENABLED(CODEPENDENT_XY_HOMING)
           || homeX
         #endif
-      ) HOMEAXIS(Y);
+      ) homeaxis(Y_AXIS);
 
     #endif
 
@@ -277,14 +308,14 @@ void GcodeSuite::G28(const bool always_home_all) {
 
         // Always home the 2nd (right) extruder first
         active_extruder = 1;
-        HOMEAXIS(X);
+        homeaxis(X_AXIS);
 
         // Remember this extruder's position for later tool change
         inactive_extruder_x_pos = current_position[X_AXIS];
 
         // Home the 1st (left) extruder
         active_extruder = 0;
-        HOMEAXIS(X);
+        homeaxis(X_AXIS);
 
         // Consider the active extruder to be parked
         COPY(raised_parked_position, current_position);
@@ -293,14 +324,14 @@ void GcodeSuite::G28(const bool always_home_all) {
 
       #else
 
-        HOMEAXIS(X);
+        homeaxis(X_AXIS);
 
       #endif
     }
 
     // Home Y (after X)
     #if DISABLED(HOME_Y_BEFORE_X)
-      if (home_all || homeY) HOMEAXIS(Y);
+      if (home_all || homeY) homeaxis(Y_AXIS);
     #endif
 
     // Home Z last if homing towards the bed
@@ -309,10 +340,10 @@ void GcodeSuite::G28(const bool always_home_all) {
         #if ENABLED(Z_SAFE_HOMING)
           home_z_safely();
         #else
-          HOMEAXIS(Z);
+          homeaxis(Z_AXIS);
         #endif
 
-        #if HOMING_Z_WITH_PROBE && Z_AFTER_PROBING
+        #if HOMING_Z_WITH_PROBE && defined(Z_AFTER_PROBING)
           move_z_after_probing();
         #endif
 
