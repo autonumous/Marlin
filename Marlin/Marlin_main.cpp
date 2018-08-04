@@ -1336,7 +1336,7 @@ bool get_target_extruder_from_command(const uint16_t code) {
       if (axis == X_AXIS) {
 
         // In Dual X mode hotend_offset[X] is T1's home position
-        float dual_max_x = MAX(hotend_offset[X_AXIS][1], X2_MAX_POS);
+        const float dual_max_x = MAX(hotend_offset[X_AXIS][1], X2_MAX_POS);
 
         if (active_extruder != 0) {
           // T1 can move from X2_MIN_POS to X2_MAX_POS or X2 home position (whichever is larger)
@@ -10985,12 +10985,12 @@ inline void gcode_M502() {
       Max7219_Clear();
 
     if (parser.seen('F'))
-      for(uint8_t x = 0; x < MAX7219_X_LEDS; x++)
+      for (uint8_t x = 0; x < MAX7219_X_LEDS; x++)
         Max7219_Set_Column(x, 0xffffffff);
 
     if (parser.seenval('R')) {
       const uint32_t r = parser.value_int();
-      Max7219_Set_Row(r, parser.ulongval('V'));
+      Max7219_Set_Row(r, parser.byteval('V'));
       return;
     }
     else if (parser.seenval('C')) {
@@ -11008,7 +11008,7 @@ inline void gcode_M502() {
     }
 
     if (parser.seen('P')) {
-      for(uint8_t x = 0; x < (8*MAX7219_NUMBER_UNITS); x++) {
+      for (uint8_t x = 0; x < (8 * MAX7219_NUMBER_UNITS); x++) {
         SERIAL_ECHOPAIR("LEDs[", x);
         SERIAL_ECHOPAIR("]=", LEDs[x]);
         SERIAL_ECHO("\n");
@@ -12110,9 +12110,6 @@ void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool n
           #endif
         }
 
-        // Save current position to destination, for use later
-        set_destination_from_current();
-
         #if HAS_LEVELING
           // Set current position to the physical position
           const bool leveling_was_active = planner.leveling_active;
@@ -12120,14 +12117,33 @@ void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool n
         #endif
 
         #if ENABLED(DUAL_X_CARRIAGE)
+
+         #if HAS_SOFTWARE_ENDSTOPS
+           // Update the X software endstops early
+           active_extruder = tmp_extruder;
+           update_software_endstops(X_AXIS);
+           active_extruder = !tmp_extruder;
+         #endif
+
          #if ENABLED(BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE)
+          // Don't move the new extruder out of bounds
+          if (!WITHIN(current_position[X_AXIS], soft_endstop_min[X_AXIS], soft_endstop_max[X_AXIS]))
+            move = true;
+
+          if (!move) set_destination_from_current();
           dualx_tool_change(tmp_extruder, move); // Can modify move
-         #else
+         #else //!BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE
+          // Don't move the new extruder out of bounds
+          if (!WITHIN(current_position[X_AXIS], soft_endstop_min[X_AXIS], soft_endstop_max[X_AXIS]))
+            no_move = true;
+
+          if (!no_move) set_destination_from_current();
           dualx_tool_change(tmp_extruder, no_move); // Can modify no_move
-         #endif  //BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE
+         #endif  //!BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE
 
         #else // !DUAL_X_CARRIAGE
 
+          set_destination_from_current();
           #if ENABLED(PARKING_EXTRUDER) // Dual Parking extruder
            #if ENABLED(BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE)
             parking_extruder_tool_change(tmp_extruder, move);
@@ -12220,6 +12236,10 @@ void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool n
       #endif
 
       feedrate_mm_s = old_feedrate_mm_s;
+
+      #if HAS_SOFTWARE_ENDSTOPS && ENABLED(DUAL_X_CARRIAGE)
+        update_software_endstops(X_AXIS);
+      #endif
 
     #else // HOTENDS <= 1
 
