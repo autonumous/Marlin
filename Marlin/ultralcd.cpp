@@ -1834,17 +1834,34 @@ void lcd_quick_feedback(const bool clear_buttons) {
       line_to_z(4.0);
       switch (bed_corner) {
         case 0:
+          #if ENABLED(BIGBOX_CUSTOMISED_MENUS)
+          current_position[X_AXIS] = BB_CUSTOM_LEVEL_BED_CORNERS_X_MIN;
+          current_position[Y_AXIS] = BB_CUSTOM_LEVEL_BED_CORNERS_Y_MIN;
+          #else
           current_position[X_AXIS] = X_MIN_BED + LEVEL_CORNERS_INSET;
           current_position[Y_AXIS] = Y_MIN_BED + LEVEL_CORNERS_INSET;
+          #endif //BIGBOX_CUSTOMISED_MENUS
           break;
         case 1:
+          #if ENABLED(BIGBOX_CUSTOMISED_MENUS)
+          current_position[X_AXIS] = BB_CUSTOM_LEVEL_BED_CORNERS_X_MAX;
+          #else
           current_position[X_AXIS] = X_MAX_BED - LEVEL_CORNERS_INSET;
+          #endif //BIGBOX_CUSTOMISED_MENUS
           break;
         case 2:
+          #if ENABLED(BIGBOX_CUSTOMISED_MENUS)
+          current_position[Y_AXIS] = BB_CUSTOM_LEVEL_BED_CORNERS_Y_MAX;
+          #else
           current_position[Y_AXIS] = Y_MAX_BED - LEVEL_CORNERS_INSET;
+          #endif //BIGBOX_CUSTOMISED_MENUS
           break;
         case 3:
+          #if ENABLED(BIGBOX_CUSTOMISED_MENUS)
+          current_position[X_AXIS] = BB_CUSTOM_LEVEL_BED_CORNERS_X_MIN;
+          #else
           current_position[X_AXIS] = X_MIN_BED + LEVEL_CORNERS_INSET;
+          #endif //BIGBOX_CUSTOMISED_MENUS
           break;
         #if ENABLED(LEVEL_CENTER_TOO)
           case 4:
@@ -2675,6 +2692,47 @@ void lcd_quick_feedback(const bool clear_buttons) {
       MENU_ITEM(gcode, MSG_AUTO_HOME_Z, PSTR("G28 Z"));
     #endif
 
+      
+    #if ENABLED(BIGBOX_CUSTOMISED_MENUS)
+    //
+    // Dock Extruder to waste box // 20170106 PB 
+    //
+    //if (axis_homed[Z_AXIS]){
+    if (all_axes_homed()) {
+      //MENU_ITEM(gcode, "Dock Head", PSTR("G90\nT0\nG1 X70 Y200 F3000\nG1 Y240 F2000\nG1 E-4 F4500"));
+      //MENU_ITEM(gcode, "Dock Head", PSTR("G91\nT0\nG1 Z1 F1000\nG90\nT0\nG1 X70 Y200 F3000\nG1 Y240 F2000\nG91\nG1 Z-1 F1000\n"));
+      MENU_ITEM(gcode, BB_CUSTOM_MENU_DOCK_MENU, PSTR(BB_CUSTOM_MENU_DOCK_HOMED));
+    } else{
+        //MENU_ITEM(gcode, "Dock Head", PSTR("G28\nG90\nG1 X70 Y200 F3000\nG1 Y240 F2000\nG1 E-4 F4500"));
+      //MENU_ITEM(gcode, "Dock Head", PSTR("G28\nG91\nT0\nG1 Z1 F1000\nG90\nG1 X70 Y200 F3000\nG1 Y240 F2000\nG1 Z-1 F1000\n"));
+      MENU_ITEM(gcode, BB_CUSTOM_MENU_DOCK_MENU, PSTR(BB_CUSTOM_MENU_DOCK_NOTHOMED));
+    }
+
+    //
+    // Wipe/Clean nozzle in dock
+    // 
+    //if (axis_homed[Z_AXIS]){
+    if (all_axes_homed()) {
+        MENU_ITEM(gcode, BB_CUSTOM_MENU_NOZZLECLEAN_MENU, PSTR(BB_CUSTOM_MENU_NOZZLECLEAN_HOMED));
+    } else{
+        MENU_ITEM(gcode, BB_CUSTOM_MENU_NOZZLECLEAN_MENU, PSTR(BB_CUSTOM_MENU_NOZZLECLEAN_NOTHOMED));
+    }
+
+    //
+    // XY Loop  useful for testing full coverage of XY plane
+    //
+    //if (axis_homed[Z_AXIS]){
+    if (all_axes_homed()) {
+        MENU_ITEM(gcode, BB_CUSTOM_MENU_XYLOOP_MENU, PSTR(BB_CUSTOM_MENU_XYLOOP_HOMED));
+    } else{
+        MENU_ITEM(gcode, BB_CUSTOM_MENU_XYLOOP_MENU , PSTR(BB_CUSTOM_MENU_XYLOOP_NOTHOMED));
+    }
+# endif //BIGBOX_CUSTOMISED_MENUS
+ 
+
+
+
+      
     //
     // TMC Z Calibration
     //
@@ -3163,6 +3221,9 @@ void lcd_quick_feedback(const bool clear_buttons) {
       }
     }
     MENU_BACK(MSG_MOVE_AXIS);
+    //if (axis == X_AXIS || axis == Y_AXIS)
+    //if (axis == X_AXIS || axis == Y_AXIS || axis==Z_AXIS)   // 20170108 PB added 10mm move on z
+    //  MENU_ITEM(submenu, MSG_MOVE_10MM, lcd_move_menu_10mm);
     MENU_ITEM(submenu, MSG_MOVE_10MM, lcd_move_menu_10mm);
     MENU_ITEM(submenu, MSG_MOVE_1MM, lcd_move_menu_1mm);
     MENU_ITEM(submenu, MSG_MOVE_01MM, lcd_move_menu_01mm);
@@ -3294,6 +3355,19 @@ void lcd_quick_feedback(const bool clear_buttons) {
 
     #endif
 
+      
+    #if ENABLED(BIGBOX_CUSTOMISED_MENUS)
+    //20170108 PB added menu option to drop bed to lower position.
+    //if (axis_homed[Z_AXIS]) {
+    if (all_axes_homed()) {  
+      MENU_ITEM(gcode, BB_CUSTOM_MENU_DROPBED_MENU , PSTR(BB_CUSTOM_MENU_DROPBED_HOMED));
+    }
+    else {
+      MENU_ITEM(gcode, BB_CUSTOM_MENU_DROPBED_MENU , PSTR(BB_CUSTOM_MENU_DROPBED_NOTHOMED));
+    }
+    #endif //BIGBOX_CUSTOMISED_MENUS
+      
+      
     END_MENU();
   }
 

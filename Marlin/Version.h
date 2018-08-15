@@ -35,13 +35,13 @@
   /**
    * Marlin release version identifier
    */
-  #define SHORT_BUILD_VERSION "1.1.9"
+  #define SHORT_BUILD_VERSION "1.1.9 (BB)"
 
   /**
    * Verbose version identifier which should contain a reference to the location
    * from where the binary was downloaded or the source code was compiled.
    */
-  #define DETAILED_BUILD_VERSION SHORT_BUILD_VERSION " (Github)"
+  #define DETAILED_BUILD_VERSION SHORT_BUILD_VERSION " - e3D BigBox V1.1 Dual Hybrid Titan (github)"
 
   /**
    * The STRING_DISTRIBUTION_DATE represents when the binary file was built,
@@ -70,7 +70,7 @@
   /**
    * Defines a generic printer name to be output to the LCD after booting Marlin.
    */
-  #define MACHINE_NAME "3D Printer"
+  #define MACHINE_NAME "e3D BigBox Dual"
 
   /**
    * The SOURCE_CODE_URL is the location where users will find the Marlin Source
@@ -78,7 +78,7 @@
    * has a distinct Github fork— the Source Code URL should just be the main
    * Marlin repository.
    */
-  #define SOURCE_CODE_URL "https://github.com/MarlinFirmware/Marlin"
+  #define SOURCE_CODE_URL "https://github.com/autonumous/Marlin-BigBox"
 
   /**
    * Default generic printer UUID.

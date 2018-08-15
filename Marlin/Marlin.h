@@ -299,7 +299,11 @@ extern float soft_endstop_min[XYZ], soft_endstop_max[XYZ];
   bool select_coordinate_system(const int8_t _new);
 #endif
 
-void tool_change(const uint8_t tmp_extruder, const float fr_mm_s=0.0, bool no_move=false);
+#if ENABLED(BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE)
+   void tool_change(const uint8_t tmp_extruder, const float fr_mm_s=0.0, bool  move=false );
+#else
+   void tool_change(const uint8_t tmp_extruder, const float fr_mm_s=0.0, bool  no_move=false );
+#endif
 
 void  home_all_axes();
 
