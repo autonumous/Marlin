@@ -110,6 +110,8 @@
   #include "pins_MKS_GEN_13.h"        // ATmega1280, ATmega2560                     env:megaatmega1280 env:megaatmega2560
 #elif MB(MKS_GEN_L)
   #include "pins_MKS_GEN_L.h"         // ATmega1280, ATmega2560                     env:megaatmega1280 env:megaatmega2560
+#elif MB(KFB_2)
+  #include "pins_KFB_2.h"             // ATmega2560                                 env:megaatmega2560
 #elif MB(ZRIB_V20)
   #include "pins_ZRIB_V20.h"          // ATmega1280, ATmega2560                     env:megaatmega1280 env:megaatmega2560 (MKS_GEN_13)
 #elif MB(FELIX2)
@@ -296,6 +298,8 @@
   #include "pins_COHESION3D_REMIX.h"  // LPC176x                                    env:LPC1768 env:LPC1768_debug_and_upload
 #elif MB(COHESION3D_MINI)
   #include "pins_COHESION3D_MINI.h"   // LPC176x                                    env:LPC1768 env:LPC1768_debug_and_upload
+#elif MB(SMOOTHIEBOARD)
+  #include "pins_SMOOTHIEBOARD.h"     // LPC176x                                    env:LPC1768 env:LPC1768_debug_and_upload
 
 //
 // Other 32-bit Boards
