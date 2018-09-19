@@ -160,10 +160,13 @@
 #endif // NOZZLE_CLEAN_FEATURE
 
 #if ENABLED(NOZZLE_PARK_FEATURE)
+
+    constexpr float npp[] = NOZZLE_PARK_POINT;
+    static_assert(COUNT(npp) == XYZ, "NOZZLE_PARK_POINT requires X, Y, and Z values.");
+
 #if ENABLED(BB_CUSTOM_DOCK_G27)
   void Nozzle::park(const uint8_t &z_action, const point_t &park /*= NOZZLE_PARK_POINT*/, const point_t &park2 /*= NOZZLE_PARK_POINT2*/) {
-    const float fr_xy = NOZZLE_PARK_XY_FEEDRATE;
-    const float fr_z = NOZZLE_PARK_Z_FEEDRATE;
+    const float fr_xy = NOZZLE_PARK_XY_FEEDRATE, fr_z = NOZZLE_PARK_Z_FEEDRATE;
 
     switch (z_action) {
       case 1: // Go to Z-park height
@@ -182,9 +185,8 @@
     do_blocking_move_to_xy(park2.x, park2.y, fr_xy);
   }
 #else
-  void Nozzle::park(const uint8_t &z_action, const point_t &park /*= NOZZLE_PARK_POINT*/) {
-    const float fr_xy = NOZZLE_PARK_XY_FEEDRATE;
-    const float fr_z = NOZZLE_PARK_Z_FEEDRATE;
+  void Nozzle::park(const uint8_t &z_action, const point_t &park/*=NOZZLE_PARK_POINT*/) {
+    const float fr_xy = NOZZLE_PARK_XY_FEEDRATE, fr_z = NOZZLE_PARK_Z_FEEDRATE;
 
     switch (z_action) {
       case 1: // Go to Z-park height
