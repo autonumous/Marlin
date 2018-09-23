@@ -184,7 +184,7 @@
     do_blocking_move_to_xy(park.x, park.y, fr_xy);
     do_blocking_move_to_xy(park2.x, park2.y, fr_xy);
   }
-#else
+#else // !BB_CUSTOM_DOCK_G27
   void Nozzle::park(const uint8_t &z_action, const point_t &park/*=NOZZLE_PARK_POINT*/) {
     const float fr_xy = NOZZLE_PARK_XY_FEEDRATE, fr_z = NOZZLE_PARK_Z_FEEDRATE;
 

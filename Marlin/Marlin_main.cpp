@@ -774,13 +774,6 @@ void set_current_from_steppers_for_axis(const AxisEnum axis);
   void plan_cubic_move(const float (&cart)[XYZE], const float (&offset)[4]);
 #endif
 
-/*
-#if ENABLED(BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE)
-   void tool_change(const uint8_t tmp_extruder, const float fr_mm_s=0.0, bool  move=false );
-#else
-   void tool_change(const uint8_t tmp_extruder, const float fr_mm_s=0.0, bool  no_move=false );
-#endif
-*/
 void report_current_position();
 void report_current_position_detail();
 
@@ -5748,7 +5741,7 @@ void home_all_axes() { gcode_G28(true); }
       tool_change(old_tool_index, 0, false);
 	 #else
       tool_change(old_tool_index, 0, true);
-     #endif  //BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE      
+     #endif  //BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE
     #endif
   }
 
@@ -6175,9 +6168,9 @@ void home_all_axes() { gcode_G28(true); }
     if (!_0p_calibration) ac_home();
 
     do { // start iterations
-
+    
       float z_at_pt[NPP + 1] = { 0.0 };
-
+    
       test_precision = zero_std_dev_old != 999.0 ? (zero_std_dev + zero_std_dev_old) / 2 : zero_std_dev;
       iterations++;
 
@@ -11206,7 +11199,6 @@ inline void gcode_M502() {
    */
   inline void gcode_M701() {
     point_t park_point = NOZZLE_PARK_POINT;
-
     #if ENABLED(NO_MOTION_BEFORE_HOMING)
       // Only raise Z if the machine is homed
       if (axis_unhomed_error()) park_point.z = 0;
@@ -12261,6 +12253,7 @@ inline void invalid_extruder_error(const uint8_t e) {
 
 #endif // HAS_FANMUX
 
+
 /**
  * Tool Change functions
  */
@@ -12391,11 +12384,14 @@ inline void invalid_extruder_error(const uint8_t e) {
 
 #endif // DUAL_X_CARRIAGE
 
+
 #if ENABLED(PARKING_EXTRUDER)
  #if ENABLED(BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE)
-  inline void parking_extruder_tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool move/*=false*/) {
+  //inline void parking_extruder_tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool move/*=false*/) {
+  inline void parking_extruder_tool_change(const uint8_t tmp_extruder, bool move) {
  #else
-  inline void parking_extruder_tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool no_move/*=false*/) {
+  //inline void parking_extruder_tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool no_move/*=false*/) {
+  inline void parking_extruder_tool_change(const uint8_t tmp_extruder, bool no_move) {
  #endif  //BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE
     constexpr float z_raise = PARKING_EXTRUDER_SECURITY_RAISE;
 

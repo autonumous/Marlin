@@ -445,9 +445,9 @@
 
   //120V 250W silicone heater into 4mm borosilicate (MendelMax 1.5+)
   //from FOPDT model - kp=.39 Tp=405 Tdead=66, Tc set to 79.2, aggressive factor of .15 (vs .1, 1, 10)
-  //#define  DEFAULT_bedKp 10.00
-  //#define  DEFAULT_bedKi .023
-  //#define  DEFAULT_bedKd 305.4
+  #define DEFAULT_bedKp 10.00
+  #define DEFAULT_bedKi .023
+  #define DEFAULT_bedKd 305.4
 
   //120V 250W silicone heater into 4mm borosilicate (MendelMax 1.5+)
   //from pidautotune
@@ -802,6 +802,9 @@
 // Certain types of probes need to stay away from edges
 #define MIN_PROBE_EDGE 10
 
+// Certain types of probes need to stay away from edges
+#define MIN_PROBE_EDGE 10
+
 // X and Y axis travel speed (mm/m) between probes
 #define XY_PROBE_SPEED 10000
 
@@ -1004,6 +1007,7 @@
  */
 #define RESTORE_LEVELING_AFTER_G28
 
+
 /**
  * Enable detailed logging of G28, G29, M48, etc.
  * Turn on with the command 'M111 S32'.
@@ -1127,6 +1131,11 @@
 
 // Add a menu item to move between bed corners for manual bed adjustment
 #define LEVEL_BED_CORNERS
+
+#if ENABLED(LEVEL_BED_CORNERS)
+  #define LEVEL_CORNERS_INSET 30    // (mm) An inset for corner leveling
+  //#define LEVEL_CENTER_TOO        // Move to the center after the last corner
+#endif
 
 #if ENABLED(LEVEL_BED_CORNERS)
   #define LEVEL_CORNERS_INSET 30    // (mm) An inset for corner leveling
@@ -1473,6 +1482,15 @@
 //#define NO_LCD_MENUS
 //#define SLIM_LCD_MENUS
 
+/**
+ * LCD Menu Items
+ *
+ * Disable all menus and only display the Status Screen, or
+ * just remove some extraneous menu items to recover space.
+ */
+//#define NO_LCD_MENUS
+//#define SLIM_LCD_MENUS
+
 //
 // ENCODER SETTINGS
 //
@@ -1676,6 +1694,7 @@
 // http://reprap.org/wiki/RepRapDiscount_Full_Graphic_Smart_Controller
 //
 #define REPRAP_DISCOUNT_FULL_GRAPHIC_SMART_CONTROLLER
+
 
 //
 // ReprapWorld Graphical LCD

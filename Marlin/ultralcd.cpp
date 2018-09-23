@@ -2691,7 +2691,6 @@ void lcd_quick_feedback(const bool clear_buttons) {
       MENU_ITEM(gcode, MSG_AUTO_HOME_Y, PSTR("G28 Y"));
       MENU_ITEM(gcode, MSG_AUTO_HOME_Z, PSTR("G28 Z"));
     #endif
-
       
     #if ENABLED(BIGBOX_CUSTOMISED_MENUS)
     //
@@ -2727,12 +2726,8 @@ void lcd_quick_feedback(const bool clear_buttons) {
     } else{
         MENU_ITEM(gcode, BB_CUSTOM_MENU_XYLOOP_MENU , PSTR(BB_CUSTOM_MENU_XYLOOP_NOTHOMED));
     }
-# endif //BIGBOX_CUSTOMISED_MENUS
- 
+    # endif //BIGBOX_CUSTOMISED_MENUS
 
-
-
-      
     //
     // TMC Z Calibration
     //
