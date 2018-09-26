@@ -153,7 +153,8 @@ typedef struct SettingsDataStruct {
   //
   // HAS_BED_PROBE
   //
-  float zprobe_zoffset;                                 // M851 Z
+
+  float zprobe_zoffset;
 
   //
   // ABL_PLANAR
@@ -558,9 +559,9 @@ void MarlinSettings::postprocess() {
       #endif
       constexpr uint16_t servo_angles[NUM_SERVO_PLUGS][2] = {
         #if ENABLED(SWITCHING_EXTRUDER)
-          [SWITCHING_EXTRUDER_SERVO_NR] = { sesa[0], sesa[1] }
+          [SWITCHING_EXTRUDER_SERVO_NR] = { sesa[0][0], sesa[0][1] }
           #if EXTRUDERS > 3
-            , [SWITCHING_EXTRUDER_E23_SERVO_NR] = { sesa[2], sesa[3] }
+            , [SWITCHING_EXTRUDER_E23_SERVO_NR] = { sesa[1][0], sesa[1][1] }
           #endif
         #elif ENABLED(SWITCHING_NOZZLE)
           [SWITCHING_NOZZLE_SERVO_NR] = SWITCHING_NOZZLE_SERVO_ANGLES
@@ -773,7 +774,7 @@ void MarlinSettings::postprocess() {
                 0,
               #endif
               #if MAX_EXTRUDERS > 3
-                  #if AXIS_IS_TMC(E3)
+                #if AXIS_IS_TMC(E3)
                   stepperE3.getCurrent(),
                 #else
                   0,
@@ -2714,23 +2715,23 @@ void MarlinSettings::reset(PORTARG_SOLO) {
         say_M906(PORTVAR_SOLO);
         SERIAL_ECHOLNPAIR_P(port, " T0 E", stepperE0.getCurrent());
       #endif
-      #if E_STEPPERS > 1 && AXIS_IS_TMC(E1)
+      #if AXIS_IS_TMC(E1)
         say_M906(PORTVAR_SOLO);
         SERIAL_ECHOLNPAIR_P(port, " T1 E", stepperE1.getCurrent());
       #endif
-      #if E_STEPPERS > 2 && AXIS_IS_TMC(E2)
+      #if AXIS_IS_TMC(E2)
         say_M906(PORTVAR_SOLO);
         SERIAL_ECHOLNPAIR_P(port, " T2 E", stepperE2.getCurrent());
       #endif
-      #if E_STEPPERS > 3 && AXIS_IS_TMC(E3)
+      #if AXIS_IS_TMC(E3)
         say_M906(PORTVAR_SOLO);
         SERIAL_ECHOLNPAIR_P(port, " T3 E", stepperE3.getCurrent());
       #endif
-      #if E_STEPPERS > 4 && AXIS_IS_TMC(E4)
+      #if AXIS_IS_TMC(E4)
         say_M906(PORTVAR_SOLO);
         SERIAL_ECHOLNPAIR_P(port, " T4 E", stepperE4.getCurrent());
       #endif
-      #if E_STEPPERS > 5 && AXIS_IS_TMC(E5)
+      #if AXIS_IS_TMC(E5)
         say_M906(PORTVAR_SOLO);
         SERIAL_ECHOLNPAIR_P(port, " T5 E", stepperE5.getCurrent());
       #endif
@@ -2785,23 +2786,23 @@ void MarlinSettings::reset(PORTARG_SOLO) {
           say_M913(PORTVAR_SOLO);
           SERIAL_ECHOLNPAIR_P(port, " T0 E", TMC_GET_PWMTHRS(E, E0));
         #endif
-        #if E_STEPPERS > 1 && AXIS_IS_TMC(E1)
+        #if AXIS_IS_TMC(E1)
           say_M913(PORTVAR_SOLO);
           SERIAL_ECHOLNPAIR_P(port, " T1 E", TMC_GET_PWMTHRS(E, E1));
         #endif
-        #if E_STEPPERS > 2 && AXIS_IS_TMC(E2)
+        #if AXIS_IS_TMC(E2)
           say_M913(PORTVAR_SOLO);
           SERIAL_ECHOLNPAIR_P(port, " T2 E", TMC_GET_PWMTHRS(E, E2));
         #endif
-        #if E_STEPPERS > 3 && AXIS_IS_TMC(E3)
+        #if AXIS_IS_TMC(E3)
           say_M913(PORTVAR_SOLO);
           SERIAL_ECHOLNPAIR_P(port, " T3 E", TMC_GET_PWMTHRS(E, E3));
         #endif
-        #if E_STEPPERS > 4 && AXIS_IS_TMC(E4)
+        #if AXIS_IS_TMC(E4)
           say_M913(PORTVAR_SOLO);
           SERIAL_ECHOLNPAIR_P(port, " T4 E", TMC_GET_PWMTHRS(E, E4));
         #endif
-        #if E_STEPPERS > 5 && AXIS_IS_TMC(E5)
+        #if AXIS_IS_TMC(E5)
           say_M913(PORTVAR_SOLO);
           SERIAL_ECHOLNPAIR_P(port, " T5 E", TMC_GET_PWMTHRS(E, E5));
         #endif
