@@ -365,7 +365,7 @@
   #error "Set SERIAL_PORT to the port on your board. Usually this is 0."
 #endif
 
-#if SERIAL_PORT_2 && NUM_SERIAL < 2
+#if defined(SERIAL_PORT_2) && NUM_SERIAL < 2
   #error "SERIAL_PORT_2 is not supported for your MOTHERBOARD. Disable it to continue."
 #endif
 
@@ -600,6 +600,27 @@ static_assert(X_MAX_LENGTH >= X_BED_SIZE && Y_MAX_LENGTH >= Y_BED_SIZE,
 
   #if ENABLED(HEATERS_PARALLEL)
     #error "EXTRUDERS must be 1 with HEATERS_PARALLEL."
+  #endif
+
+  #if ENABLED(SINGLENOZZLE)
+    #ifndef SINGLENOZZLE_SWAP_LENGTH
+      #error "SINGLENOZZLE requires SINGLENOZZLE_SWAP_LENGTH. Please update your Configuration."
+    #elif !defined(SINGLENOZZLE_SWAP_RETRACT_SPEED)
+      #error "SINGLENOZZLE requires SINGLENOZZLE_SWAP_RETRACT_SPEED. Please update your Configuration."
+    #elif !defined(SINGLENOZZLE_SWAP_PRIME_SPEED)
+      #error "SINGLENOZZLE requires SINGLENOZZLE_SWAP_PRIME_SPEED. Please update your Configuration."
+    #endif
+    #if ENABLED(SINGLENOZZLE_SWAP_PARK)
+      #ifndef SINGLENOZZLE_TOOLCHANGE_POSITION
+        #error "SINGLENOZZLE_SWAP_PARK requires SINGLENOZZLE_TOOLCHANGE_POSITION. Please update your Configuration."
+      #elif !defined(SINGLENOZZLE_PARK_XY_FEEDRATE)
+        #error "SINGLENOZZLE_SWAP_PARK requires SINGLENOZZLE_PARK_XY_FEEDRATE. Please update your Configuration."
+      #endif
+    #else
+      #ifndef SINGLENOZZLE_TOOLCHANGE_ZRAISE
+        #error "SINGLENOZZLE requires SINGLENOZZLE_TOOLCHANGE_ZRAISE. Please update your Configuration."
+      #endif
+    #endif
   #endif
 
 #elif ENABLED(MK2_MULTIPLEXER)
@@ -895,14 +916,20 @@ static_assert(X_MAX_LENGTH >= X_BED_SIZE && Y_MAX_LENGTH >= Y_BED_SIZE,
   /**
    * Require pin options and pins to be defined
    */
-  #if ENABLED(Z_MIN_PROBE_USES_Z_MIN_ENDSTOP_PIN)
+  #if ENABLED(SENSORLESS_PROBING)
+    #if ENABLED(DELTA) && (!AXIS_DRIVER_TYPE_X(TMC2130) || !AXIS_DRIVER_TYPE_Y(TMC2130) || !AXIS_DRIVER_TYPE_Z(TMC2130))
+      #error "SENSORLESS_PROBING requires TMC2130 drivers on X, Y, and Z."
+    #elif !AXIS_DRIVER_TYPE_Z(TMC2130)
+      #error "SENSORLESS_PROBING requires a TMC2130 driver on Z."
+    #endif
+  #elif ENABLED(Z_MIN_PROBE_USES_Z_MIN_ENDSTOP_PIN)
     #if ENABLED(Z_MIN_PROBE_ENDSTOP)
       #error "Enable only one option: Z_MIN_PROBE_ENDSTOP or Z_MIN_PROBE_USES_Z_MIN_ENDSTOP_PIN."
     #elif DISABLED(USE_ZMIN_PLUG)
       #error "Z_MIN_PROBE_USES_Z_MIN_ENDSTOP_PIN requires USE_ZMIN_PLUG to be enabled."
     #elif !HAS_Z_MIN
       #error "Z_MIN_PROBE_USES_Z_MIN_ENDSTOP_PIN requires the Z_MIN_PIN to be defined."
-    #elif ENABLED(Z_MIN_PROBE_ENDSTOP_INVERTING) != ENABLED(Z_MIN_ENDSTOP_INVERTING)
+    #elif Z_MIN_PROBE_ENDSTOP_INVERTING != Z_MIN_ENDSTOP_INVERTING
       #error "Z_MIN_PROBE_USES_Z_MIN_ENDSTOP_PIN requires Z_MIN_ENDSTOP_INVERTING to match Z_MIN_PROBE_ENDSTOP_INVERTING."
     #endif
   #elif ENABLED(Z_MIN_PROBE_ENDSTOP)
@@ -1746,19 +1773,18 @@ static_assert(X_MAX_LENGTH >= X_BED_SIZE && Y_MAX_LENGTH >= Y_BED_SIZE,
   #error "CoreYZ requires both Y and Z to use sensorless homing if either does."
 #endif
 
+// Other TMC feature requirements
 #if ENABLED(HYBRID_THRESHOLD) && DISABLED(STEALTHCHOP)
   #error "Enable STEALTHCHOP to use HYBRID_THRESHOLD."
-#endif
-#if ENABLED(TMC_Z_CALIBRATION) && !AXIS_IS_TMC(Z) && !AXIS_IS_TMC(Z2) && !AXIS_IS_TMC(Z3)
+#elif ENABLED(TMC_Z_CALIBRATION) && !AXIS_IS_TMC(Z) && !AXIS_IS_TMC(Z2) && !AXIS_IS_TMC(Z3)
   #error "TMC_Z_CALIBRATION requires at least one TMC driver on Z axis"
-#endif
-
-#if ENABLED(SENSORLESS_HOMING) && !HAS_STALLGUARD
-  #error "SENSORLESS_HOMING requires TMC2130 or TMC2660 stepper drivers."
-#endif
-#if ENABLED(STEALTHCHOP) && !HAS_STEALTHCHOP
+#elif ENABLED(SENSORLESS_HOMING) && !HAS_STALLGUARD
+  #error "SENSORLESS_HOMING requires TMC2130 stepper drivers."
+#elif ENABLED(SENSORLESS_PROBING) && !HAS_STALLGUARD
+  #error "SENSORLESS_PROBING requires TMC2130 stepper drivers."
+#elif ENABLED(STEALTHCHOP) && !HAS_STEALTHCHOP
   #error "STEALTHCHOP requires TMC2130 or TMC2208 stepper drivers."
- #endif
+#endif
 
 /**
  * Digipot requirement
@@ -1823,6 +1849,10 @@ static_assert(COUNT(sanity_arr_3) <= XYZE_N, "DEFAULT_MAX_ACCELERATION has too m
 
 #if ENABLED(PRINTCOUNTER) && DISABLED(EEPROM_SETTINGS)
   #error "PRINTCOUNTER requires EEPROM_SETTINGS. Please update your Configuration."
+#endif
+
+#if ENABLED(USB_FLASH_DRIVE_SUPPORT) && !(PIN_EXISTS(USB_CS) && PIN_EXISTS(USB_INTR))
+  #error "USB_CS_PIN and USB_INTR_PIN are required for USB_FLASH_DRIVE_SUPPORT."
 #endif
 
 #endif // _SANITYCHECK_H_
