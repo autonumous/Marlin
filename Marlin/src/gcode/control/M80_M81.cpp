@@ -23,10 +23,11 @@
 #include "../gcode.h"
 #include "../../module/temperature.h"
 #include "../../module/stepper.h"
+#include "../../module/printcounter.h" // for print_job_timer
 
 #include "../../inc/MarlinConfig.h"
 
-#if ENABLED(ULTIPANEL)
+#if HAS_LCD_MENU
   #include "../../lcd/ultralcd.h"
 #endif
 
@@ -81,7 +82,7 @@
       restore_stepper_drivers();
     #endif
 
-    #if ENABLED(ULTIPANEL)
+    #if HAS_LCD_MENU
       lcd_reset_status();
     #endif
   }
@@ -95,10 +96,11 @@
  */
 void GcodeSuite::M81() {
   thermalManager.disable_all_heaters();
+  print_job_timer.stop();
   planner.finish_and_disable();
 
   #if FAN_COUNT > 0
-    for (uint8_t i = 0; i < FAN_COUNT; i++) fan_speed[i] = 0;
+    zero_fan_speeds();
     #if ENABLED(PROBING_FANS_OFF)
       fans_paused = false;
       ZERO(paused_fan_speed);
@@ -113,7 +115,7 @@ void GcodeSuite::M81() {
     PSU_OFF();
   #endif
 
-  #if ENABLED(ULTIPANEL)
+  #if HAS_LCD_MENU
     LCD_MESSAGEPGM(MACHINE_NAME " " MSG_OFF ".");
   #endif
 }
