@@ -43,10 +43,6 @@
   #define NOT_A_PIN 0 // For PINS_DEBUGGING
 #endif
 
-#define IS_SCARA (ENABLED(MORGAN_SCARA) || ENABLED(MAKERARM_SCARA))
-#define IS_KINEMATIC (ENABLED(DELTA) || IS_SCARA)
-#define IS_CARTESIAN !IS_KINEMATIC
-
 #define HAS_CLASSIC_JERK (IS_KINEMATIC || DISABLED(JUNCTION_DEVIATION))
 
 /**
@@ -279,12 +275,12 @@
 #elif TEMP_SENSOR_0 == -3
   #define HEATER_0_USES_MAX6675
   #define MAX6675_IS_MAX31855
-  #define MAX6675_TMIN -270
-  #define MAX6675_TMAX 1800
+  #define HEATER_0_MAX6675_TMIN -270
+  #define HEATER_0_MAX6675_TMAX 1800
 #elif TEMP_SENSOR_0 == -2
   #define HEATER_0_USES_MAX6675
-  #define MAX6675_TMIN 0
-  #define MAX6675_TMAX 1024
+  #define HEATER_0_MAX6675_TMIN 0
+  #define HEATER_0_MAX6675_TMAX 1024
 #elif TEMP_SENSOR_0 == -1
   #define HEATER_0_USES_AD595
 #elif TEMP_SENSOR_0 == 0
@@ -298,9 +294,19 @@
 #if TEMP_SENSOR_1 == -4
   #define HEATER_1_USES_AD8495
 #elif TEMP_SENSOR_1 == -3
-  #error "MAX31855 Thermocouples (-3) not supported for TEMP_SENSOR_1."
+  #if TEMP_SENSOR_0 == -2
+    #error "If MAX31855 Thermocouple (-3) is used for TEMP_SENSOR_1 then TEMP_SENSOR_0 must match."
+  #endif
+  #define HEATER_1_USES_MAX6675
+  #define HEATER_1_MAX6675_TMIN -270
+  #define HEATER_1_MAX6675_TMAX 1800
 #elif TEMP_SENSOR_1 == -2
-  #error "MAX6675 Thermocouples (-2) not supported for TEMP_SENSOR_1."
+  #if TEMP_SENSOR_0 == -3
+    #error "If MAX31855 Thermocouple (-3) is used for TEMP_SENSOR_0 then TEMP_SENSOR_1 must match."
+  #endif
+  #define HEATER_1_USES_MAX6675
+  #define HEATER_1_MAX6675_TMIN 0
+  #define HEATER_1_MAX6675_TMAX 1024
 #elif TEMP_SENSOR_1 == -1
   #define HEATER_1_USES_AD595
 #elif TEMP_SENSOR_1 == 0
@@ -854,6 +860,7 @@
   #define AXIS_HAS_STALLGUARD(ST)  (AXIS_DRIVER_TYPE(ST, TMC2130) || AXIS_DRIVER_TYPE(ST, TMC2660))
   #define AXIS_HAS_STEALTHCHOP(ST) (AXIS_DRIVER_TYPE(ST, TMC2130) || AXIS_DRIVER_TYPE(ST, TMC2208))
 
+  #define STEALTHCHOP_ENABLED (ENABLED(STEALTHCHOP_XY) || ENABLED(STEALTHCHOP_Z) || ENABLED(STEALTHCHOP_E))
   #define USE_SENSORLESS (ENABLED(SENSORLESS_HOMING) || ENABLED(SENSORLESS_PROBING))
   // Disable Z axis sensorless homing if a probe is used to home the Z axis
   #if HOMING_Z_WITH_PROBE
@@ -966,6 +973,12 @@
 
 #if HAS_SERVOS && !defined(Z_PROBE_SERVO_NR)
   #define Z_PROBE_SERVO_NR -1
+#endif
+
+#define HAS_SERVO_ANGLES (ENABLED(SWITCHING_EXTRUDER) || ENABLED(SWITCHING_NOZZLE) || (HAS_Z_SERVO_PROBE && defined(Z_PROBE_SERVO_NR)))
+
+#if !HAS_SERVO_ANGLES
+  #undef EDITABLE_SERVO_ANGLES
 #endif
 
 // Sensors
@@ -1202,34 +1215,28 @@
   #define _SKEW_FACTOR(a,b,c) _SKEW_SIDE(float(a),_GET_SIDE(float(a),float(b),float(c)),float(c))
 
   #ifndef XY_SKEW_FACTOR
-    constexpr float XY_SKEW_FACTOR = (
-      #if defined(XY_DIAG_AC) && defined(XY_DIAG_BD) && defined(XY_SIDE_AD)
-        _SKEW_FACTOR(XY_DIAG_AC, XY_DIAG_BD, XY_SIDE_AD)
-      #else
-        0.0
-      #endif
-    );
+    #if defined(XY_DIAG_AC) && defined(XY_DIAG_BD) && defined(XY_SIDE_AD)
+      #define XY_SKEW_FACTOR _SKEW_FACTOR(XY_DIAG_AC, XY_DIAG_BD, XY_SIDE_AD)
+    #else
+      #define XY_SKEW_FACTOR 0.0
+    #endif
   #endif
   #ifndef XZ_SKEW_FACTOR
     #if defined(XY_SIDE_AD) && !defined(XZ_SIDE_AD)
       #define XZ_SIDE_AD XY_SIDE_AD
     #endif
-    constexpr float XZ_SKEW_FACTOR = (
-      #if defined(XZ_DIAG_AC) && defined(XZ_DIAG_BD) && defined(XZ_SIDE_AD)
-        _SKEW_FACTOR(XZ_DIAG_AC, XZ_DIAG_BD, XZ_SIDE_AD)
-      #else
-        0.0
-      #endif
-    );
+    #if defined(XZ_DIAG_AC) && defined(XZ_DIAG_BD) && defined(XZ_SIDE_AD)
+      #define XZ_SKEW_FACTOR _SKEW_FACTOR(XZ_DIAG_AC, XZ_DIAG_BD, XZ_SIDE_AD)
+    #else
+      #define XZ_SKEW_FACTOR 0.0
+    #endif
   #endif
   #ifndef YZ_SKEW_FACTOR
-    constexpr float YZ_SKEW_FACTOR = (
-      #if defined(YZ_DIAG_AC) && defined(YZ_DIAG_BD) && defined(YZ_SIDE_AD)
-        _SKEW_FACTOR(YZ_DIAG_AC, YZ_DIAG_BD, YZ_SIDE_AD)
-      #else
-        0.0
-      #endif
-    );
+    #if defined(YZ_DIAG_AC) && defined(YZ_DIAG_BD) && defined(YZ_SIDE_AD)
+      #define YZ_SKEW_FACTOR _SKEW_FACTOR(YZ_DIAG_AC, YZ_DIAG_BD, YZ_SIDE_AD)
+    #else
+      #define YZ_SKEW_FACTOR 0.0
+    #endif
   #endif
 #endif // SKEW_CORRECTION
 
@@ -1538,9 +1545,6 @@
   #define LCD_TIMEOUT_TO_STATUS 15000
 #endif
 
-// Shorthand
-#define GRID_MAX_POINTS ((GRID_MAX_POINTS_X) * (GRID_MAX_POINTS_Y))
-
 // Add commands that need sub-codes to this list
 #define USE_GCODE_SUBCODES ENABLED(G38_PROBE_TARGET) || ENABLED(CNC_COORDINATE_SYSTEMS) || ENABLED(POWER_LOSS_RECOVERY)
 
@@ -1626,7 +1630,7 @@
 // If platform requires early initialization of watchdog to properly boot
 #define EARLY_WATCHDOG (ENABLED(USE_WATCHDOG) && defined(ARDUINO_ARCH_SAM))
 
-#define USE_EXECUTE_COMMANDS_IMMEDIATE ENABLED(G29_RETRY_AND_RECOVER)
+#define USE_EXECUTE_COMMANDS_IMMEDIATE (ENABLED(G29_RETRY_AND_RECOVER) || ENABLED(GCODE_MACROS) || ENABLED(POWER_LOSS_RECOVERY))
 
 #if ENABLED(Z_TRIPLE_STEPPER_DRIVERS)
   #define Z_STEPPER_COUNT 3
@@ -1634,4 +1638,24 @@
   #define Z_STEPPER_COUNT 2
 #else
   #define Z_STEPPER_COUNT 1
+#endif
+
+// Get LCD character width/height, which may be overridden by pins, configs, etc.
+#ifndef LCD_WIDTH
+  #if HAS_GRAPHICAL_LCD
+    #define LCD_WIDTH 22
+  #elif ENABLED(ULTIPANEL)
+    #define LCD_WIDTH 20
+  #elif HAS_SPI_LCD
+    #define LCD_WIDTH 16
+  #endif
+#endif
+#ifndef LCD_HEIGHT
+  #if HAS_GRAPHICAL_LCD
+    #define LCD_HEIGHT 5
+  #elif ENABLED(ULTIPANEL)
+    #define LCD_HEIGHT 4
+  #elif HAS_SPI_LCD
+    #define LCD_HEIGHT 2
+  #endif
 #endif
