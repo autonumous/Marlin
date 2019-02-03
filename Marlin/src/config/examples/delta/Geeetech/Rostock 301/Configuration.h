@@ -154,17 +154,6 @@
 
 // For Cyclops or any "multi-extruder" that shares a single nozzle.
 #define SINGLENOZZLE
-#if ENABLED(SINGLENOZZLE)
-  // Parameters for filament retract / prime on toolchange
-  #define SINGLENOZZLE_SWAP_LENGTH          12  // (mm)
-  #define SINGLENOZZLE_SWAP_RETRACT_SPEED 3600  // (mm/m)
-  #define SINGLENOZZLE_SWAP_PRIME_SPEED   3600  // (mm/m)
-  //#define SINGLENOZZLE_SWAP_PARK
-  #if ENABLED(SINGLENOZZLE_SWAP_PARK)
-    #define SINGLENOZZLE_TOOLCHANGE_XY    { X_MIN_POS + 10, Y_MIN_POS + 10 }
-    #define SINGLENOZZLE_PARK_XY_FEEDRATE 6000  // (mm/m)
-  #endif
-#endif
 
 /**
  * Průša MK2 Single Nozzle Multi-Material Multiplexer, and variants.
@@ -184,6 +173,16 @@
   //#define E_MUX1_PIN 42  // Needed for 3 to 8 inputs
   //#define E_MUX2_PIN 44  // Needed for 5 to 8 inputs
 #endif
+
+/**
+ * Prusa Multi-Material Unit v2
+ *
+ * Requires NOZZLE_PARK_FEATURE to park print head in case MMU unit fails.
+ * Requires EXTRUDERS = 5
+ *
+ * For additional configuration see Configuration_adv.h
+ */
+//#define PRUSA_MMU2
 
 // A dual extruder that uses a single stepper motor
 //#define SWITCHING_EXTRUDER
@@ -1118,7 +1117,20 @@
   #define FIL_RUNOUT_INVERTING false // set to true to invert the logic of the sensor.
   #define FIL_RUNOUT_PULLUP          // Use internal pullup for filament runout pins.
   //#define FIL_RUNOUT_PULLDOWN      // Use internal pulldown for filament runout pins.
+
+  // Set one or more commands to run on filament runout.
+  //  - Always applies to SD-card printing.
+  //  - Applies to host-based printing if ACTION_ON_FILAMENT_RUNOUT is not set.
   #define FILAMENT_RUNOUT_SCRIPT "M600"
+
+  // With this option, if filament runs out during host-based printing, Marlin
+  // will send "//action:<ACTION_ON_FILAMENT_RUNOUT>" to the host and let the
+  // host handle filament change. If left undefined the FILAMENT_RUNOUT_SCRIPT
+  // will be used on filament runout for both host-based and SD-card printing.
+  //
+  // The host must be able to respond to the //action: command set here.
+  //
+  //#define ACTION_ON_FILAMENT_RUNOUT "pause: filament_runout"
 
   // After a runout is detected, continue printing this length of filament
   // before executing the runout script. Useful for a sensor at the end of
@@ -1311,6 +1323,7 @@
 
 #if ENABLED(LEVEL_BED_CORNERS)
   #define LEVEL_CORNERS_INSET 30    // (mm) An inset for corner leveling
+  #define LEVEL_CORNERS_Z_HOP  4.0  // (mm) Move nozzle up before moving between corners
   //#define LEVEL_CENTER_TOO        // Move to the center after the last corner
 #endif
 
@@ -1851,10 +1864,17 @@
 //
 
 //
-// 2 wire Non-latching LCD SR from https://goo.gl/aJJ4sH
+// 2-wire Non-latching LCD SR from https://goo.gl/aJJ4sH
 // LCD configuration: http://reprap.org/wiki/SAV_3D_LCD
 //
 //#define SAV_3DLCD
+
+//
+// 3-wire SR LCD with strobe using 74HC4094
+// https://github.com/mikeshub/SailfishLCD
+// Uses the code directly from Sailfish
+//
+//#define FF_INTERFACEBOARD
 
 //=============================================================================
 //=======================   LCD / Controller Selection  =======================
@@ -2003,6 +2023,15 @@
 //#define EXTENSIBLE_UI
 
 //=============================================================================
+//=============================== Graphical TFTs ==============================
+//=============================================================================
+
+//
+// MKS Robin 320x240 color display
+//
+//#define MKS_ROBIN_TFT
+
+//=============================================================================
 //============================  Other Controllers  ============================
 //=============================================================================
 
@@ -2076,6 +2105,10 @@
 // Support for PCA9632 PWM LED driver
 //#define PCA9632
 
+// Support for PCA9533 PWM LED driver
+// https://github.com/mikeshub/SailfishRGB_LED
+//#define PCA9533
+
 /**
  * RGB LED / LED Strip Control
  *
@@ -2130,7 +2163,7 @@
  *  - Change to green once print has finished
  *  - Turn off after the print has finished and the user has pushed a button
  */
-#if ENABLED(BLINKM) || ENABLED(RGB_LED) || ENABLED(RGBW_LED) || ENABLED(PCA9632) || ENABLED(NEOPIXEL_LED)
+#if ENABLED(BLINKM) || ENABLED(RGB_LED) || ENABLED(RGBW_LED) || ENABLED(PCA9632) || ENABLED(PCA9533)|| ENABLED(NEOPIXEL_LED)
   #define PRINTER_EVENT_LEDS
 #endif
 

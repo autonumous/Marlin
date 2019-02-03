@@ -144,6 +144,8 @@
   #include "pins_RUMBA.h"             // ATmega2560                                 env:megaatmega2560
 #elif MB(RUMBA_RAISE3D)
   #include "pins_RUMBA_RAISE3D.h"     // ATmega2560                                 env:megaatmega2560
+#elif MB(RL200)
+  #include "pins_RL200.h"             // ATmega2560                                 env:megaatmega2560
 #elif MB(BQ_ZUM_MEGA_3D)
   #include "pins_BQ_ZUM_MEGA_3D.h"    // ATmega2560                                 env:megaatmega2560
 #elif MB(MAKEBOARD_MINI)
@@ -160,6 +162,8 @@
   #include "pins_FYSETC_F6_13.h"      // ATmega2560                                 env:megaatmega2560
 #elif MB(DUPLICATOR_I3_PLUS)
   #include "pins_DUPLICATOR_I3_PLUS.h" // ATmega2560                                 env:megaatmega2560
+#elif MB(VORON)
+  #include "pins_VORON.h"             // ATmega2560                                 env:megaatmega2560
 
 //
 // Other ATmega1280, ATmega2560
@@ -205,6 +209,8 @@
   #include "pins_GT2560_V3.h"         // ATmega2560                                 env:megaatmega2560
 #elif MB(GT2560_V3_MC2)
   #include "pins_GT2560_V3_MC2.h"     // ATmega2560                                 env:megaatmega2560
+#elif MB(GT2560_V3_A20)
+  #include "pins_GT2560_V3_A20.h"     // ATmega2560                                 env:megaatmega2560
 #elif MB(EINSTART_S)
   #include "pins_EINSTART-S.h"        // ATmega1280, ATmega2560                     env:megaatmega1280 env:megaatmega2560
 
@@ -383,6 +389,8 @@
   #include "pins_ARCHIM2.h"           // SAM3X8E                                    env:DUE env:DUE_debug
 #elif MB(ALLIGATOR)
   #include "pins_ALLIGATOR_R2.h"      // SAM3X8E                                    env:DUE env:DUE_debug
+#elif MB(ADSK)
+  #include "pins_ADSK.h"              // SAM3X8E                                    env:DUE env:DUE_debug
 
 //
 // STM32 ARM Cortex-M3
@@ -417,6 +425,10 @@
   #include "pins_STM32F4.h"           // STM32F4                                    env:STM32F4
 #elif MB(ARMED)
   #include "pins_ARMED.h"             // STM32F4                                    env:ARMED
+#elif MB(RUMBA32)
+  #include "pins_RUMBA32.h"           // STM32F4                                    env:RUMBA32
+#elif MB(STEVAL)
+  #include "pins_STEVAL.h"            // STM32F4                                    env:STM32F4
 
 //
 // ARM Cortex M7

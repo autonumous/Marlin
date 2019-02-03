@@ -70,6 +70,10 @@
   #include "../feature/fanmux.h"
 #endif
 
+#if ENABLED(PRUSA_MMU2)
+  #include "../feature/prusa_MMU2/mmu2.h"
+#endif
+
 #if HAS_LCD_MENU
   #include "../lcd/ultralcd.h"
 #endif
@@ -508,6 +512,13 @@ void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool n
       mixer.T(uint_fast8_t(tmp_extruder));
     #endif
 
+  #elif ENABLED(PRUSA_MMU2)
+
+    UNUSED(fr_mm_s); UNUSED(no_move);
+
+    mmu2.toolChange(tmp_extruder);
+
+
   #elif EXTRUDERS < 2
 
     UNUSED(fr_mm_s); UNUSED(no_move);
@@ -553,7 +564,7 @@ void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool n
       #endif
       if (should_swap) {
         if (too_cold) {
-          SERIAL_ERROR_MSG(MSG_ERR_HOTEND_TOO_COLD);
+          SERIAL_ECHO_MSG(MSG_ERR_HOTEND_TOO_COLD);
           #if ENABLED(SINGLENOZZLE)
             active_extruder = tmp_extruder;
             return;
@@ -674,14 +685,14 @@ void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool n
 
         #if ENABLED(SINGLENOZZLE)
           #if FAN_COUNT > 0
-            singlenozzle_fan_speed[active_extruder] = fan_speed[0];
-            fan_speed[0] = singlenozzle_fan_speed[tmp_extruder];
+            singlenozzle_fan_speed[active_extruder] = thermalManager.fan_speed[0];
+            thermalManager.fan_speed[0] = singlenozzle_fan_speed[tmp_extruder];
           #endif
 
           singlenozzle_temp[active_extruder] = thermalManager.target_temperature[0];
           if (singlenozzle_temp[tmp_extruder] && singlenozzle_temp[tmp_extruder] != singlenozzle_temp[active_extruder]) {
             thermalManager.setTargetHotend(singlenozzle_temp[tmp_extruder], 0);
-            #if ENABLED(ULTRA_LCD)
+            #if ENABLED(ULTRA_LCD) || ENABLED(EXTENSIBLE_UI)
               thermalManager.set_heating_message(0);
             #endif
             (void)thermalManager.wait_for_hotend(0, false);  // Wait for heating or cooling
@@ -714,6 +725,11 @@ void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool n
           do_blocking_move_to_z(destination[Z_AXIS], planner.settings.max_feedrate_mm_s[Z_AXIS]);
         }
       #endif
+
+      #if ENABLED(PRUSA_MMU2)
+        mmu2.toolChange(tmp_extruder);
+      #endif
+
     } // (tmp_extruder != active_extruder)
 
     planner.synchronize();
