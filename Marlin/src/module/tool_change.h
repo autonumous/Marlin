@@ -81,4 +81,14 @@
  * Perform a tool-change, which may result in moving the
  * previous tool out of the way and the new tool into place.
  */
-void tool_change(const uint8_t tmp_extruder, const float fr_mm_s=0.0, bool no_move=false);
+#if ENABLED(BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE)
+   void tool_change(const uint8_t tmp_extruder, const float fr_mm_s=0.0, bool  move=false );
+#else
+   void tool_change(const uint8_t tmp_extruder, const float fr_mm_s=0.0, bool no_move=false);
+#endif
+
+
+
+
+
+

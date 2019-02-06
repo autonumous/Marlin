@@ -518,10 +518,18 @@ inline void invalid_extruder_error(const uint8_t e) {
  * Perform a tool-change, which may result in moving the
  * previous tool out of the way and the new tool into place.
  */
+#if ENABLED(BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE)
+void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool move/*=false*/) {
+#else  
 void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool no_move/*=false*/) {
+#endif  //BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE
   #if ENABLED(MIXING_EXTRUDER)
 
+#if ENABLED(BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE)
+    UNUSED(fr_mm_s); UNUSED(move);
+#else  
     UNUSED(fr_mm_s); UNUSED(no_move);
+#endif  //BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE
 
     if (tmp_extruder >= MIXING_VIRTUAL_TOOLS)
       return invalid_extruder_error(tmp_extruder);
@@ -533,13 +541,21 @@ void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool n
 
   #elif ENABLED(PRUSA_MMU2)
 
+#if ENABLED(BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE)
+    UNUSED(fr_mm_s); UNUSED(move);
+#else  
     UNUSED(fr_mm_s); UNUSED(no_move);
+#endif  //BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE
 
     mmu2.toolChange(tmp_extruder);
 
   #elif EXTRUDERS < 2
 
+#if ENABLED(BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE)
+    UNUSED(fr_mm_s); UNUSED(move);
+#else  
     UNUSED(fr_mm_s); UNUSED(no_move);
+#endif  //BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE
 
     if (tmp_extruder) invalid_extruder_error(tmp_extruder);
     return;
@@ -562,8 +578,15 @@ void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool n
     if (tmp_extruder >= EXTRUDERS)
       return invalid_extruder_error(tmp_extruder);
 
+    #if ENABLED(BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE)
+    if (!move && !all_axes_homed()) {
+      move = false;
+    #else
     if (!no_move && !all_axes_homed()) {
       no_move = true;
+    #endif
+
+
       #if ENABLED(DEBUG_LEVELING_FEATURE)
         if (DEBUGGING(LEVELING)) SERIAL_ECHOLNPGM("No move on toolchange");
       #endif
@@ -574,7 +597,13 @@ void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool n
     #endif
 
     #if ENABLED(TOOLCHANGE_FILAMENT_SWAP)
-      const bool should_swap = !no_move && toolchange_settings.swap_length;
+
+     #if ENABLED(BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE)
+      const bool should_swap = move && toolchange_settings.swap_length
+     #else  
+      const bool should_swap = !no_move && toolchange_settings.swap_length
+     #endif  //BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE
+
       #if ENABLED(PREVENT_COLD_EXTRUSION)
         const bool too_cold = !DEBUGGING(DRYRUN) && (thermalManager.targetTooColdToExtrude(active_extruder) || thermalManager.targetTooColdToExtrude(tmp_extruder));
       #else
@@ -623,13 +652,23 @@ void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool n
         #endif
 
         // Don't move the new extruder out of bounds
+
+       #if ENABLED(BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE)
+        if (!WITHIN(current_position[X_AXIS], minx, maxx)) move = true;
+       #else  
         if (!WITHIN(current_position[X_AXIS], minx, maxx)) no_move = true;
+       #endif  //BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE
 
       #endif
 
       set_destination_from_current();
 
+     #if ENABLED(BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE)
+      if (move) {
+     #else  
       if (!no_move) {
+     #endif  //BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE
+
         #if DISABLED(SWITCHING_NOZZLE)
           // Do a small lift to avoid the workpiece in the move back (below)
           #if ENABLED(TOOLCHANGE_PARK)
@@ -658,11 +697,29 @@ void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool n
       #endif
 
       #if ENABLED(DUAL_X_CARRIAGE)
+
+       #if ENABLED(BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE)
+        dualx_tool_change(tmp_extruder, move);
+       #else  
         dualx_tool_change(tmp_extruder, no_move);
+       #endif  //BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE
+
       #elif ENABLED(PARKING_EXTRUDER) // Dual Parking extruder
+
+       #if ENABLED(BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE)
+        parking_extruder_tool_change(tmp_extruder, move);
+       #else  
         parking_extruder_tool_change(tmp_extruder, no_move);
+       #endif  //BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE        
+
       #elif ENABLED(SWITCHING_TOOLHEAD) // Switching Toolhead
+
+       #if ENABLED(BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE)
+        switching_toolhead_tool_change(tmp_extruder, fr_mm_s, move);
+       #else  
         switching_toolhead_tool_change(tmp_extruder, fr_mm_s, no_move);
+       #endif  //BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE        
+
       #elif ENABLED(SWITCHING_NOZZLE) && !SWITCHING_NOZZLE_TWO_SERVOS
         // Raise by a configured distance to avoid workpiece, except with
         // SWITCHING_NOZZLE_TWO_SERVOS, as both nozzles will lift instead.
@@ -670,7 +727,13 @@ void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool n
         #if HAS_SOFTWARE_ENDSTOPS
           NOMORE(current_position[Z_AXIS], soft_endstop_max[Z_AXIS]);
         #endif
+
+       #if ENABLED(BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE)
+        if (move)planner.buffer_line(current_position, planner.settings.max_feedrate_mm_s[Z_AXIS], active_extruder);
+       #else  
         if (!no_move)planner.buffer_line(current_position, planner.settings.max_feedrate_mm_s[Z_AXIS], active_extruder);
+       #endif  //BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE
+
         move_nozzle_servo(tmp_extruder);
       #endif
 
@@ -702,7 +765,12 @@ void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool n
       #endif
 
       // Return to position and lower again
+     #if ENABLED(BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE)
+      if (safe_to_move && move && IsRunning()) {
+     #else  
       if (safe_to_move && !no_move && IsRunning()) {
+     #endif  //BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE
+
         #if ENABLED(DEBUG_LEVELING_FEATURE)
           if (DEBUGGING(LEVELING)) DEBUG_POS("Move back", destination);
         #endif

@@ -139,6 +139,14 @@
 // Displayed in the LCD "Ready" message
 #define CUSTOM_MACHINE_NAME "BigBox V2.0 Dual Hybrid Titan 3D Printer"
 
+// BigBox Customisations - Enable the below to turn on all the  BB customisations as defined in BigBoxCustomisations.h
+// see BigBoxCustomisations.h for granular details.
+#define BIGBOX_CUSTOMISATIONS
+#if defined(BIGBOX_CUSTOMISATIONS)
+#include "BigBoxCustomisations.h"
+#endif
+
+
 // Define this to set a unique identifier for this printer, (Used by some programs to differentiate between machines)
 // You can use an online service to generate a random UUID. (eg http://www.uuidgenerator.net/version4)
 //#define MACHINE_UUID "00000000-0000-0000-0000-000000000000"
