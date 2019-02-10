@@ -161,7 +161,27 @@
 #endif // NOZZLE_CLEAN_FEATURE
 
 #if ENABLED(NOZZLE_PARK_FEATURE)
+ #if ENABLED(BB_CUSTOM_DOCK_G27)
+  void Nozzle::park(const uint8_t z_action, const point_t &park/*= NOZZLE_PARK_POINT*/, const point_t &park2/*= NOZZLE_PARK_POINT2*/) {
+    const float fr_xy = NOZZLE_PARK_XY_FEEDRATE, fr_z = NOZZLE_PARK_Z_FEEDRATE;
 
+    switch (z_action) {
+      case 1: // Go to Z-park height
+        do_blocking_move_to_z(park.z, fr_z);
+        break;
+
+      case 2: // Raise by Z-park height
+        do_blocking_move_to_z(MIN(current_position[Z_AXIS] + park.z, Z_MAX_POS), fr_z);
+        break;
+
+      default: // Raise to at least the Z-park height
+        do_blocking_move_to_z(MAX(park.z, current_position[Z_AXIS]), fr_z);
+    }
+
+    do_blocking_move_to_xy(park.x, park.y, fr_xy);
+    do_blocking_move_to_xy(park2.x, park2.y, fr_xy);
+  }
+ #else   // !BB_CUSTOM_DOCK_G27
   void Nozzle::park(const uint8_t z_action, const point_t &park /*= NOZZLE_PARK_POINT*/) {
     const float fr_xy = NOZZLE_PARK_XY_FEEDRATE;
     const float fr_z = NOZZLE_PARK_Z_FEEDRATE;
@@ -181,7 +201,7 @@
 
     do_blocking_move_to_xy(park.x, park.y, fr_xy);
   }
-
+ #endif // BB_CUSTOM_DOCK_G27
 #endif // NOZZLE_PARK_FEATURE
 
 #endif // NOZZLE_CLEAN_FEATURE || NOZZLE_PARK_FEATURE

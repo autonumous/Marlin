@@ -29,13 +29,27 @@
 #include "../../../libs/nozzle.h"
 #include "../../../module/motion.h"
 
+#if ENABLED(BB_CUSTOM_NOZZLE_PARK_BEHAVIOUR_T0)
+ #include "../../../module/tool_change.h"
+#endif  //BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE
+
 /**
  * G27: Park the nozzle
  */
 void GcodeSuite::G27() {
   // Don't allow nozzle parking without homing first
   if (axis_unhomed_error()) return;
-  Nozzle::park(parser.ushortval('P'));
+
+
+	#if ENABLED(BB_CUSTOM_NOZZLE_PARK_BEHAVIOUR_T0)
+	 const uint8_t old_tool_index = active_extruder;
+	 tool_change(0, 0, false);
+	 Nozzle::park(parser.ushortval('P'));
+	 tool_change(old_tool_index, 0, false);
+	#else
+	 Nozzle::park(parser.ushortval('P'));
+	#endif  //BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE
+  //Nozzle::park(parser.ushortval('P'));
 }
 
 #endif // NOZZLE_PARK_FEATURE

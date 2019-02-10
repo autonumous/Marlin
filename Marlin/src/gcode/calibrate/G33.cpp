@@ -80,7 +80,11 @@ void ac_home() {
 
 void ac_setup(const bool reset_bed) {
   #if HOTENDS > 1
+   #if ENABLED(BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE)
+    tool_change(0, 0, false);
+   #else
     tool_change(0, 0, true);
+   #endif //BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE
   #endif
 
   planner.synchronize();
@@ -104,7 +108,11 @@ void ac_cleanup(
   #endif
   clean_up_after_endstop_or_probe_move();
   #if HOTENDS > 1
+   #if ENABLED(BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE)
+    tool_change(0, 0, false);
+   #else
     tool_change(old_tool_index, 0, true);
+   #endif //BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE
   #endif
 }
 

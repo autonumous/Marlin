@@ -116,7 +116,11 @@ void GcodeSuite::G34() {
     // Always home with tool 0 active
     #if HOTENDS > 1
       const uint8_t old_tool_index = active_extruder;
+     #if ENABLED(BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE)
+      tool_change(0, 0, false);
+     #else
       tool_change(0, 0, true);
+     #endif //BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE
     #endif
 
     #if ENABLED(DUAL_X_CARRIAGE) || ENABLED(DUAL_NOZZLE_DUPLICATION_MODE)
@@ -231,11 +235,21 @@ void GcodeSuite::G34() {
     // Restore the active tool after homing
     #if HOTENDS > 1
       tool_change(old_tool_index, 0,
-        #if ENABLED(PARKING_EXTRUDER)
-          false // Fetch the previous toolhead
-        #else
-          true
-        #endif
+      #if ENABLED(BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE)
+        
+            #if ENABLED(PARKING_EXTRUDER)
+              true // Fetch the previous toolhead
+            #else
+              false
+            #endif
+          );
+      #else
+            #if ENABLED(PARKING_EXTRUDER)
+              false // Fetch the previous toolhead
+            #else
+              true
+            #endif
+      #endif
       );
     #endif
 

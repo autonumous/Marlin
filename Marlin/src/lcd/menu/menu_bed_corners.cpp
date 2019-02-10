@@ -46,17 +46,34 @@ void _lcd_goto_next_corner() {
   line_to_z(LEVEL_CORNERS_Z_HOP);
   switch (bed_corner) {
     case 0:
-      current_position[X_AXIS] = X_MIN_BED + LEVEL_CORNERS_INSET;
-      current_position[Y_AXIS] = Y_MIN_BED + LEVEL_CORNERS_INSET;
+      #if ENABLED(BIGBOX_CUSTOMISED_MENUS)
+       current_position[X_AXIS] = BB_CUSTOM_LEVEL_BED_CORNERS_X_MIN;
+       current_position[Y_AXIS] = BB_CUSTOM_LEVEL_BED_CORNERS_Y_MIN;
+      #else
+       current_position[X_AXIS] = X_MIN_BED + LEVEL_CORNERS_INSET;
+       current_position[Y_AXIS] = Y_MIN_BED + LEVEL_CORNERS_INSET;
+      #endif //BIGBOX_CUSTOMISED_MENUS
       break;
     case 1:
-      current_position[X_AXIS] = X_MAX_BED - LEVEL_CORNERS_INSET;
+      #if ENABLED(BIGBOX_CUSTOMISED_MENUS)
+       current_position[X_AXIS] = BB_CUSTOM_LEVEL_BED_CORNERS_X_MAX;
+      #else
+       current_position[X_AXIS] = X_MAX_BED - LEVEL_CORNERS_INSET;
+      #endif //BIGBOX_CUSTOMISED_MENUS
       break;
     case 2:
-      current_position[Y_AXIS] = Y_MAX_BED - LEVEL_CORNERS_INSET;
+      #if ENABLED(BIGBOX_CUSTOMISED_MENUS)
+       current_position[Y_AXIS] = BB_CUSTOM_LEVEL_BED_CORNERS_Y_MAX;
+      #else
+       current_position[Y_AXIS] = Y_MAX_BED - LEVEL_CORNERS_INSET;
+      #endif //BIGBOX_CUSTOMISED_MENUS
       break;
     case 3:
-      current_position[X_AXIS] = X_MIN_BED + LEVEL_CORNERS_INSET;
+      #if ENABLED(BIGBOX_CUSTOMISED_MENUS)
+       current_position[X_AXIS] = BB_CUSTOM_LEVEL_BED_CORNERS_X_MIN;
+      #else
+       current_position[X_AXIS] = X_MIN_BED + LEVEL_CORNERS_INSET;
+      #endif //BIGBOX_CUSTOMISED_MENUS
       break;
     #if ENABLED(LEVEL_CENTER_TOO)
       case 4:

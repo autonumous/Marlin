@@ -83,8 +83,11 @@ class Nozzle {
   #endif // NOZZLE_CLEAN_FEATURE
 
   #if ENABLED(NOZZLE_PARK_FEATURE)
+    #if ENABLED(BB_CUSTOM_DOCK_G27)
+     static void park(const uint8_t z_action, const point_t &park=NOZZLE_PARK_POINT, const point_t &park2=NOZZLE_PARK_POINT2) _Os;
+    #else
+     static void park(const uint8_t z_action, const point_t &park=NOZZLE_PARK_POINT) _Os;
+    #endif //BB_CUSTOM_DOCK_G27
 
-    static void park(const uint8_t z_action, const point_t &park=NOZZLE_PARK_POINT) _Os;
-
-  #endif
+  #endif // NOZZLE_PARK_FEATURE
 };

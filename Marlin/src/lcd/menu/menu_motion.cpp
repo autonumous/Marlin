@@ -410,6 +410,15 @@ void menu_move() {
 
   #endif
 
+  #if ENABLED(BIGBOX_CUSTOMISED_MENUS)
+    if (all_axes_homed()) {  
+      MENU_ITEM(gcode, BB_CUSTOM_MENU_DROPBED_MENU , PSTR(BB_CUSTOM_MENU_DROPBED_HOMED));
+    }
+    else {
+      MENU_ITEM(gcode, BB_CUSTOM_MENU_DROPBED_MENU , PSTR(BB_CUSTOM_MENU_DROPBED_NOTHOMED));
+    }
+  #endif //BIGBOX_CUSTOMISED_MENUS              
+
   END_MENU();
 }
 
@@ -483,6 +492,41 @@ void menu_motion() {
   // Disable Steppers
   //
   MENU_ITEM(gcode, MSG_DISABLE_STEPPERS, PSTR("M84"));
+
+  //
+  // BigBox Extras
+  //
+  #if ENABLED(BIGBOX_CUSTOMISED_MENUS)
+    //
+    // Dock Extruder to waste box // 20170106 PB 
+    //
+    if (all_axes_homed()) {
+      MENU_ITEM(gcode, BB_CUSTOM_MENU_DOCK_MENU, PSTR(BB_CUSTOM_MENU_DOCK_HOMED));
+    } else{
+      MENU_ITEM(gcode, BB_CUSTOM_MENU_DOCK_MENU, PSTR(BB_CUSTOM_MENU_DOCK_NOTHOMED));
+    }
+
+    //
+    // Wipe/Clean nozzle in dock
+    // 
+    if (all_axes_homed()) {
+        MENU_ITEM(gcode, BB_CUSTOM_MENU_NOZZLECLEAN_MENU, PSTR(BB_CUSTOM_MENU_NOZZLECLEAN_HOMED));
+    } else{
+        MENU_ITEM(gcode, BB_CUSTOM_MENU_NOZZLECLEAN_MENU, PSTR(BB_CUSTOM_MENU_NOZZLECLEAN_NOTHOMED));
+    }
+
+    //
+    // XY Loop  useful for testing full coverage of XY plane
+    //
+    if (all_axes_homed()) {
+        MENU_ITEM(gcode, BB_CUSTOM_MENU_XYLOOP_MENU, PSTR(BB_CUSTOM_MENU_XYLOOP_HOMED));
+    } else{
+        MENU_ITEM(gcode, BB_CUSTOM_MENU_XYLOOP_MENU , PSTR(BB_CUSTOM_MENU_XYLOOP_NOTHOMED));
+    }
+  # endif //BIGBOX_CUSTOMISED_MENUS
+
+
+
 
   END_MENU();
 }
