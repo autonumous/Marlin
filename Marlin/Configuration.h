@@ -1044,9 +1044,9 @@
 
   // Set the boundaries for probing (where the probe can reach).
   #define LEFT_PROBE_BED_POSITION MIN_PROBE_EDGE
-  #define RIGHT_PROBE_BED_POSITION (X_BED_SIZE + X_PROBE_OFFSET_FROM_EXTRUDER - MIN_PROBE_EDGE) //(X_BED_SIZE - MIN_PROBE_EDGE)
+  #define RIGHT_PROBE_BED_POSITION (X_MAX_POS + X_PROBE_OFFSET_FROM_EXTRUDER - LEFT_PROBE_BED_POSITION) //(X_BED_SIZE + X_PROBE_OFFSET_FROM_EXTRUDER - MIN_PROBE_EDGE) //(X_BED_SIZE - MIN_PROBE_EDGE)
   #define FRONT_PROBE_BED_POSITION MIN_PROBE_EDGE
-  #define BACK_PROBE_BED_POSITION (Y_BED_SIZE - MIN_PROBE_EDGE)
+  #define BACK_PROBE_BED_POSITION (Y_BED_SIZE-FRONT_PROBE_BED_POSITION) //(Y_BED_SIZE - MIN_PROBE_EDGE)
 
   // Probe along the Y axis, advancing X after each column
   //#define PROBE_Y_FIRST
@@ -1075,9 +1075,9 @@
   //========================= Unified Bed Leveling ============================
   //===========================================================================
 
-  //#define MESH_EDIT_GFX_OVERLAY   // Display a graphics overlay while editing the mesh
+  #define MESH_EDIT_GFX_OVERLAY   // Display a graphics overlay while editing the mesh
 
-  #define MESH_INSET 1              // Set Mesh bounds as an inset region of the bed
+  #define MESH_INSET 10              // Set Mesh bounds as an inset region of the bed
   #define GRID_MAX_POINTS_X 10      // Don't use more than 15 points per axis, implementation limited.
   #define GRID_MAX_POINTS_Y 10
 
@@ -1150,7 +1150,7 @@
 // For DELTA this is the top-center of the Cartesian print volume.
 #define MANUAL_X_HOME_POS -38.6
 #define MANUAL_Y_HOME_POS 0
-#define MANUAL_Z_HOME_POS 0 //2.2 //2.6 //0 // Distance between the nozzle to printbed after homing
+#define MANUAL_Z_HOME_POS 0  // Distance between the nozzle to printbed after homing
 
 // Use "Z Safe Homing" to avoid homing with a Z probe outside the bed area.
 //
