@@ -677,7 +677,7 @@ class Temperature {
         static uint8_t auto_report_temp_interval;
         static millis_t next_temp_report_ms;
         static void auto_report_temperatures(void);
-        FORCE_INLINE void set_auto_report_interval(uint8_t v) {
+        FORCE_INLINE void set_auto_report_interval(const uint8_t v) {
           NOMORE(v, 60);
           auto_report_temp_interval = v;
           next_temp_report_ms = millis() + 1000UL * v;
