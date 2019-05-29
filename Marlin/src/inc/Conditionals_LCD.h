@@ -138,9 +138,12 @@
 #elif ENABLED(MKS_MINI_12864)
 
   #define MINIPANEL
+  #define DEFAULT_LCD_CONTRAST 150
+  #define LCD_CONTRAST_MAX 255
 
-#elif ENABLED(FYSETC_MINI_12864)
+#elif ANY(FYSETC_MINI_12864_1_2, FYSETC_MINI_12864_2_0, FYSETC_MINI_12864_2_1)
 
+  #define FYSETC_MINI_12864
   #define DOGLCD
   #define ULTIPANEL
   #define LCD_CONTRAST_MIN 0
@@ -148,12 +151,29 @@
   #define DEFAULT_LCD_CONTRAST 255
   #define LED_COLORS_REDUCE_GREEN
 
+  // Require LED backlighting enabled
+  #if EITHER(FYSETC_MINI_12864_1_2, FYSETC_MINI_12864_2_0)
+    #define RGB_LED
+  #elif ENABLED(FYSETC_MINI_12864_2_1)
+    #define NEOPIXEL_LED
+    #undef NEOPIXEL_TYPE
+    #define NEOPIXEL_TYPE       NEO_RGB
+    #undef NEOPIXEL_PIXELS
+    #define NEOPIXEL_PIXELS     3
+    #ifndef NEOPIXEL_BRIGHTNESS
+      #define NEOPIXEL_BRIGHTNESS 127
+    #endif
+    #define NEOPIXEL_STARTUP_TEST
+  #endif
+
 #endif
 
 #if EITHER(MAKRPANEL, MINIPANEL)
   #define DOGLCD
   #define ULTIPANEL
-  #define DEFAULT_LCD_CONTRAST 17
+  #ifndef DEFAULT_LCD_CONTRAST
+    #define DEFAULT_LCD_CONTRAST 17
+  #endif
 #endif
 
 #if ENABLED(ULTI_CONTROLLER)
@@ -314,8 +334,14 @@
   #define ULTRA_LCD
 #endif
 
+// Extensible UI serial touch screens. (See src/lcd/extensible_ui)
+#if ENABLED(MALYAN_LCD)
+  #define EXTENSIBLE_UI
+#endif
+
 // Aliases for LCD features
 #define HAS_SPI_LCD          ENABLED(ULTRA_LCD)
+#define HAS_DISPLAY         (HAS_SPI_LCD || ENABLED(EXTENSIBLE_UI))
 #define HAS_GRAPHICAL_LCD    ENABLED(DOGLCD)
 #define HAS_CHARACTER_LCD   (HAS_SPI_LCD && !HAS_GRAPHICAL_LCD)
 #define HAS_LCD_MENU        (ENABLED(ULTIPANEL) && DISABLED(NO_LCD_MENUS))
@@ -325,7 +351,7 @@
 /**
  * Default LCD contrast for Graphical LCD displays
  */
-#define HAS_LCD_CONTRAST HAS_GRAPHICAL_LCD && defined(DEFAULT_LCD_CONTRAST)
+#define HAS_LCD_CONTRAST (HAS_GRAPHICAL_LCD && defined(DEFAULT_LCD_CONTRAST))
 #if HAS_LCD_CONTRAST
   #ifndef LCD_CONTRAST_MIN
     #define LCD_CONTRAST_MIN 0
@@ -379,9 +405,6 @@
   #define E_MANUAL        EXTRUDERS
 #elif ENABLED(PRUSA_MMU2)
   #define E_STEPPERS 1
-  #ifndef TOOLCHANGE_ZRAISE
-    #define TOOLCHANGE_ZRAISE 0
-  #endif
 #endif
 
 // No inactive extruders with MK2_MULTIPLEXER or SWITCHING_NOZZLE
@@ -449,9 +472,6 @@
   #if NUM_SERVOS == 1
     #undef SERVO_DELAY
     #define SERVO_DELAY { 50 }
-  #endif
-  #ifndef BLTOUCH_DELAY
-    #define BLTOUCH_DELAY 375
   #endif
 
   // Always disable probe pin inverting for BLTouch
@@ -562,3 +582,5 @@
 #if ENABLED(SLIM_LCD_MENUS)
   #define BOOT_MARLIN_LOGO_SMALL
 #endif
+
+#define IS_RE_ARM_BOARD (MB(RAMPS_14_RE_ARM_EFB) || MB(RAMPS_14_RE_ARM_EEB) || MB(RAMPS_14_RE_ARM_EFF) || MB(RAMPS_14_RE_ARM_EEF) || MB(RAMPS_14_RE_ARM_SF))
