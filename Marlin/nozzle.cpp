@@ -178,9 +178,11 @@ static_assert(COUNT(npp) == XYZ, "NOZZLE_PARK_POINT requires X, Y, and Z values.
       default: // Raise to at least the Z-park height
         do_blocking_move_to_z(MAX(park.z, current_position[Z_AXIS]), fr_z);
     }
-
+    const uint8_t old_tool_index = active_extruder;
+    tool_change(0, 0, false);
     do_blocking_move_to_xy(park.x, park.y, fr_xy);
     do_blocking_move_to_xy(park2.x, park2.y, fr_xy);
+    tool_change(old_tool_index, 0, false);
   }
 #else   // !BB_CUSTOM_DOCK_G27
   void Nozzle::park(const uint8_t &z_action, const point_t &park/*=NOZZLE_PARK_POINT*/) {
@@ -198,8 +200,10 @@ static_assert(COUNT(npp) == XYZ, "NOZZLE_PARK_POINT requires X, Y, and Z values.
       default: // Raise to at least the Z-park height
         do_blocking_move_to_z(MAX(park.z, current_position[Z_AXIS]), fr_z);
     }
-
+    const uint8_t old_tool_index = active_extruder;
+    tool_change(0, 0, false);
     do_blocking_move_to_xy(park.x, park.y, fr_xy);
+    tool_change(old_tool_index, 0, false);
   }
 #endif // BB_CUSTOM_DOCK_G27
 #endif // NOZZLE_PARK_FEATURE
