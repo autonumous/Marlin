@@ -133,6 +133,7 @@
 // Please choose the name from boards.h that matches your setup
 #ifndef MOTHERBOARD
   #define MOTHERBOARD BOARD_RUMBA //BOARD_RAMPS_14_EFB
+  #define MOTHERBOARD BOARD_RUMBA_BIGBOXDUAL
 #endif
 
 // Optional custom name for your RepStrap or other custom machine

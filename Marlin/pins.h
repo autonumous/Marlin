@@ -130,6 +130,8 @@
   #include "pins_ULTIMAIN_2.h"        // ATmega2560                                 env:megaatmega2560
 #elif MB(RUMBA)
   #include "pins_RUMBA.h"             // ATmega2560                                 env:megaatmega2560
+#elif MB(BOARD_RUMBA_BIGBOXDUAL)
+  #include "pins_RUMBA_BigBoxDual.h"  // ATmega2560                                 env:megaatmega2560
 #elif MB(BQ_ZUM_MEGA_3D)
   #include "pins_BQ_ZUM_MEGA_3D.h"    // ATmega2560                                 env:megaatmega2560
 #elif MB(MAKEBOARD_MINI)
@@ -148,7 +150,7 @@
 #elif MB(CNCONTROLS_11)
   #include "pins_CNCONTROLS_11.h"     // ATmega1280, ATmega2560                     env:megaatmega1280 env:megaatmega2560
 #elif MB(CNCONTROLS_12)
-  #include "pins_CNCONTROLS_12.h"     // ATmega1280, ATmega2560                     env:megaatmega1280 env:megaatmega2560
+  #include"pins_CNCONTROLS_12.h"     // ATmega1280, ATmega2560                     env:megaatmega1280 env:megaatmega2560
 #elif MB(MIGHTYBOARD_REVE)
   #include "pins_MIGHTYBOARD_REVE.h"  // ATmega1280, ATmega2560                     env:megaatmega1280 env:megaatmega2560
 #elif MB(CHEAPTRONIC)
