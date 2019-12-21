@@ -502,7 +502,16 @@
     #endif
 
     // Start heating the nozzle and wait for it to reach temperature.
-    thermalManager.setTargetHotend(g26_hotend_temp, 0);
+    #if ENABLED(BB_CUSTOM_G26_NOZZLE)
+        #if ENABLED(BB_CUSTOM_G26_NOZZLE_USE_ACTIVE)
+            thermalManager.setTargetHotend(g26_hotend_temp, active_extruder);   // ToDo
+        #else 
+            thermalManager.setTargetHotend(g26_hotend_temp, BB_CUSTOM_G26_NOZZLE_USE_NOZZLE);
+        #endif //BB_CUSTOM_G26_NOZZLE_USE_ACTIVE
+    #else  
+        thermalManager.setTargetHotend(g26_hotend_temp, 0);
+    #endif  //BB_CUSTOM_G26_NOZZLE
+
     while (ABS(thermalManager.degHotend(0) - g26_hotend_temp) > 3) {
 
       #if ENABLED(ULTIPANEL)
