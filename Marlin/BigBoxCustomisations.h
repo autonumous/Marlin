@@ -84,8 +84,11 @@
     // G26 Use custom Nozzle 
     // 
     // Use one of the following, 
-    #define BB_CUSTOM_G26_NOZZLE 1				// Hardcoded
-    #define BB_CUSTOM_G26_NOZZLE_USE_ACTIVE 1   // or currently active
+    #define BB_CUSTOM_G26_NOZZLE
+    #if ENABLED(BB_CUSTOM_G26_NOZZLE)
+        #define BB_CUSTOM_G26_NOZZLE_USE_NOZZLE 1	// Hardcoded
+        #define BB_CUSTOM_G26_NOZZLE_USE_ACTIVE    // or currently active
+    #endif //BB_CUSTOM_G26_NOZZLE
 
 
 
