@@ -76,20 +76,8 @@
 	//
 	#define BB_CUSTOM_DOCK_G27
 	#if ENABLED(BB_CUSTOM_DOCK_G27)
-	  #define BB_CUSTOM_NOZZLE_PARK_POINT2 {70,238,20} 
+	  #define NOZZLE_PARK_POINT2 {70,238,20} 
 	#endif //BB_CUSTOM_DOCK_G27
-
-
-    //
-    // G26 Use custom Nozzle 
-    // 
-    // Use one of the following, 
-    #define BB_CUSTOM_G26_NOZZLE
-    #if ENABLED(BB_CUSTOM_G26_NOZZLE)
-        #define BB_CUSTOM_G26_NOZZLE_USE_NOZZLE 1	// Hardcoded
-        #define BB_CUSTOM_G26_NOZZLE_USE_ACTIVE    // or currently active
-    #endif //BB_CUSTOM_G26_NOZZLE
-
 
 
 

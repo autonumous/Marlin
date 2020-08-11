@@ -769,6 +769,13 @@ void set_current_from_steppers_for_axis(const AxisEnum axis);
   void plan_cubic_move(const float (&cart)[XYZE], const float (&offset)[4]);
 #endif
 
+/*
+#if ENABLED(BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE)
+   void tool_change(const uint8_t tmp_extruder, const float fr_mm_s=0.0, bool  move=false );
+#else
+   void tool_change(const uint8_t tmp_extruder, const float fr_mm_s=0.0, bool  no_move=false );
+#endif
+*/
 void report_current_position();
 void report_current_position_detail();
 
@@ -12566,11 +12573,9 @@ inline void invalid_extruder_error(const uint8_t e) {
 
 #if ENABLED(PARKING_EXTRUDER)
  #if ENABLED(BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE)
-  //inline void parking_extruder_tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool move/*=false*/) {
-  inline void parking_extruder_tool_change(const uint8_t tmp_extruder, bool move) {
+  inline void parking_extruder_tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool move/*=false*/) {
  #else
-  //inline void parking_extruder_tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool no_move/*=false*/) {
-  inline void parking_extruder_tool_change(const uint8_t tmp_extruder, bool no_move) {
+  inline void parking_extruder_tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool no_move/*=false*/) {
  #endif  //BB_CUSTOM_TOOL_CHANGE_BEHAVIOUR_NOMOVE
     constexpr float z_raise = PARKING_EXTRUDER_SECURITY_RAISE;
 

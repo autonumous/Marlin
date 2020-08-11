@@ -133,6 +133,7 @@
 // Please choose the name from boards.h that matches your setup
 #ifndef MOTHERBOARD
   #define MOTHERBOARD BOARD_RUMBA //BOARD_RAMPS_14_EFB
+  //#define MOTHERBOARD BOARD_RUMBA_BIGBOXDUAL
 #endif
 
 // Optional custom name for your RepStrap or other custom machine
@@ -445,9 +446,9 @@
 
   //120V 250W silicone heater into 4mm borosilicate (MendelMax 1.5+)
   //from FOPDT model - kp=.39 Tp=405 Tdead=66, Tc set to 79.2, aggressive factor of .15 (vs .1, 1, 10)
-  #define DEFAULT_bedKp 10.00
-  #define DEFAULT_bedKi .023
-  #define DEFAULT_bedKd 305.4
+  //#define  DEFAULT_bedKp 10.00
+  //#define  DEFAULT_bedKi .023
+  //#define  DEFAULT_bedKd 305.4
 
   //120V 250W silicone heater into 4mm borosilicate (MendelMax 1.5+)
   //from pidautotune
@@ -799,9 +800,6 @@
 // Certain types of probes need to stay away from edges
 #define MIN_PROBE_EDGE 10
 
-// Certain types of probes need to stay away from edges
-#define MIN_PROBE_EDGE 10
-
 // X and Y axis travel speed (mm/m) between probes
 #define XY_PROBE_SPEED 10000
 
@@ -1004,7 +1002,6 @@
  */
 #define RESTORE_LEVELING_AFTER_G28
 
-
 /**
  * Enable detailed logging of G28, G29, M48, etc.
  * Turn on with the command 'M111 S32'.
@@ -1045,9 +1042,9 @@
 
   // Set the boundaries for probing (where the probe can reach).
   #define LEFT_PROBE_BED_POSITION MIN_PROBE_EDGE
-  #define RIGHT_PROBE_BED_POSITION (X_BED_SIZE + X_PROBE_OFFSET_FROM_EXTRUDER - MIN_PROBE_EDGE) //(X_BED_SIZE - MIN_PROBE_EDGE)
+  #define RIGHT_PROBE_BED_POSITION (X_MAX_POS + X_PROBE_OFFSET_FROM_EXTRUDER - LEFT_PROBE_BED_POSITION) //(X_BED_SIZE + X_PROBE_OFFSET_FROM_EXTRUDER - MIN_PROBE_EDGE) //(X_BED_SIZE - MIN_PROBE_EDGE)
   #define FRONT_PROBE_BED_POSITION MIN_PROBE_EDGE
-  #define BACK_PROBE_BED_POSITION (Y_BED_SIZE - MIN_PROBE_EDGE)
+  #define BACK_PROBE_BED_POSITION (Y_BED_SIZE-FRONT_PROBE_BED_POSITION) //(Y_BED_SIZE - MIN_PROBE_EDGE)
 
   // Probe along the Y axis, advancing X after each column
   //#define PROBE_Y_FIRST
@@ -1076,9 +1073,9 @@
   //========================= Unified Bed Leveling ============================
   //===========================================================================
 
-  //#define MESH_EDIT_GFX_OVERLAY   // Display a graphics overlay while editing the mesh
+  #define MESH_EDIT_GFX_OVERLAY   // Display a graphics overlay while editing the mesh
 
-  #define MESH_INSET 1              // Set Mesh bounds as an inset region of the bed
+  #define MESH_INSET 10              // Set Mesh bounds as an inset region of the bed
   #define GRID_MAX_POINTS_X 10      // Don't use more than 15 points per axis, implementation limited.
   #define GRID_MAX_POINTS_Y 10
 
@@ -1131,11 +1128,6 @@
 
 #if ENABLED(LEVEL_BED_CORNERS)
   #define LEVEL_CORNERS_INSET 30    // (mm) An inset for corner leveling
-  //#define LEVEL_CENTER_TOO        // Move to the center after the last corner
-#endif
-
-#if ENABLED(LEVEL_BED_CORNERS)
-  #define LEVEL_CORNERS_INSET 30    // (mm) An inset for corner leveling
   #define LEVEL_CORNERS_Z_HOP  4.0  // (mm) Move nozzle up before moving between corners
   //#define LEVEL_CENTER_TOO        // Move to the center after the last corner
 #endif
@@ -1156,7 +1148,7 @@
 // For DELTA this is the top-center of the Cartesian print volume.
 #define MANUAL_X_HOME_POS -38.6
 #define MANUAL_Y_HOME_POS 0
-#define MANUAL_Z_HOME_POS 0 //2.2 //2.6 //0 // Distance between the nozzle to printbed after homing
+#define MANUAL_Z_HOME_POS 0  // Distance between the nozzle to printbed after homing
 
 // Use "Z Safe Homing" to avoid homing with a Z probe outside the bed area.
 //
@@ -1480,15 +1472,6 @@
 //#define NO_LCD_MENUS
 //#define SLIM_LCD_MENUS
 
-/**
- * LCD Menu Items
- *
- * Disable all menus and only display the Status Screen, or
- * just remove some extraneous menu items to recover space.
- */
-//#define NO_LCD_MENUS
-//#define SLIM_LCD_MENUS
-
 //
 // ENCODER SETTINGS
 //
@@ -1692,7 +1675,6 @@
 // http://reprap.org/wiki/RepRapDiscount_Full_Graphic_Smart_Controller
 //
 #define REPRAP_DISCOUNT_FULL_GRAPHIC_SMART_CONTROLLER
-
 
 //
 // ReprapWorld Graphical LCD

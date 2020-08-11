@@ -2763,6 +2763,47 @@ void lcd_quick_feedback(const bool clear_buttons) {
     }
     # endif //BIGBOX_CUSTOMISED_MENUS
 
+      
+    #if ENABLED(BIGBOX_CUSTOMISED_MENUS)
+    //
+    // Dock Extruder to waste box // 20170106 PB 
+    //
+    //if (axis_homed[Z_AXIS]){
+    if (all_axes_homed()) {
+      //MENU_ITEM(gcode, "Dock Head", PSTR("G90\nT0\nG1 X70 Y200 F3000\nG1 Y240 F2000\nG1 E-4 F4500"));
+      //MENU_ITEM(gcode, "Dock Head", PSTR("G91\nT0\nG1 Z1 F1000\nG90\nT0\nG1 X70 Y200 F3000\nG1 Y240 F2000\nG91\nG1 Z-1 F1000\n"));
+      MENU_ITEM(gcode, BB_CUSTOM_MENU_DOCK_MENU, PSTR(BB_CUSTOM_MENU_DOCK_HOMED));
+    } else{
+        //MENU_ITEM(gcode, "Dock Head", PSTR("G28\nG90\nG1 X70 Y200 F3000\nG1 Y240 F2000\nG1 E-4 F4500"));
+      //MENU_ITEM(gcode, "Dock Head", PSTR("G28\nG91\nT0\nG1 Z1 F1000\nG90\nG1 X70 Y200 F3000\nG1 Y240 F2000\nG1 Z-1 F1000\n"));
+      MENU_ITEM(gcode, BB_CUSTOM_MENU_DOCK_MENU, PSTR(BB_CUSTOM_MENU_DOCK_NOTHOMED));
+    }
+
+    //
+    // Wipe/Clean nozzle in dock
+    // 
+    //if (axis_homed[Z_AXIS]){
+    if (all_axes_homed()) {
+        MENU_ITEM(gcode, BB_CUSTOM_MENU_NOZZLECLEAN_MENU, PSTR(BB_CUSTOM_MENU_NOZZLECLEAN_HOMED));
+    } else{
+        MENU_ITEM(gcode, BB_CUSTOM_MENU_NOZZLECLEAN_MENU, PSTR(BB_CUSTOM_MENU_NOZZLECLEAN_NOTHOMED));
+    }
+
+    //
+    // XY Loop  useful for testing full coverage of XY plane
+    //
+    //if (axis_homed[Z_AXIS]){
+    if (all_axes_homed()) {
+        MENU_ITEM(gcode, BB_CUSTOM_MENU_XYLOOP_MENU, PSTR(BB_CUSTOM_MENU_XYLOOP_HOMED));
+    } else{
+        MENU_ITEM(gcode, BB_CUSTOM_MENU_XYLOOP_MENU , PSTR(BB_CUSTOM_MENU_XYLOOP_NOTHOMED));
+    }
+# endif //BIGBOX_CUSTOMISED_MENUS
+ 
+
+
+
+      
     //
     // TMC Z Calibration
     //
