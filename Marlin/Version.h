@@ -41,7 +41,7 @@
    * Verbose version identifier which should contain a reference to the location
    * from where the binary was downloaded or the source code was compiled.
    */
-  #define DETAILED_BUILD_VERSION SHORT_BUILD_VERSION " - e3D BigBox V1.1 Dual Hybrid Titan (github)"
+  #define DETAILED_BUILD_VERSION SHORT_BUILD_VERSION " - e3D BigBox V1.1 Dual Hybrid Titan"
 
   /**
    * The STRING_DISTRIBUTION_DATE represents when the binary file was built,
@@ -78,7 +78,7 @@
    * has a distinct Github fork— the Source Code URL should just be the main
    * Marlin repository.
    */
-  #define SOURCE_CODE_URL "https://github.com/autonumous/Marlin-BigBox"
+  #define SOURCE_CODE_URL "https://github.com/autonumous/MarlinFirmware-BigBoxV1.1"
 
   /**
    * Default generic printer UUID.
